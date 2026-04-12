@@ -1,0 +1,37 @@
+import { forwardRef } from "react";
+import clsx from "clsx";
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+}
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, error, ...props }, ref) => {
+    return (
+      <div className="w-full">
+        {label && (
+          <label className="block text-sm font-medium text-neutral-800 mb-2">
+            {label}
+          </label>
+        )}
+        <input
+          ref={ref}
+          className={clsx(
+            "w-full min-h-[44px] px-4 py-3 rounded-button border-2 bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors",
+            error
+              ? "border-red-500 focus:border-red-500"
+              : "border-neutral-200 focus:border-emerald-600",
+            className
+          )}
+          {...props}
+        />
+        {error && (
+          <p className="mt-1.5 text-sm text-red-600">{error}</p>
+        )}
+      </div>
+    );
+  }
+);
+
+Input.displayName = "Input";

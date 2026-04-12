@@ -1,0 +1,12 @@
+-- SEN TRAJET - Phase 3: Credit System (Yango-like)
+-- Applied via Supabase MCP: sen_trajet_credit_system
+
+-- Tables created:
+--   public.wallets (driver balance)
+--   public.credit_packages (purchasable packs)
+--   public.transactions (credit history)
+--   public.payment_intents (mobile money payments)
+--
+-- Functions: debit_credits(), credit_recharge(), ensure_driver_wallet()
+-- Enums: tx_type, payment_provider, payment_status
+-- Seeded 4 credit packages

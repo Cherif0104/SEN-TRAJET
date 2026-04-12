@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Charte — émeraude (CTA) + bleu ardoise pour le texte fort */
+    --color-primary: #059669;
+    --color-primary-light: #10b981;
+    --color-primary-dark: #047857;
+    --color-success: #10b981;
+    --color-warning: #F59E0B;
+    --color-error: #EF4444;
+    /* Espacement - 8px grid */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+    --space-3xl: 64px;
+    /* Bordures */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    /* Ombres */
+    --shadow-sm: 0px 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0px 4px 8px rgba(0, 0, 0, 0.12);
+    --shadow-card: 0px 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-800 antialiased;
+    /* Mobile-first: safe area pour encoches / barre d'accueil */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight;
+  }
+
+  /* Zones tactiles min 44px hauteur (accessibilité mobile) */
+  button:not(.no-min-touch),
+  a[role="button"]:not(.no-min-touch),
+  [type="submit"]:not(.no-min-touch),
+  [type="button"]:not(.no-min-touch) {
+    min-height: 44px;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center font-semibold rounded-button transition-all duration-200 min-h-[44px] px-6;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-white shadow-[0px_2px_4px_rgba(37,99,235,0.2)] hover:opacity-95 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn bg-transparent border-2 border-neutral-300 text-neutral-800 hover:bg-neutral-100;
+  }
+
+  .card {
+    @apply bg-white rounded-card shadow-card p-5 border border-neutral-200/80;
+  }
+
+  .card-interactive {
+    @apply card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 cursor-pointer;
+  }
+
+  .input-base {
+    @apply w-full min-h-[44px] px-4 py-3 rounded-button border-2 border-neutral-300 bg-white placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+}
