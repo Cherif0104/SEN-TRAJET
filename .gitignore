@@ -20,7 +20,8 @@ pnpm-debug.log*
 Thumbs.db
 
 # cursor / ide
-.cursor/
+.cursor/*
+!.cursor/mcp.json
 .idea/
 
 # vercel
