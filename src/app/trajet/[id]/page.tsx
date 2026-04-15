@@ -11,12 +11,16 @@ import { TripLiveMap } from "@/components/map/TripLiveMap";
 import { TripTypeBadge } from "@/components/ui/TripTypeBadge";
 import { VehicleBadge } from "@/components/ui/VehicleBadge";
 import { fetchTripById } from "@/lib/fetchTrip";
+import { useAuth } from "@/hooks/useAuth";
+import { getBookingByTripAndClient, getBookingsForDriver } from "@/lib/bookings";
 
 export default function TrajetDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { user } = useAuth();
   const [trip, setTrip] = useState<Awaited<ReturnType<typeof fetchTripById>>>(null);
   const [loading, setLoading] = useState(true);
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -25,6 +29,33 @@ export default function TrajetDetailPage() {
       setLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!trip || !user?.id) {
+      setTrackingEnabled(false);
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      if (trip.driverId === user.id) {
+        const bookings = await getBookingsForDriver(user.id);
+        const hasActiveCourse = bookings.some(
+          (booking) =>
+            booking.trip_id === trip.id &&
+            (booking.status === "pending" || booking.status === "confirmed")
+        );
+        if (mounted) setTrackingEnabled(hasActiveCourse);
+        return;
+      }
+      const booking = await getBookingByTripAndClient(trip.id, user.id);
+      if (mounted) {
+        setTrackingEnabled(Boolean(booking && (booking.status === "pending" || booking.status === "confirmed")));
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [trip, user?.id]);
 
   if (loading) {
     return (
@@ -67,6 +98,7 @@ export default function TrajetDetailPage() {
   const toCity = trip.toCity;
   const departurePlace = trip.fromPlace || trip.fromCity;
   const arrivalPlace = trip.toPlace || trip.toCity;
+  const mapRole = trip.driverId && user?.id === trip.driverId ? "driver" : "client";
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
@@ -84,7 +116,8 @@ export default function TrajetDetailPage() {
           tripId={id}
           fromCity={fromCity}
           toCity={toCity}
-          userRole="client"
+          userRole={mapRole}
+          trackingEnabled={trackingEnabled}
           className="mb-6"
         />
 

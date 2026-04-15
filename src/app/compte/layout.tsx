@@ -15,6 +15,13 @@ const nav = [
   { href: "/compte/profil", label: "Mon profil", icon: User },
 ];
 
+const mobileNav = [
+  { href: "/compte", label: "Accueil", icon: LayoutDashboard },
+  { href: "/compte/reservations", label: "Réserv.", icon: CalendarCheck },
+  { href: "/compte/demandes", label: "Demandes", icon: FileText },
+  { href: "/compte/profil", label: "Profil", icon: User },
+];
+
 export default function CompteLayout({
   children,
 }: {
@@ -77,16 +84,17 @@ export default function CompteLayout({
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-neutral-200 bg-white md:hidden">
-        {nav.map(({ href, label, icon: Icon }) => (
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-neutral-200 bg-white/95 backdrop-blur md:hidden">
+        {mobileNav.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
-            className={`flex flex-1 flex-col items-center gap-1 py-2 text-xs ${
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-[11px] ${
               pathname === href ? "text-primary" : "text-neutral-500"
             }`}
           >
-            <Icon className="h-6 w-6" /> {label}
+            <Icon className="h-5 w-5" />
+            <span className="truncate">{label}</span>
           </Link>
         ))}
       </nav>

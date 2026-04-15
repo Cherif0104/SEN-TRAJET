@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { FeedbackBanner } from "@/components/ui/FeedbackBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { getOpenRequests, type TripRequest } from "@/lib/requests";
 import { getBookingsForDriver, type BookingWithTrip } from "@/lib/bookings";
-import { MapPin, Calendar, Users, CreditCard, Car, FileSearch, ClipboardList, HelpCircle } from "lucide-react";
+import { MapPin, Calendar, Users, CreditCard, Car, ClipboardList, HelpCircle, History } from "lucide-react";
 import { TripTypeBadge } from "@/components/ui/TripTypeBadge";
 
 function getInitials(name: string | null, email?: string) {
@@ -24,6 +25,8 @@ export default function ChauffeurDashboardPage() {
   const { user, profile } = useAuth();
   const [recentRequests, setRecentRequests] = useState<TripRequest[]>([]);
   const [upcomingReservationsCount, setUpcomingReservationsCount] = useState<number>(0);
+  const [completedReservationsCount, setCompletedReservationsCount] = useState<number>(0);
+  const [showPublishedSuccess, setShowPublishedSuccess] = useState(false);
 
   useEffect(() => {
     getOpenRequests()
@@ -42,9 +45,20 @@ export default function ChauffeurDashboardPage() {
           return new Date(dep) >= now && (b.status === "confirmed" || b.status === "pending");
         });
         setUpcomingReservationsCount(upcoming.length);
+        setCompletedReservationsCount(list.filter((b) => b.status === "completed").length);
       })
       .catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("published") === "1") {
+      setShowPublishedSuccess(true);
+      url.searchParams.delete("published");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   const displayName = profile?.full_name?.trim() || user?.email?.split("@")[0] || "";
   const firstName = profile?.full_name?.trim()?.split(/\s+/)[0] || displayName;
@@ -78,9 +92,21 @@ export default function ChauffeurDashboardPage() {
             Publier un trajet
           </Button>
         </div>
+        <div className="mt-3">
+          <Button variant="ghost" size="sm" href="/chauffeur/demandes">
+            Voir les demandes ouvertes
+          </Button>
+        </div>
       </section>
+      {showPublishedSuccess && (
+        <FeedbackBanner
+          className="mt-4"
+          tone="success"
+          message="Trajet publié avec succès. Vous pouvez maintenant suivre les réservations."
+        />
+      )}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -89,7 +115,7 @@ export default function ChauffeurDashboardPage() {
             <div>
               <h3 className="font-semibold text-neutral-900">Mes réservations</h3>
               <p className="text-sm text-neutral-500">
-                {upcomingReservationsCount} réservation{upcomingReservationsCount !== 1 ? "s" : ""} à venir
+                {upcomingReservationsCount} course{upcomingReservationsCount !== 1 ? "s" : ""} active{upcomingReservationsCount !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
@@ -100,28 +126,6 @@ export default function ChauffeurDashboardPage() {
             className="mt-3"
           >
             Voir mes réservations
-          </Button>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <FileSearch className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-neutral-900">Demandes</h3>
-              <p className="text-sm text-neutral-500">
-                {recentRequests.length} demande{recentRequests.length !== 1 ? "s" : ""} ouverte{recentRequests.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            href="/chauffeur/demandes"
-            className="mt-3"
-          >
-            Voir les demandes
           </Button>
         </Card>
 
@@ -147,6 +151,28 @@ export default function ChauffeurDashboardPage() {
 
         <Card>
           <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-100">
+              <History className="h-5 w-5 text-sky-700" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-neutral-900">Historique</h3>
+              <p className="text-sm text-neutral-500">
+                {completedReservationsCount} terminé{completedReservationsCount > 1 ? "es" : "e"}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            href="/chauffeur/reservations?tab=history"
+            className="mt-3"
+          >
+            Voir l&apos;historique
+          </Button>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
               <CreditCard className="h-5 w-5 text-amber-600" />
             </div>
@@ -165,6 +191,15 @@ export default function ChauffeurDashboardPage() {
           </Button>
         </Card>
       </div>
+
+      <Card className="mt-4 border border-neutral-200 bg-neutral-50">
+        <h2 className="text-sm font-semibold text-neutral-900">Parcours chauffeur recommandé</h2>
+        <div className="mt-2 grid gap-2 text-sm text-neutral-600 sm:grid-cols-3">
+          <p className="rounded-lg bg-white px-3 py-2">1. Publier un trajet clair (axe + heure + prix)</p>
+          <p className="rounded-lg bg-white px-3 py-2">2. Vérifier les demandes ouvertes compatibles</p>
+          <p className="rounded-lg bg-white px-3 py-2">3. Suivre vos réservations et crédits chaque jour</p>
+        </div>
+      </Card>
 
       {recentRequests.length > 0 && (
         <>
@@ -214,6 +249,17 @@ export default function ChauffeurDashboardPage() {
             ))}
           </div>
         </>
+      )}
+      {recentRequests.length === 0 && (
+        <Card className="mt-8 border border-neutral-200">
+          <h2 className="text-base font-semibold text-neutral-900">Aucune demande ouverte actuellement</h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            Publiez un trajet maintenant pour être visible dès qu&apos;une nouvelle demande apparaît.
+          </p>
+          <Button className="mt-3" size="sm" href="/chauffeur/trajet/nouveau">
+            Publier un trajet
+          </Button>
+        </Card>
       )}
 
       <p className="mt-8 text-center text-sm text-neutral-500">

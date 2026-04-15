@@ -5,17 +5,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { FeedbackBanner } from "@/components/ui/FeedbackBanner";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { getClientRentalBookings, type RentalBooking } from "@/lib/rentals";
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "En attente",
-  pending_payment: "Paiement en attente",
-  confirmed: "Confirmée",
-  active: "En cours",
-  completed: "Terminée",
-  cancelled: "Annulée",
-};
+import { RENTAL_STATUS_LABEL, rentalStatusStyle } from "@/lib/statusLabels";
 
 function CompteLocationsPageContent() {
   const { user } = useAuth();
@@ -42,21 +36,19 @@ function CompteLocationsPageContent() {
     <>
       <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">Mes locations</h1>
       <p className="mt-1 text-neutral-600">
-        Suivez vos réservations de véhicules.
+        Suivez l&apos;état de vos locations, les dates de remise et les actions de support.
       </p>
 
       {params.get("created") === "1" && (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Votre demande de location a été créée avec succès.
-        </div>
+        <FeedbackBanner
+          className="mt-4"
+          tone="success"
+          message="Votre demande de location a été créée avec succès."
+        />
       )}
 
       {loading ? (
-        <div className="mt-6 space-y-3">
-          {[1, 2].map((idx) => (
-            <div key={idx} className="h-28 animate-pulse rounded-xl bg-neutral-200" />
-          ))}
-        </div>
+        <ListSkeleton className="mt-6 animate-pulse space-y-3" items={2} itemClassName="h-28 rounded-xl bg-neutral-200" />
       ) : bookings.length === 0 ? (
         <Card className="mt-6">
           <h2 className="text-lg font-semibold text-neutral-900">Aucune location pour l’instant</h2>
@@ -77,15 +69,17 @@ function CompteLocationsPageContent() {
                     {booking.listing?.brand} {booking.listing?.model}
                   </h3>
                   <p className="mt-1 text-sm text-neutral-600">
-                    {booking.start_date} → {booking.end_date} · {booking.total_days} jour
+                    {formatDateFr(booking.start_date)} → {formatDateFr(booking.end_date)} · {booking.total_days} jour
                     {booking.total_days > 1 ? "s" : ""}
                   </p>
                   <p className="mt-1 text-sm text-neutral-500">
                     {booking.total_fcfa.toLocaleString("fr-FR")} FCFA
                   </p>
                 </div>
-                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                  {STATUS_LABEL[booking.status] ?? booking.status}
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${rentalStatusStyle(booking.status)}`}
+                >
+                  {RENTAL_STATUS_LABEL[booking.status] ?? booking.status}
                 </span>
               </div>
               <div className="mt-4 flex gap-2">
@@ -102,6 +96,12 @@ function CompteLocationsPageContent() {
       )}
     </>
   );
+}
+
+function formatDateFr(dateStr: string) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function CompteLocationsPage() {

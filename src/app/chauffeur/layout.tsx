@@ -22,7 +22,7 @@ const nav = [
 const mobileNav = [
   { href: "/chauffeur", label: "Accueil", icon: LayoutDashboard },
   { href: "/chauffeur/trajet/nouveau", label: "Publier", icon: PlusCircle },
-  { href: "/chauffeur/reservations", label: "Réservations", icon: CalendarCheck },
+  { href: "/chauffeur/reservations", label: "Résa", icon: CalendarCheck },
   { href: "/chauffeur/profil", label: "Profil", icon: User },
 ];
 

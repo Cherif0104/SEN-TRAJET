@@ -7,6 +7,7 @@ import { useTripLocations } from "@/hooks/useTripLocations";
 import { pushTripLocation } from "@/lib/tripLocations";
 import { MapPin, Navigation } from "lucide-react";
 import type { MapMarker } from "./Map";
+import { computeDistanceKm } from "@/lib/geo";
 
 interface TripLiveMapProps {
   tripId: string;
@@ -14,6 +15,8 @@ interface TripLiveMapProps {
   toCity?: string;
   /** Rôle: client partage sa position, driver partage la sienne */
   userRole?: "client" | "driver";
+  /** Active/désactive le tracking live automatique */
+  trackingEnabled?: boolean;
   className?: string;
 }
 
@@ -24,10 +27,11 @@ export function TripLiveMap({
   fromCity,
   toCity,
   userRole = "client",
+  trackingEnabled = true,
   className = "",
 }: TripLiveMapProps) {
-  const [sharePosition, setSharePosition] = useState(false);
-  const { position: myPosition, getPosition, startWatching } =
+  const [trackingReady, setTrackingReady] = useState(false);
+  const { position: myPosition, getPosition, startWatching, stopWatching } =
     useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
   const { clientPosition, driverPosition, loading } =
     useTripLocations(tripId);
@@ -35,13 +39,13 @@ export function TripLiveMap({
 
   const markers: MapMarker[] = [];
   const clientCoords =
-    userRole === "client" && sharePosition && myPosition
+    userRole === "client" && trackingReady && myPosition
       ? { lat: myPosition.lat, lng: myPosition.lng, label: "Vous (client)" }
       : clientPosition
         ? { lat: clientPosition.lat, lng: clientPosition.lng, label: "Client" }
         : null;
   const driverCoords =
-    userRole === "driver" && sharePosition && myPosition
+    userRole === "driver" && trackingReady && myPosition
       ? { lat: myPosition.lat, lng: myPosition.lng, label: "Vous (chauffeur)" }
       : driverPosition
         ? { lat: driverPosition.lat, lng: driverPosition.lng, label: "Chauffeur" }
@@ -53,8 +57,16 @@ export function TripLiveMap({
     markers.push({ ...driverCoords, type: "arrival" });
   }
 
+  const driverToClientKm =
+    clientCoords && driverCoords
+      ? computeDistanceKm(
+          { lat: driverCoords.lat, lng: driverCoords.lng },
+          { lat: clientCoords.lat, lng: clientCoords.lng }
+        )
+      : null;
+
   useEffect(() => {
-    if (!sharePosition || !tripId || !myPosition) return;
+    if (!trackingEnabled || !trackingReady || !tripId || !myPosition) return;
 
     const push = async () => {
       await pushTripLocation(tripId, userRole, {
@@ -74,30 +86,36 @@ export function TripLiveMap({
         pushIntervalRef.current = null;
       }
     };
-  }, [tripId, sharePosition, userRole, myPosition]);
+  }, [tripId, trackingEnabled, trackingReady, userRole, myPosition]);
 
-  const handleSharePosition = async () => {
-    const pos = await getPosition();
-    if (pos && tripId) {
-      await pushTripLocation(tripId, userRole, {
-        lat: pos.lat,
-        lng: pos.lng,
-        accuracy: pos.accuracy,
-        heading: pos.heading,
-        speed: pos.speed,
-      });
+  useEffect(() => {
+    if (!trackingEnabled) {
+      setTrackingReady(false);
+      stopWatching();
+      return;
     }
-  };
-
-  const handleStartSharing = () => {
-    setSharePosition(true);
-    getPosition().then(() => startWatching());
-  };
+    let mounted = true;
+    getPosition().then((pos) => {
+      if (!mounted || !pos) return;
+      setTrackingReady(true);
+      startWatching();
+    });
+    return () => {
+      mounted = false;
+      stopWatching();
+    };
+  }, [trackingEnabled, getPosition, startWatching, stopWatching]);
 
   return (
     <div className={className}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm text-neutral-600">
+          {trackingEnabled && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-emerald-800">
+              <Navigation className="h-3.5 w-3.5" />
+              Suivi live auto
+            </span>
+          )}
           {clientPosition && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary">
               <MapPin className="h-3.5 w-3.5" />
@@ -113,25 +131,10 @@ export function TripLiveMap({
           {loading && (
             <span className="text-neutral-500">Chargement des positions…</span>
           )}
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleSharePosition}
-            className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-          >
-            <MapPin className="h-4 w-4" />
-            Partager ma position
-          </button>
-          {!sharePosition && (
-            <button
-              type="button"
-              onClick={handleStartSharing}
-              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark"
-            >
-              <Navigation className="h-4 w-4" />
-              Suivi temps réel
-            </button>
+          {driverToClientKm != null && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-1 text-sky-800">
+              Distance client/chauffeur: {driverToClientKm.toFixed(1)} km
+            </span>
           )}
         </div>
       </div>

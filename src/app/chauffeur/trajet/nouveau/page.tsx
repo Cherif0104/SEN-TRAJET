@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { createTrip } from "@/lib/trips-create";
 import { computePriceBreakdown, type PickupMode } from "@/lib/pricing";
 import { senegalCities } from "@/data/senegalLocations";
+import { ArrowRightLeft, CircleDollarSign, Route, ShieldCheck } from "lucide-react";
 
 export default function NouveauTrajetPage() {
   const router = useRouter();
@@ -43,6 +44,10 @@ export default function NouveauTrajetPage() {
     e.preventDefault();
     setError(null);
     if (!user || !profile) return;
+    if (depart.trim().toLowerCase() === arrivee.trim().toLowerCase()) {
+      setError("Le départ et l'arrivée doivent être différents.");
+      return;
+    }
     const priceNum = Number(prix);
     if (!Number.isFinite(priceNum) || priceNum <= 0) {
       setError("Prix invalide.");
@@ -103,6 +108,20 @@ export default function NouveauTrajetPage() {
       <p className="mt-1 text-neutral-600">
         Proposez un trajet en quelques etapes: axe, horaires, prix et mode de prise en charge.
       </p>
+      <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
+          <Route className="mr-1 inline h-3.5 w-3.5" />
+          1. Itinéraire
+        </p>
+        <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
+          <CircleDollarSign className="mr-1 inline h-3.5 w-3.5" />
+          2. Prix & places
+        </p>
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+          <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
+          3. Publication
+        </p>
+      </div>
       <Card className="mt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -129,6 +148,19 @@ export default function NouveauTrajetPage() {
                 list="cities-arrivee"
                 required
               />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setDepart(arrivee);
+                  setArrivee(depart);
+                }}
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                Inverser départ et arrivée
+              </Button>
             </div>
           </div>
           <datalist id="cities-depart">
@@ -189,6 +221,17 @@ export default function NouveauTrajetPage() {
               {pickupMode === "home_pickup" ? " (inclut le supplément domicile)." : "."}
             </p>
           )}
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
+            <p className="font-semibold text-neutral-900">Récapitulatif publication</p>
+            <p className="mt-1 text-neutral-600">
+              {depart || "Départ"} → {arrivee || "Arrivée"} · {date || "Date"} {heure || "Heure"}
+            </p>
+            <p className="mt-1 text-neutral-600">
+              {places} place{places > 1 ? "s" : ""} ·{" "}
+              {prix ? `${Number(prix).toLocaleString("fr-FR")} FCFA / pers.` : "Prix à définir"} ·{" "}
+              {pickupMode === "home_pickup" ? "Domicile avec supplément" : "Point chauffeur"}
+            </p>
+          </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-neutral-800">
               Mode de prise en charge
@@ -235,9 +278,14 @@ export default function NouveauTrajetPage() {
               onChange={(e) => setHomePickupExtraFcfa(e.target.value)}
             />
           )}
-          <Button type="submit" fullWidth isLoading={loading}>
+          <Button type="submit" fullWidth isLoading={loading} className="hidden md:inline-flex">
             Publier le trajet
           </Button>
+          <div className="sticky bottom-20 z-30 -mx-1 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur md:hidden">
+            <Button type="submit" fullWidth isLoading={loading}>
+              Publier le trajet
+            </Button>
+          </div>
         </form>
       </Card>
     </>

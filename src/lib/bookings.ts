@@ -17,7 +17,7 @@ export async function createBooking(params: {
       passengers: params.passengers,
       meeting_point: params.meetingPoint || null,
       total_fcfa: params.totalFcfa,
-      status: "confirmed",
+      status: "pending",
     })
     .select()
     .single();

@@ -8,9 +8,14 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
 import { createRequest } from "@/lib/requests";
-import { senegalCities } from "@/data/senegalLocations";
+import {
+  communesByDepartment,
+  departmentsByRegion,
+  senegalRegions,
+} from "@/data/senegalLocations";
 import type { TripType } from "@/lib/trips";
 import type { PickupMode } from "@/lib/pricing";
+import { ArrowRightLeft, CalendarDays, Route, ShieldCheck } from "lucide-react";
 
 const TRIP_TYPES: { value: TripType; label: string }[] = [
   { value: "interurbain_covoiturage", label: "Covoiturage interurbain" },
@@ -34,6 +39,12 @@ export default function DemandePage() {
 
   const [fromCity, setFromCity] = useState("");
   const [toCity, setToCity] = useState("");
+  const [fromRegion, setFromRegion] = useState("");
+  const [fromDepartment, setFromDepartment] = useState("");
+  const [fromCommune, setFromCommune] = useState("");
+  const [toRegion, setToRegion] = useState("");
+  const [toDepartment, setToDepartment] = useState("");
+  const [toCommune, setToCommune] = useState("");
   const [departureDate, setDepartureDate] = useState("");
   const [timeRange, setTimeRange] = useState("flexible");
   const [passengers, setPassengers] = useState(1);
@@ -48,6 +59,10 @@ export default function DemandePage() {
     e.preventDefault();
     if (!user) {
       router.push("/connexion?next=" + encodeURIComponent("/demande"));
+      return;
+    }
+    if (fromCity.trim().toLowerCase() === toCity.trim().toLowerCase()) {
+      setError("Le départ et la destination doivent être différents.");
       return;
     }
     setError(null);
@@ -75,6 +90,7 @@ export default function DemandePage() {
 
   const today = new Date().toISOString().split("T")[0];
   const canSubmit = Boolean(user && fromCity.trim() && toCity.trim() && departureDate);
+  const selectedTripTypeLabel = TRIP_TYPES.find((t) => t.value === tripType)?.label ?? tripType;
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
@@ -87,6 +103,21 @@ export default function DemandePage() {
           Décrivez votre trajet et recevez des propositions de chauffeurs en
           temps réel.
         </p>
+
+        <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
+            <Route className="mr-1 inline h-3.5 w-3.5" />
+            1. Itinéraire
+          </p>
+          <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
+            <CalendarDays className="mr-1 inline h-3.5 w-3.5" />
+            2. Préférences
+          </p>
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+            <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
+            3. Publication
+          </p>
+        </div>
 
         <Card className="mt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -101,35 +132,146 @@ export default function DemandePage() {
                 Itinéraire
               </p>
               <div className="space-y-3">
-                <Input
-                  label="Ville de départ"
-                  placeholder="Dakar"
-                  value={fromCity}
-                  onChange={(e) => setFromCity(e.target.value)}
-                  list="cities-from"
-                  required
-                />
-                <Input
-                  label="Ville de destination"
-                  placeholder="Saint-Louis"
-                  value={toCity}
-                  onChange={(e) => setToCity(e.target.value)}
-                  list="cities-to"
-                  required
-                />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800">Départ</label>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <select
+                      value={fromRegion}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setFromRegion(next);
+                        setFromDepartment("");
+                        setFromCommune("");
+                        setFromCity(next);
+                      }}
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Région</option>
+                      {senegalRegions.map((region) => (
+                        <option key={region} value={region}>
+                          {region}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={fromDepartment}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setFromDepartment(next);
+                        setFromCommune("");
+                        setFromCity(next || fromRegion);
+                      }}
+                      disabled={!fromRegion}
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Département</option>
+                      {(departmentsByRegion[fromRegion] ?? []).map((department) => (
+                        <option key={department} value={department}>
+                          {department}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={fromCommune}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setFromCommune(next);
+                        setFromCity(next || fromDepartment || fromRegion);
+                      }}
+                      disabled={!fromDepartment}
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Commune/Arrond.</option>
+                      {(communesByDepartment[fromDepartment] ?? []).map((commune) => (
+                        <option key={commune} value={commune}>
+                          {commune}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800">Destination</label>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <select
+                      value={toRegion}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setToRegion(next);
+                        setToDepartment("");
+                        setToCommune("");
+                        setToCity(next);
+                      }}
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Région</option>
+                      {senegalRegions.map((region) => (
+                        <option key={region} value={region}>
+                          {region}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={toDepartment}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setToDepartment(next);
+                        setToCommune("");
+                        setToCity(next || toRegion);
+                      }}
+                      disabled={!toRegion}
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Département</option>
+                      {(departmentsByRegion[toRegion] ?? []).map((department) => (
+                        <option key={department} value={department}>
+                          {department}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={toCommune}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setToCommune(next);
+                        setToCity(next || toDepartment || toRegion);
+                      }}
+                      disabled={!toDepartment}
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Commune/Arrond.</option>
+                      {(communesByDepartment[toDepartment] ?? []).map((commune) => (
+                        <option key={commune} value={commune}>
+                          {commune}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    const prevRegion = fromRegion;
+                    const prevDepartment = fromDepartment;
+                    const prevCommune = fromCommune;
+                    setFromCity(toCity);
+                    setToCity(fromCity);
+                    setFromRegion(toRegion);
+                    setFromDepartment(toDepartment);
+                    setFromCommune(toCommune);
+                    setToRegion(prevRegion);
+                    setToDepartment(prevDepartment);
+                    setToCommune(prevCommune);
+                  }}
+                >
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  Inverser départ et destination
+                </Button>
               </div>
             </div>
-            <datalist id="cities-from">
-              {senegalCities.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-
-            <datalist id="cities-to">
-              {senegalCities.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
 
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">
@@ -240,6 +382,17 @@ export default function DemandePage() {
               />
             )}
 
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
+              <p className="font-semibold text-neutral-900">Récapitulatif de votre demande</p>
+              <p className="mt-1 text-neutral-600">
+                {fromCity || "Départ"} → {toCity || "Destination"} · {departureDate || "Date à définir"}
+              </p>
+              <p className="mt-1 text-neutral-600">
+                {selectedTripTypeLabel} · {passengers} passager{passengers > 1 ? "s" : ""} ·{" "}
+                {pickupMode === "home_pickup" ? "Prise à domicile (+supplément)" : "Point du chauffeur"}
+              </p>
+            </div>
+
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-800">
                 Notes (optionnel)
@@ -264,9 +417,22 @@ export default function DemandePage() {
               size="lg"
               isLoading={submitting}
               disabled={!canSubmit}
+              className="hidden sm:inline-flex"
             >
               Publier ma demande
             </Button>
+
+            <div className="sticky bottom-16 z-30 -mx-1 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:hidden">
+              <Button
+                type="submit"
+                fullWidth
+                size="lg"
+                isLoading={submitting}
+                disabled={!canSubmit}
+              >
+                Publier ma demande
+              </Button>
+            </div>
           </form>
         </Card>
       </main>

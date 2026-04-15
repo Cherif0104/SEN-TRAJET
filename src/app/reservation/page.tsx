@@ -12,6 +12,19 @@ import { fetchTripById } from "@/lib/fetchTrip";
 import { createBooking } from "@/lib/bookings";
 import { useAuth } from "@/hooks/useAuth";
 
+const PAYMENT_OPTIONS = [
+  { value: "wave", label: "Wave" },
+  { value: "orange_money", label: "Orange Money" },
+  { value: "cash", label: "Paiement en espèces" },
+] as const;
+
+const BAGGAGE_OPTIONS = [
+  { value: "none", label: "Aucun" },
+  { value: "light", label: "Léger (sac à dos)" },
+  { value: "medium", label: "Moyen (valise cabine)" },
+  { value: "large", label: "Volumineux (valise soute)" },
+] as const;
+
 function ReservationContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -21,11 +34,16 @@ function ReservationContent() {
   const [trip, setTrip] = useState<Awaited<ReturnType<typeof fetchTripById>>>(null);
   const [tripLoading, setTripLoading] = useState(true);
   const [step, setStep] = useState<"form" | "confirm">("form");
-  const [passengers, setPassengers] = useState(1);
+  const [adultPassengers, setAdultPassengers] = useState(1);
+  const [childPassengers, setChildPassengers] = useState(0);
+  const [paymentMode, setPaymentMode] = useState<(typeof PAYMENT_OPTIONS)[number]["value"]>("wave");
+  const [baggageType, setBaggageType] = useState<(typeof BAGGAGE_OPTIONS)[number]["value"]>("none");
   const [meetingPoint, setMeetingPoint] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const passengers = adultPassengers + childPassengers;
 
   useEffect(() => {
     if (!trajetId) {
@@ -41,9 +59,17 @@ function ReservationContent() {
 
   useEffect(() => {
     if (trip && trip.availableSeats < passengers) {
-      setPassengers(Math.max(1, trip.availableSeats));
+      setAdultPassengers(Math.max(1, Math.min(adultPassengers, trip.availableSeats)));
+      setChildPassengers(Math.max(0, trip.availableSeats - Math.max(1, Math.min(adultPassengers, trip.availableSeats))));
     }
-  }, [trip, passengers]);
+  }, [trip, passengers, adultPassengers]);
+
+  useEffect(() => {
+    const maxChildren = Math.max(0, (trip?.availableSeats ?? 4) - adultPassengers);
+    if (childPassengers > maxChildren) {
+      setChildPassengers(maxChildren);
+    }
+  }, [adultPassengers, childPassengers, trip?.availableSeats]);
 
   const totalFcfa = trip ? trip.priceFcfa * passengers : 0;
   const totalFormatted = totalFcfa.toLocaleString("fr-FR");
@@ -68,7 +94,16 @@ function ReservationContent() {
         clientId: user.id,
         driverId: trip.driverId,
         passengers,
-        meetingPoint: meetingPoint || undefined,
+        meetingPoint:
+          [
+            meetingPoint ? `Rendez-vous: ${meetingPoint}` : "",
+            `Paiement: ${paymentMode}`,
+            `Bagage: ${baggageType}`,
+            `Adultes: ${adultPassengers}`,
+            `Enfants: ${childPassengers}`,
+          ]
+            .filter(Boolean)
+            .join(" | ") || undefined,
         totalFcfa,
       });
       setConfirmed(true);
@@ -186,21 +221,68 @@ function ReservationContent() {
         {step === "form" ? (
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-800">
-                Nombre de passagers
-              </label>
-              <select
-                value={passengers}
-                onChange={(e) => setPassengers(Number(e.target.value))}
-                className="w-full min-h-[44px] rounded-button border-2 border-neutral-300 bg-white px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                required
-              >
-                {Array.from({ length: Math.max(1, trip?.availableSeats ?? 4) }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n} passager{n > 1 ? "s" : ""}
-                  </option>
-                ))}
-              </select>
+              <label className="mb-2 block text-sm font-medium text-neutral-800">Passagers</label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Adultes</label>
+                  <select
+                    value={adultPassengers}
+                    onChange={(e) => setAdultPassengers(Number(e.target.value))}
+                    className="w-full min-h-[44px] rounded-button border-2 border-neutral-300 bg-white px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    required
+                  >
+                    {Array.from({ length: Math.max(1, trip?.availableSeats ?? 4) }, (_, i) => i + 1).map((n) => (
+                      <option key={`adult-${n}`} value={n}>
+                        {n} adulte{n > 1 ? "s" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Enfants</label>
+                  <select
+                    value={childPassengers}
+                    onChange={(e) => setChildPassengers(Number(e.target.value))}
+                    className="w-full min-h-[44px] rounded-button border-2 border-neutral-300 bg-white px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {Array.from({ length: Math.max(0, (trip?.availableSeats ?? 4) - 1) }, (_, i) => i).map((n) => (
+                      <option key={`child-${n}`} value={n}>
+                        {n} enfant{n > 1 ? "s" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Mode de paiement</label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value as (typeof PAYMENT_OPTIONS)[number]["value"])}
+                  className="w-full min-h-[44px] rounded-button border-2 border-neutral-300 bg-white px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  {PAYMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Bagages</label>
+                <select
+                  value={baggageType}
+                  onChange={(e) => setBaggageType(e.target.value as (typeof BAGGAGE_OPTIONS)[number]["value"])}
+                  className="w-full min-h-[44px] rounded-button border-2 border-neutral-300 bg-white px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  {BAGGAGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <Input
               label="Point de rencontre (optionnel)"
@@ -246,7 +328,13 @@ function ReservationContent() {
             )}
             <div className="rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
               <p>
-                <strong>Passagers :</strong> {passengers}
+                <strong>Passagers :</strong> {passengers} ({adultPassengers} adulte{adultPassengers > 1 ? "s" : ""}, {childPassengers} enfant{childPassengers > 1 ? "s" : ""})
+              </p>
+              <p className="mt-1">
+                <strong>Paiement :</strong> {PAYMENT_OPTIONS.find((p) => p.value === paymentMode)?.label}
+              </p>
+              <p className="mt-1">
+                <strong>Bagages :</strong> {BAGGAGE_OPTIONS.find((b) => b.value === baggageType)?.label}
               </p>
               {meetingPoint && (
                 <p className="mt-1 flex items-center gap-1">

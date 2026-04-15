@@ -5,15 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
 import { getPartnerByUserId } from "@/lib/partners";
 import { getOwnerRentalBookings, getPartnerRentalBookings, type RentalBooking } from "@/lib/rentals";
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "En attente",
-  pending_payment: "Paiement en attente",
-  confirmed: "Confirmée",
-  active: "En cours",
-  completed: "Terminée",
-  cancelled: "Annulée",
-};
+import { RENTAL_STATUS_LABEL, rentalStatusStyle } from "@/lib/statusLabels";
 
 export default function PartenaireLocationReservationsPage() {
   const { user } = useAuth();
@@ -71,8 +63,8 @@ export default function PartenaireLocationReservationsPage() {
                     {booking.owner_net_fcfa.toLocaleString("fr-FR")} FCFA
                   </p>
                 </div>
-                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                  {STATUS_LABEL[booking.status] ?? booking.status}
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${rentalStatusStyle(booking.status)}`}>
+                  {RENTAL_STATUS_LABEL[booking.status] ?? booking.status}
                 </span>
               </div>
             </Card>

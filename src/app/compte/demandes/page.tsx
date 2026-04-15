@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyRequests, type TripRequest } from "@/lib/requests";
 import { TripTypeBadge } from "@/components/ui/TripTypeBadge";
-import { MapPin, Calendar } from "lucide-react";
+import { Calendar, Clock3 } from "lucide-react";
+import { REQUEST_STATUS_LABEL, requestStatusStyle } from "@/lib/statusLabels";
 
 export default function CompteDemandesPage() {
   const { user } = useAuth();
@@ -26,15 +28,11 @@ export default function CompteDemandesPage() {
     <>
       <h1 className="text-xl font-bold text-neutral-900">Mes demandes</h1>
       <p className="mt-1 text-neutral-600">
-        Les demandes que vous avez publiées. Consultez les propositions des chauffeurs.
+        Retrouvez vos demandes publiées et ouvrez chaque fiche pour comparer les propositions chauffeurs.
       </p>
 
       {loading ? (
-        <div className="mt-6 animate-pulse space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 rounded-xl bg-neutral-200" />
-          ))}
-        </div>
+        <ListSkeleton className="mt-6 animate-pulse space-y-3" />
       ) : requests.length === 0 ? (
         <Card className="mt-6 py-12 text-center">
           <p className="text-neutral-600">Aucune demande</p>
@@ -46,7 +44,27 @@ export default function CompteDemandesPage() {
           </Button>
         </Card>
       ) : (
-        <ul className="mt-6 space-y-3">
+        <>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <Card className="border border-neutral-200 bg-neutral-50">
+              <p className="text-xs text-neutral-500">Total demandes</p>
+              <p className="text-xl font-bold text-neutral-900">{requests.length}</p>
+            </Card>
+            <Card className="border border-emerald-200 bg-emerald-50">
+              <p className="text-xs text-emerald-700">Ouvertes</p>
+              <p className="text-xl font-bold text-emerald-800">
+                {requests.filter((r) => r.status === "open").length}
+              </p>
+            </Card>
+            <Card className="border border-sky-200 bg-sky-50">
+              <p className="text-xs text-sky-700">Avec progression</p>
+              <p className="text-xl font-bold text-sky-800">
+                {requests.filter((r) => r.status === "matched").length}
+              </p>
+            </Card>
+          </div>
+
+          <ul className="mt-4 space-y-3">
           {requests.map((req) => (
             <li key={req.id}>
               <Link href={`/demande/${req.id}`}>
@@ -61,10 +79,18 @@ export default function CompteDemandesPage() {
                         {new Date(req.departure_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                       </span>
                       <span>{req.passengers} passager{req.passengers > 1 ? "s" : ""}</span>
+                      <span className="flex items-center gap-1">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        {req.departure_time_range}
+                      </span>
                       <TripTypeBadge tripType={req.trip_type} />
                     </div>
-                    <span className="mt-1 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 capitalize">
-                      {req.status}
+                    <span
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        requestStatusStyle(req.status)
+                      }`}
+                    >
+                      {REQUEST_STATUS_LABEL[req.status] ?? req.status}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-primary">Voir les propositions →</span>
@@ -72,7 +98,8 @@ export default function CompteDemandesPage() {
               </Link>
             </li>
           ))}
-        </ul>
+          </ul>
+        </>
       )}
     </>
   );

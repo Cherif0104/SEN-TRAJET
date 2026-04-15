@@ -13,7 +13,12 @@ import { VehicleBadge } from "@/components/ui/VehicleBadge";
 import { searchTrips, type Trip } from "@/lib/trips";
 import type { PickupMode } from "@/lib/pricing";
 import { reverseGeocode } from "@/lib/geocode";
-import { senegalCities } from "@/data/senegalLocations";
+import {
+  communesByDepartment,
+  departmentsByRegion,
+  senegalCities,
+  senegalRegions,
+} from "@/data/senegalLocations";
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "Toutes catégories" },
@@ -26,6 +31,37 @@ const CATEGORY_OPTIONS = [
 function parseAvailableSeats(seats: string): number {
   const m = seats.match(/^(\d+)\/\d+$/);
   return m ? parseInt(m[1], 10) : 0;
+}
+
+type LocationHierarchy = {
+  region: string;
+  department: string;
+  commune: string;
+};
+
+function inferLocationHierarchy(value: string): LocationHierarchy {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return { region: "", department: "", commune: "" };
+
+  for (const [department, communes] of Object.entries(communesByDepartment)) {
+    const commune = communes.find((c) => c.toLowerCase() === normalized);
+    if (commune) {
+      const region = Object.entries(departmentsByRegion).find(([, deps]) =>
+        deps.includes(department)
+      )?.[0];
+      return { region: region ?? "", department, commune };
+    }
+  }
+
+  for (const [region, departments] of Object.entries(departmentsByRegion)) {
+    const department = departments.find((d) => d.toLowerCase() === normalized);
+    if (department) return { region, department, commune: "" };
+  }
+
+  const region = senegalRegions.find((r) => r.toLowerCase() === normalized);
+  if (region) return { region, department: "", commune: "" };
+
+  return { region: "", department: "", commune: "" };
 }
 
 function RechercheContent() {
@@ -46,6 +82,14 @@ function RechercheContent() {
   const [formPickupMode, setFormPickupMode] = useState<PickupMode>(paramPickupMode);
   const [formError, setFormError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState<"depart" | "destination" | null>(null);
+  const [departRegion, setDepartRegion] = useState("");
+  const [departDepartment, setDepartDepartment] = useState("");
+  const [departCommune, setDepartCommune] = useState("");
+  const [destinationRegion, setDestinationRegion] = useState("");
+  const [destinationDepartment, setDestinationDepartment] = useState("");
+  const [destinationCommune, setDestinationCommune] = useState("");
+  const [departManualMode, setDepartManualMode] = useState(false);
+  const [destinationManualMode, setDestinationManualMode] = useState(false);
 
   const hasSearchParams = Boolean(paramDepart.trim() && paramDestination.trim());
   const [loading, setLoading] = useState(hasSearchParams);
@@ -62,6 +106,18 @@ function RechercheContent() {
     setFormHeure(paramHeure);
     setFormBudget(paramBudget);
     setFormPickupMode(paramPickupMode);
+
+    const departHierarchy = inferLocationHierarchy(paramDepart);
+    setDepartRegion(departHierarchy.region);
+    setDepartDepartment(departHierarchy.department);
+    setDepartCommune(departHierarchy.commune);
+    setDepartManualMode(Boolean(paramDepart && !departHierarchy.region));
+
+    const destinationHierarchy = inferLocationHierarchy(paramDestination);
+    setDestinationRegion(destinationHierarchy.region);
+    setDestinationDepartment(destinationHierarchy.department);
+    setDestinationCommune(destinationHierarchy.commune);
+    setDestinationManualMode(Boolean(paramDestination && !destinationHierarchy.region));
   }, [paramDepart, paramDestination, paramDate, paramHeure, paramBudget, paramPickupMode]);
 
   useEffect(() => {
@@ -136,6 +192,10 @@ function RechercheContent() {
       setFormError("Renseignez le départ et la destination pour lancer la recherche.");
       return;
     }
+    if (depart.toLowerCase() === destination.toLowerCase()) {
+      setFormError("Le départ et la destination doivent être différents.");
+      return;
+    }
     setFormError(null);
     const params = new URLSearchParams();
     params.set("depart", depart);
@@ -155,7 +215,7 @@ function RechercheContent() {
   return (
     <>
       <Header />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <Link
           href="/"
           className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-emerald-700"
@@ -183,74 +243,213 @@ function RechercheContent() {
             )}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-800">Point de départ</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  list="cities-depart"
-                  placeholder="Ex: Dakar, Thiès…"
-                  value={formDepart}
+              <div className="grid gap-2 sm:grid-cols-3">
+                <select
+                  value={departRegion}
                   onChange={(e) => {
-                    setFormDepart(e.target.value);
+                    const nextRegion = e.target.value;
+                    setDepartRegion(nextRegion);
+                    setDepartDepartment("");
+                    setDepartCommune("");
+                    setFormDepart(nextRegion);
+                    setDepartManualMode(false);
                     if (formError) setFormError(null);
                   }}
-                  className="min-h-[44px] flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="">Région</option>
+                  {senegalRegions.map((region) => (
+                    <option key={region} value={region}>
+                      {region}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={departDepartment}
+                  onChange={(e) => {
+                    const nextDepartment = e.target.value;
+                    setDepartDepartment(nextDepartment);
+                    setDepartCommune("");
+                    setFormDepart(nextDepartment || departRegion);
+                    setDepartManualMode(false);
+                    if (formError) setFormError(null);
+                  }}
+                  disabled={!departRegion}
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="">Département</option>
+                  {(departmentsByRegion[departRegion] ?? []).map((department) => (
+                    <option key={department} value={department}>
+                      {department}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={departCommune}
+                  onChange={(e) => {
+                    const nextCommune = e.target.value;
+                    setDepartCommune(nextCommune);
+                    setFormDepart(nextCommune || departDepartment || departRegion);
+                    setDepartManualMode(false);
+                    if (formError) setFormError(null);
+                  }}
+                  disabled={!departDepartment}
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="">Commune/Arrond.</option>
+                  {(communesByDepartment[departDepartment] ?? []).map((commune) => (
+                    <option key={commune} value={commune}>
+                      {commune}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  size="md"
+                  size="sm"
                   onClick={() => applyMyPosition("depart")}
                   disabled={geoLoading !== null}
                   title="Utiliser ma position"
                 >
-                  {geoLoading === "depart" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <MapPin className="h-4 w-4" />
-                  )}
+                  {geoLoading === "depart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                  <span className="ml-1">Ma position</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDepartManualMode((v) => !v)}
+                >
+                  {departManualMode ? "Masquer saisie" : "Saisie manuelle"}
                 </Button>
               </div>
-              <datalist id="cities-depart">
-                {senegalCities.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-              <p className="mt-1 text-xs text-neutral-500">Ou cliquez sur l’icône pour utiliser votre position.</p>
+              {departManualMode && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    list="cities-depart"
+                    placeholder="Ex: Dakar, Thiès…"
+                    value={formDepart}
+                    onChange={(e) => {
+                      setFormDepart(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    className="min-h-[44px] w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                  <datalist id="cities-depart">
+                    {senegalCities.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-800">Destination</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  list="cities-dest"
-                  placeholder="Ex: Saint-Louis, Mbour…"
-                  value={formDestination}
+              <div className="grid gap-2 sm:grid-cols-3">
+                <select
+                  value={destinationRegion}
                   onChange={(e) => {
-                    setFormDestination(e.target.value);
+                    const nextRegion = e.target.value;
+                    setDestinationRegion(nextRegion);
+                    setDestinationDepartment("");
+                    setDestinationCommune("");
+                    setFormDestination(nextRegion);
+                    setDestinationManualMode(false);
                     if (formError) setFormError(null);
                   }}
-                  className="min-h-[44px] flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="">Région</option>
+                  {senegalRegions.map((region) => (
+                    <option key={region} value={region}>
+                      {region}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={destinationDepartment}
+                  onChange={(e) => {
+                    const nextDepartment = e.target.value;
+                    setDestinationDepartment(nextDepartment);
+                    setDestinationCommune("");
+                    setFormDestination(nextDepartment || destinationRegion);
+                    setDestinationManualMode(false);
+                    if (formError) setFormError(null);
+                  }}
+                  disabled={!destinationRegion}
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="">Département</option>
+                  {(departmentsByRegion[destinationRegion] ?? []).map((department) => (
+                    <option key={department} value={department}>
+                      {department}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={destinationCommune}
+                  onChange={(e) => {
+                    const nextCommune = e.target.value;
+                    setDestinationCommune(nextCommune);
+                    setFormDestination(nextCommune || destinationDepartment || destinationRegion);
+                    setDestinationManualMode(false);
+                    if (formError) setFormError(null);
+                  }}
+                  disabled={!destinationDepartment}
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="">Commune/Arrond.</option>
+                  {(communesByDepartment[destinationDepartment] ?? []).map((commune) => (
+                    <option key={commune} value={commune}>
+                      {commune}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  size="md"
+                  size="sm"
                   onClick={() => applyMyPosition("destination")}
                   disabled={geoLoading !== null}
                   title="Utiliser ma position"
                 >
-                  {geoLoading === "destination" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <MapPin className="h-4 w-4" />
-                  )}
+                  {geoLoading === "destination" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                  <span className="ml-1">Ma position</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDestinationManualMode((v) => !v)}
+                >
+                  {destinationManualMode ? "Masquer saisie" : "Saisie manuelle"}
                 </Button>
               </div>
-              <datalist id="cities-dest">
-                {senegalCities.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
+              {destinationManualMode && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    list="cities-dest"
+                    placeholder="Ex: Saint-Louis, Mbour…"
+                    value={formDestination}
+                    onChange={(e) => {
+                      setFormDestination(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    className="min-h-[44px] w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                  <datalist id="cities-dest">
+                    {senegalCities.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
             </div>
             <Button
               type="button"
@@ -258,8 +457,20 @@ function RechercheContent() {
               size="sm"
               className="w-full sm:w-auto"
               onClick={() => {
+                const prevDepartRegion = departRegion;
+                const prevDepartDepartment = departDepartment;
+                const prevDepartCommune = departCommune;
+                const prevDepartManualMode = departManualMode;
                 setFormDepart(formDestination);
                 setFormDestination(formDepart);
+                setDepartRegion(destinationRegion);
+                setDepartDepartment(destinationDepartment);
+                setDepartCommune(destinationCommune);
+                setDepartManualMode(destinationManualMode);
+                setDestinationRegion(prevDepartRegion);
+                setDestinationDepartment(prevDepartDepartment);
+                setDestinationCommune(prevDepartCommune);
+                setDestinationManualMode(prevDepartManualMode);
               }}
             >
               <ArrowRightLeft className="mr-2 h-4 w-4" />
@@ -340,9 +551,22 @@ function RechercheContent() {
 
         {/* Résultats — uniquement après une recherche */}
         {!hasSearchParams && (
-          <p className="mt-8 text-center text-sm text-slate-500">
-            Renseignez départ et destination, puis lancez la recherche pour voir les trajets publiés.
-          </p>
+          <Card className="mt-8">
+            <p className="text-sm text-slate-600">
+              Renseignez départ et destination, puis lancez la recherche pour voir les trajets publiés.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" href="/recherche?depart=Dakar&destination=Thiès">
+                Dakar → Thiès
+              </Button>
+              <Button size="sm" variant="ghost" href="/recherche?depart=Dakar&destination=Saint-Louis">
+                Dakar → Saint-Louis
+              </Button>
+              <Button size="sm" variant="ghost" href="/recherche?depart=Thiès&destination=Mbour">
+                Thiès → Mbour
+              </Button>
+            </div>
+          </Card>
         )}
 
         {hasSearchParams && (
@@ -548,6 +772,22 @@ function RechercheContent() {
                 ))}
               </div>
             )}
+
+            <div className="fixed bottom-4 left-4 right-4 z-30 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:hidden">
+              <div className="flex gap-2">
+                <Button href="/demande" fullWidth size="sm" variant="secondary">
+                  Publier une demande
+                </Button>
+                <Button
+                  type="button"
+                  fullWidth
+                  size="sm"
+                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                >
+                  Modifier recherche
+                </Button>
+              </div>
+            </div>
           </>
         )}
       </main>

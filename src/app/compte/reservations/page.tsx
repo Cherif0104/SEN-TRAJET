@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { FeedbackBanner } from "@/components/ui/FeedbackBanner";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { getBookingsForClient, cancelBooking, type BookingWithTrip } from "@/lib/bookings";
 import { MessageCircle, MapPin, Star, XCircle } from "lucide-react";
+import { BOOKING_STATUS_LABEL, bookingStatusStyle } from "@/lib/statusLabels";
 
 export default function CompteReservationsPage() {
   const { user } = useAuth();
@@ -14,6 +17,7 @@ export default function CompteReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const refresh = () => {
     if (!user?.id) return;
@@ -36,6 +40,7 @@ export default function CompteReservationsPage() {
     setCancellingId(b.id);
     try {
       await cancelBooking(b.id);
+      setSuccessMessage("Réservation annulée avec succès.");
       setConfirmCancelId(null);
       refresh();
     } catch {
@@ -49,27 +54,47 @@ export default function CompteReservationsPage() {
     <>
       <h1 className="text-xl font-bold text-neutral-900">Mes réservations</h1>
       <p className="mt-1 text-neutral-600">
-        Liste de vos réservations. Cliquez pour voir le détail ou envoyer un message au chauffeur.
+        Suivez vos trajets réservés, contactez votre chauffeur et gérez les annulations avant départ.
       </p>
+      {successMessage && <FeedbackBanner className="mt-4" tone="success" message={successMessage} />}
 
       {loading ? (
-        <div className="mt-6 animate-pulse space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 rounded-xl bg-neutral-200" />
-          ))}
-        </div>
+        <ListSkeleton className="mt-6 animate-pulse space-y-3" />
       ) : bookings.length === 0 ? (
         <Card className="mt-6 py-12 text-center">
           <p className="text-neutral-600">Aucune réservation</p>
           <p className="mt-1 text-sm text-neutral-500">
             Réservez un trajet depuis la recherche ou en publiant une demande.
           </p>
-          <Button href="/recherche" className="mt-4">
-            Rechercher un trajet
-          </Button>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button href="/recherche">Rechercher un trajet</Button>
+            <Button href="/demande" variant="ghost">
+              Publier une demande
+            </Button>
+          </div>
         </Card>
       ) : (
-        <ul className="mt-6 space-y-3">
+        <>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <Card className="border border-neutral-200 bg-neutral-50">
+              <p className="text-xs text-neutral-500">Total</p>
+              <p className="text-xl font-bold text-neutral-900">{bookings.length}</p>
+            </Card>
+            <Card className="border border-emerald-200 bg-emerald-50">
+              <p className="text-xs text-emerald-700">Confirmées</p>
+              <p className="text-xl font-bold text-emerald-800">
+                {bookings.filter((b) => b.status === "confirmed").length}
+              </p>
+            </Card>
+            <Card className="border border-sky-200 bg-sky-50">
+              <p className="text-xs text-sky-700">Terminées</p>
+              <p className="text-xl font-bold text-sky-800">
+                {bookings.filter((b) => b.status === "completed").length}
+              </p>
+            </Card>
+          </div>
+
+          <ul className="mt-4 space-y-3">
           {bookings.map((b) => {
             const trip = b.trip as { from_city?: string; to_city?: string; departure_time?: string; driver_name?: string } | undefined;
             const dep = trip?.from_city ?? "—";
@@ -96,11 +121,15 @@ export default function CompteReservationsPage() {
                     <p className="text-sm text-neutral-600">
                       Chauffeur : {b.other_party_name ?? trip?.driver_name ?? "—"} · {b.passengers} place{b.passengers > 1 ? "s" : ""} · {b.total_fcfa?.toLocaleString("fr-FR")} FCFA
                     </p>
-                    <span className="mt-1 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 capitalize">
-                      {b.status}
+                    <span
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        bookingStatusStyle(b.status)
+                      }`}
+                    >
+                      {BOOKING_STATUS_LABEL[b.status] ?? b.status}
                     </span>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
                     {showConfirmCancel ? (
                       <>
                         <span className="text-xs text-neutral-600">Annuler cette réservation ?</span>
@@ -136,7 +165,8 @@ export default function CompteReservationsPage() {
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </>
       )}
     </>
   );

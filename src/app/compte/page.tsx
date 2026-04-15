@@ -118,9 +118,7 @@ export default function ComptePage() {
               <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
                 Bonjour, {firstName}
               </h1>
-              <p className="mt-1 text-neutral-600">
-                Choisissez votre service principal et continuez en un clic.
-              </p>
+              <p className="mt-1 text-neutral-600">Choisissez un service et continuez.</p>
             </div>
           </div>
         </div>
@@ -133,10 +131,8 @@ export default function ComptePage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
               <Route className="h-6 w-6" />
             </div>
-            <h3 className="mt-4 text-lg font-bold text-neutral-900">Demander une course</h3>
-            <p className="mt-1 text-sm text-neutral-600">
-              Réservez un trajet en quelques secondes.
-            </p>
+            <h3 className="mt-4 text-lg font-bold text-neutral-900">Je voyage</h3>
+            <p className="mt-1 text-sm text-neutral-600">Réserver un trajet.</p>
             <span className="mt-3 inline-block text-sm font-semibold text-emerald-700 group-hover:underline">
               Ouvrir
             </span>
@@ -150,9 +146,7 @@ export default function ComptePage() {
               <Package className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-lg font-bold text-neutral-900">Envoyer un colis</h3>
-            <p className="mt-1 text-sm text-neutral-600">
-              Lancez une demande d&apos;envoi interurbain.
-            </p>
+            <p className="mt-1 text-sm text-neutral-600">Créer une demande.</p>
             <span className="mt-3 inline-block text-sm font-semibold text-amber-700 group-hover:underline">
               Ouvrir
             </span>
@@ -166,12 +160,8 @@ export default function ComptePage() {
               <Car className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-lg font-bold text-neutral-900">Louer une voiture</h3>
-            <p className="mt-1 text-sm text-neutral-600">
-              Découvrez les véhicules de location disponibles.
-            </p>
-            <span className="mt-3 inline-block text-sm font-semibold text-sky-700 group-hover:underline">
-              Ouvrir
-            </span>
+            <p className="mt-1 text-sm text-neutral-600">Voir les véhicules.</p>
+            <span className="mt-3 inline-block text-sm font-semibold text-sky-700 group-hover:underline">Ouvrir</span>
           </Link>
         </div>
       </section>
