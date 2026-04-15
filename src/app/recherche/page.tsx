@@ -705,7 +705,7 @@ function RechercheContent() {
                   </Button>
                 )}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button size="sm" variant="ghost" href="/demande">
+                  <Button size="sm" href="/demande">
                     Publier une demande
                   </Button>
                   <Button size="sm" variant="ghost" href="/recherche?depart=Dakar&destination=Thiès">
@@ -758,6 +758,11 @@ function RechercheContent() {
                           {trip.price.toLocaleString("fr-FR")} FCFA
                           <span className="text-sm font-normal text-neutral-500">/pers</span>
                         </p>
+                        {trip.suggestedPriceFcfa && (
+                          <p className="text-xs text-neutral-500">
+                            Prix conseillé: {Math.round(trip.suggestedPriceFcfa).toLocaleString("fr-FR")} FCFA
+                          </p>
+                        )}
                         {paramPickupMode === "home_pickup" && (
                           <p className="text-xs text-emerald-700">
                             Inclut supplement domicile (+{(trip.homePickupExtraFcfa ?? 2000).toLocaleString("fr-FR")} FCFA)

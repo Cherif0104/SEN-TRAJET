@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { textIncludesNormalized } from "@/lib/search";
 import type { PickupMode } from "@/lib/pricing";
+import { simulatePriceFromDistance } from "@/lib/distancePricing";
 
 export type TripType =
   | "interurbain_location"
@@ -28,6 +29,7 @@ export type Trip = {
   pickupMode?: PickupMode;
   homePickupExtraFcfa?: number;
   tripType?: TripType | null;
+  suggestedPriceFcfa?: number;
 };
 
 function filterTrips(trips: Trip[], depart: string, destination: string): Trip[] {
@@ -110,9 +112,21 @@ export async function searchTrips(params: {
     }
     if (!data || !Array.isArray(data)) return [];
 
-    const normalizedTrips: Trip[] = data.map((row: Record<string, unknown>) => {
+    const normalizedTrips: Trip[] = await Promise.all(data.map(async (row: Record<string, unknown>) => {
       const availableSeats = Number(row.available_seats ?? 0);
       const totalSeats = Number(row.total_seats ?? 4);
+      const category = String(row.vehicle_category ?? "Standard");
+      const simulated = await simulatePriceFromDistance({
+        distanceKm: Number(row.distance_km ?? 0),
+        fuelType: "diesel",
+        vehicleCategory:
+          category.toLowerCase() === "premium"
+            ? "premium"
+            : category.toLowerCase() === "confort"
+              ? "confort"
+              : "standard",
+        withDriver: true,
+      });
       return {
         id: String(row.id ?? ""),
         driver: String(row.driver_name ?? "Chauffeur"),
@@ -125,7 +139,7 @@ export async function searchTrips(params: {
         km: Number(row.distance_km ?? 0),
         duration: toDuration(Number(row.duration_minutes ?? 0)),
         vehicle: String(row.vehicle_name ?? "Véhicule"),
-        category: String(row.vehicle_category ?? "Standard"),
+        category,
         seats: `${Math.max(availableSeats, 0)}/${Math.max(totalSeats, 1)}`,
         basePrice: Number(row.base_price_fcfa ?? row.price_fcfa ?? 0),
         homePickupExtraFcfa: Number(row.home_pickup_extra_fcfa ?? 2000),
@@ -134,8 +148,9 @@ export async function searchTrips(params: {
           Number(row.base_price_fcfa ?? row.price_fcfa ?? 0) +
           (pickupMode === "home_pickup" ? Number(row.home_pickup_extra_fcfa ?? 2000) : 0),
         tripType: (row.trip_type as TripType) ?? "interurbain_covoiturage",
+        suggestedPriceFcfa: simulated.totalSuggestedFcfa,
       };
-    });
+    }));
 
     return filterTrips(normalizedTrips, depart, destination);
   } catch (err) {

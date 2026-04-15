@@ -52,6 +52,7 @@ export default function DemandePage() {
   const [pickupMode, setPickupMode] = useState<PickupMode>("driver_point");
   const [driverPickupPointLabel, setDriverPickupPointLabel] = useState("");
   const [notes, setNotes] = useState("");
+  const [budgetFcfa, setBudgetFcfa] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +80,7 @@ export default function DemandePage() {
         pickupMode,
         driverPickupPointLabel: driverPickupPointLabel || undefined,
         notes: notes || undefined,
+        budgetFcfa: budgetFcfa.trim() ? Number(budgetFcfa) : undefined,
       });
       router.push(`/demande/${request.id}`);
     } catch (err) {
@@ -391,6 +393,25 @@ export default function DemandePage() {
                 {selectedTripTypeLabel} · {passengers} passager{passengers > 1 ? "s" : ""} ·{" "}
                 {pickupMode === "home_pickup" ? "Prise à domicile (+supplément)" : "Point du chauffeur"}
               </p>
+              {budgetFcfa.trim() && (
+                <p className="mt-1 text-neutral-600">
+                  Budget indicatif: {Number(budgetFcfa).toLocaleString("fr-FR")} FCFA
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">
+                Budget estimé (optionnel)
+              </label>
+              <input
+                type="number"
+                min={0}
+                className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Ex: 8000"
+                value={budgetFcfa}
+                onChange={(e) => setBudgetFcfa(e.target.value)}
+              />
             </div>
 
             <div>

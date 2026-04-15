@@ -20,6 +20,15 @@ export type ProfileUpdate = {
   partner_id?: string | null;
 };
 
+export type DriverNotificationPreferences = {
+  driver_id: string;
+  notify_new_requests: boolean;
+  notify_matching_trips: boolean;
+  max_notifications_per_day: number;
+  digest_enabled: boolean;
+  updated_at?: string;
+};
+
 export async function getProfile(userId: string) {
   const { data, error } = await supabase
     .from("profiles")
@@ -136,4 +145,26 @@ export async function deleteDocument(
     .eq("driver_id", driverId)
     .eq("doc_type", docType);
   if (error) throw error;
+}
+
+export async function getDriverNotificationPreferences(driverId: string): Promise<DriverNotificationPreferences | null> {
+  const { data, error } = await supabase
+    .from("driver_notification_preferences")
+    .select("*")
+    .eq("driver_id", driverId)
+    .maybeSingle();
+  if (error && !String(error.message).includes("does not exist")) throw error;
+  return (data as DriverNotificationPreferences | null) ?? null;
+}
+
+export async function upsertDriverNotificationPreferences(
+  prefs: DriverNotificationPreferences
+): Promise<DriverNotificationPreferences | null> {
+  const { data, error } = await supabase
+    .from("driver_notification_preferences")
+    .upsert(prefs, { onConflict: "driver_id" })
+    .select("*")
+    .maybeSingle();
+  if (error && !String(error.message).includes("does not exist")) throw error;
+  return (data as DriverNotificationPreferences | null) ?? null;
 }

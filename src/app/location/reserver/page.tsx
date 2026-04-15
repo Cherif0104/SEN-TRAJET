@@ -11,8 +11,11 @@ import {
   computeRentalDays,
   createRentalBooking,
   getRentalListingById,
+  simulateRentalPrice,
   type RentalListing,
 } from "@/lib/rentals";
+import { estimateTripDistance } from "@/lib/distancePricing";
+import { senegalCities } from "@/data/senegalLocations";
 
 function ReserverLocationPageContent() {
   const router = useRouter();
@@ -24,6 +27,15 @@ function ReserverLocationPageContent() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [destinationCity, setDestinationCity] = useState("");
+  const [withDriver, setWithDriver] = useState(true);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [pricingSimulation, setPricingSimulation] = useState<{
+    suggestedDailyRateFcfa: number;
+    suggestedTotalFcfa: number;
+  } | null>(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +63,38 @@ function ReserverLocationPageContent() {
   }, [listing, days]);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  const runRouteSimulation = async () => {
+    if (!listing || !destinationCity.trim()) return;
+    setDistanceLoading(true);
+    try {
+      const distance = await estimateTripDistance(listing.city, destinationCity);
+      if (!distance) {
+        setDistanceKm(null);
+        setDurationMinutes(null);
+        setPricingSimulation(null);
+        return;
+      }
+      setDistanceKm(distance.distanceKm);
+      setDurationMinutes(distance.durationMinutes);
+      const simulation = await simulateRentalPrice({
+        distanceKm: distance.distanceKm,
+        fuelType: listing.fuel_type || "essence",
+        vehicleCategory:
+          listing.metadata?.vehicle_category && typeof listing.metadata.vehicle_category === "string"
+            ? listing.metadata.vehicle_category
+            : "confort",
+        withDriver,
+        days: days || 1,
+      });
+      setPricingSimulation({
+        suggestedDailyRateFcfa: simulation.suggestedDailyRateFcfa,
+        suggestedTotalFcfa: simulation.suggestedTotalFcfa,
+      });
+    } finally {
+      setDistanceLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +157,7 @@ function ReserverLocationPageContent() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-bold text-neutral-900">Réserver une location</h1>
         <p className="mt-1 text-neutral-600">
-          Confirmez les dates et envoyez votre demande.
+          Confirmez les dates, payez votre réservation et nous vous recontactons sous 24h pour validation finale.
         </p>
 
         <Card className="mt-6">
@@ -154,6 +198,72 @@ function ReserverLocationPageContent() {
             </div>
 
             <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Destination prévue (optionnel)</label>
+              <input
+                list="cities-rental-destination"
+                className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Ex: Saint-Louis"
+                value={destinationCity}
+                onChange={(e) => setDestinationCity(e.target.value)}
+              />
+              <datalist id="cities-rental-destination">
+                {senegalCities.map((city) => (
+                  <option key={city} value={city} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Option chauffeur</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setWithDriver(true)}
+                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                    withDriver ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-neutral-300 bg-white text-neutral-700"
+                  }`}
+                >
+                  Avec chauffeur
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWithDriver(false)}
+                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                    !withDriver ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-neutral-300 bg-white text-neutral-700"
+                  }`}
+                >
+                  Sans chauffeur
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={runRouteSimulation}
+              isLoading={distanceLoading}
+              disabled={!listing || !destinationCity.trim()}
+            >
+              Simuler la tarification du trajet
+            </Button>
+
+            {distanceKm != null && pricingSimulation && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm">
+                <p className="font-medium text-sky-900">
+                  Distance estimée: {distanceKm.toLocaleString("fr-FR")} km
+                  {durationMinutes != null ? ` · ~${durationMinutes} min` : ""}
+                </p>
+                <p className="mt-1 text-sky-800">
+                  Tarif conseillé / jour: {pricingSimulation.suggestedDailyRateFcfa.toLocaleString("fr-FR")} FCFA
+                </p>
+                <p className="text-sky-800">
+                  Tarif conseillé total: {pricingSimulation.suggestedTotalFcfa.toLocaleString("fr-FR")} FCFA
+                </p>
+              </div>
+            )}
+
+            <div>
               <label className="mb-1 block text-sm font-medium text-neutral-800">Notes (optionnel)</label>
               <textarea
                 className="min-h-[100px] w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -179,7 +289,7 @@ function ReserverLocationPageContent() {
             )}
 
             <Button type="submit" isLoading={submitting} disabled={!listing || !user}>
-              Confirmer la réservation
+              Payer et confirmer la réservation
             </Button>
           </form>
         </Card>

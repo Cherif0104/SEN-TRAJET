@@ -6,9 +6,13 @@ export async function createBooking(params: {
   driverId: string;
   passengers: number;
   meetingPoint?: string;
+  paymentMethod?: string;
+  baggageType?: string;
+  adultPassengers?: number;
+  childPassengers?: number;
   totalFcfa: number;
 }) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("bookings")
     .insert({
       trip_id: params.tripId,
@@ -16,11 +20,31 @@ export async function createBooking(params: {
       driver_id: params.driverId,
       passengers: params.passengers,
       meeting_point: params.meetingPoint || null,
+      payment_method: params.paymentMethod ?? null,
+      baggage_type: params.baggageType ?? null,
+      adult_passengers: params.adultPassengers ?? null,
+      child_passengers: params.childPassengers ?? null,
       total_fcfa: params.totalFcfa,
       status: "pending",
     })
     .select()
     .single();
+  // Compatibilité environnement sans migration complète.
+  if (error && String(error.message).includes("column")) {
+    ({ data, error } = await supabase
+      .from("bookings")
+      .insert({
+        trip_id: params.tripId,
+        client_id: params.clientId,
+        driver_id: params.driverId,
+        passengers: params.passengers,
+        meeting_point: params.meetingPoint || null,
+        total_fcfa: params.totalFcfa,
+        status: "pending",
+      })
+      .select()
+      .single());
+  }
   if (error) throw error;
   return data;
 }

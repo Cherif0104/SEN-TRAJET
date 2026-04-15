@@ -9,7 +9,7 @@ import { FeedbackBanner } from "@/components/ui/FeedbackBanner";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { TripTypeBadge } from "@/components/ui/TripTypeBadge";
 import { useAuth } from "@/hooks/useAuth";
-import { getOpenRequests, type TripRequest } from "@/lib/requests";
+import { getOpenRequestsForDriver, type TripRequest } from "@/lib/requests";
 import { sendProposal } from "@/lib/proposals";
 import { getDriverVehicles } from "@/lib/profiles";
 
@@ -36,13 +36,14 @@ export default function DemandesOuvertesPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fromFilter, setFromFilter] = useState("");
   const [toFilter, setToFilter] = useState("");
+  const [requestTypeFilter, setRequestTypeFilter] = useState("");
 
   useEffect(() => {
-    getOpenRequests()
-      .then(setRequests)
-      .catch(() => setFetchError("Impossible de charger les demandes pour le moment."))
-      .finally(() => setLoading(false));
     if (user) {
+      getOpenRequestsForDriver(user.id)
+        .then(setRequests)
+        .catch(() => setFetchError("Impossible de charger les demandes pour le moment."))
+        .finally(() => setLoading(false));
       getDriverVehicles(user.id)
         .then((v) => {
           setVehicles(v as Vehicle[]);
@@ -50,12 +51,16 @@ export default function DemandesOuvertesPage() {
         })
         .catch(() => setFetchError("Impossible de charger vos véhicules."));
     }
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const filteredRequests = requests.filter((req) => {
     const fromOk = fromFilter ? req.from_city.toLowerCase().includes(fromFilter.toLowerCase()) : true;
     const toOk = toFilter ? req.to_city.toLowerCase().includes(toFilter.toLowerCase()) : true;
-    return fromOk && toOk;
+    const typeOk = requestTypeFilter ? req.trip_type === requestTypeFilter : true;
+    return fromOk && toOk && typeOk;
   });
 
   const handleSend = async (requestId: string) => {
@@ -104,13 +109,11 @@ export default function DemandesOuvertesPage() {
       <h1 className="text-xl font-bold text-neutral-900">
         Demandes ouvertes
       </h1>
-      <p className="mt-1 text-neutral-600">
-        Filtrez les demandes pertinentes et envoyez une proposition claire (prix + véhicule + message).
-      </p>
+      <p className="mt-1 text-neutral-600">Feed ciblé selon votre zone et vos véhicules.</p>
       {errorMessage && <FeedbackBanner className="mt-4" tone="error" message={errorMessage} />}
       {fetchError && <FeedbackBanner className="mt-4" tone="warning" message={fetchError} />}
       <Card className="mt-4 border border-neutral-200 bg-neutral-50">
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-4">
           <Input
             label="Filtre départ"
             placeholder="Dakar"
@@ -123,6 +126,21 @@ export default function DemandesOuvertesPage() {
             value={toFilter}
             onChange={(e) => setToFilter(e.target.value)}
           />
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-800">Type</label>
+            <select
+              value={requestTypeFilter}
+              onChange={(e) => setRequestTypeFilter(e.target.value)}
+              className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Tous</option>
+              <option value="interurbain_covoiturage">Covoiturage</option>
+              <option value="interurbain_location">Location privée</option>
+              <option value="colis">Colis</option>
+              <option value="urbain">Urbain</option>
+              <option value="aeroport">Aéroport</option>
+            </select>
+          </div>
           <div className="flex items-end">
             <Button
               variant="ghost"
@@ -131,6 +149,7 @@ export default function DemandesOuvertesPage() {
               onClick={() => {
                 setFromFilter("");
                 setToFilter("");
+                setRequestTypeFilter("");
               }}
             >
               Réinitialiser filtres
@@ -180,6 +199,11 @@ export default function DemandesOuvertesPage() {
                     {req.notes && (
                       <p className="mt-2 text-sm text-neutral-600 italic">
                         {req.notes}
+                      </p>
+                    )}
+                    {req.budget_fcfa && (
+                      <p className="mt-1 text-xs font-medium text-emerald-700">
+                        Budget client: {req.budget_fcfa.toLocaleString("fr-FR")} FCFA
                       </p>
                     )}
                   </div>

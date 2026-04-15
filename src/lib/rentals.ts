@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getCommissionConfig } from "@/lib/partners";
+import { simulatePriceFromDistance } from "@/lib/distancePricing";
 
 export type RentalOperatingMode = "platform_managed" | "marketplace_partner";
 export type RentalListingStatus = "draft" | "pending_review" | "active" | "paused" | "rejected";
@@ -362,4 +363,26 @@ export async function createRentalHandoverEvent(params: {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function simulateRentalPrice(params: {
+  distanceKm: number;
+  fuelType: string;
+  vehicleCategory: string;
+  withDriver: boolean;
+  days: number;
+}) {
+  const base = await simulatePriceFromDistance({
+    distanceKm: params.distanceKm,
+    fuelType: params.fuelType,
+    vehicleCategory: params.vehicleCategory,
+    withDriver: params.withDriver,
+  });
+  const safeDays = Math.max(1, params.days);
+  const perDay = Math.round(base.totalSuggestedFcfa);
+  return {
+    suggestedDailyRateFcfa: perDay,
+    suggestedTotalFcfa: perDay * safeDays,
+    breakdown: base,
+  };
 }

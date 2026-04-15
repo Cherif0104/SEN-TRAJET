@@ -14,6 +14,8 @@ import {
   deleteVehicle,
   getDriverDocuments,
   deleteDocument,
+  getDriverNotificationPreferences,
+  upsertDriverNotificationPreferences,
   type VehicleInsert,
 } from "@/lib/profiles";
 import {
@@ -101,6 +103,11 @@ export default function ProfilChauffeurPage() {
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
+  const [notifyNewRequests, setNotifyNewRequests] = useState(true);
+  const [notifyMatchingTrips, setNotifyMatchingTrips] = useState(true);
+  const [digestEnabled, setDigestEnabled] = useState(true);
+  const [maxNotifsPerDay, setMaxNotifsPerDay] = useState(6);
+  const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -114,6 +121,13 @@ export default function ProfilChauffeurPage() {
     if (user) {
       getDriverVehicles(user.id).then(setVehicles);
       getDriverDocuments(user.id).then(setDocs);
+      getDriverNotificationPreferences(user.id).then((prefs) => {
+        if (!prefs) return;
+        setNotifyNewRequests(prefs.notify_new_requests);
+        setNotifyMatchingTrips(prefs.notify_matching_trips);
+        setDigestEnabled(prefs.digest_enabled);
+        setMaxNotifsPerDay(prefs.max_notifications_per_day);
+      });
       getDriverComplianceChecks(user.id).then(async (checks) => {
         if (checks.length === 0) {
           try {
@@ -224,6 +238,22 @@ export default function ProfilChauffeurPage() {
       setVehicles(await getDriverVehicles(user.id));
     } finally {
       setDeletingVehicleId(null);
+    }
+  };
+
+  const handleSaveNotificationPreferences = async () => {
+    if (!user) return;
+    setSavingNotifPrefs(true);
+    try {
+      await upsertDriverNotificationPreferences({
+        driver_id: user.id,
+        notify_new_requests: notifyNewRequests,
+        notify_matching_trips: notifyMatchingTrips,
+        digest_enabled: digestEnabled,
+        max_notifications_per_day: maxNotifsPerDay,
+      });
+    } finally {
+      setSavingNotifPrefs(false);
     }
   };
 
@@ -554,6 +584,63 @@ export default function ProfilChauffeurPage() {
             ))}
           </div>
         )}
+      </Card>
+
+      <Card className="mt-6">
+        <h3 className="text-base font-semibold text-neutral-900">Préférences de notifications</h3>
+        <p className="mt-1 text-sm text-neutral-600">
+          Réglez les alertes ciblées et limitez le volume journalier.
+        </p>
+        <div className="mt-4 space-y-3">
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
+            Recevoir les nouvelles demandes proches
+            <input
+              type="checkbox"
+              checked={notifyNewRequests}
+              onChange={(e) => setNotifyNewRequests(e.target.checked)}
+              className="rounded border-neutral-300"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
+            Recevoir les alertes de trajets compatibles
+            <input
+              type="checkbox"
+              checked={notifyMatchingTrips}
+              onChange={(e) => setNotifyMatchingTrips(e.target.checked)}
+              className="rounded border-neutral-300"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
+            Digest quotidien (au lieu d'alertes unitaires)
+            <input
+              type="checkbox"
+              checked={digestEnabled}
+              onChange={(e) => setDigestEnabled(e.target.checked)}
+              className="rounded border-neutral-300"
+            />
+          </label>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-800">
+              Maximum de notifications par jour
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={maxNotifsPerDay}
+              onChange={(e) => setMaxNotifsPerDay(Number(e.target.value || 1))}
+              className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
+        <Button
+          size="sm"
+          className="mt-4"
+          isLoading={savingNotifPrefs}
+          onClick={handleSaveNotificationPreferences}
+        >
+          Enregistrer les préférences
+        </Button>
       </Card>
     </>
   );

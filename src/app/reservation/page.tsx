@@ -94,16 +94,11 @@ function ReservationContent() {
         clientId: user.id,
         driverId: trip.driverId,
         passengers,
-        meetingPoint:
-          [
-            meetingPoint ? `Rendez-vous: ${meetingPoint}` : "",
-            `Paiement: ${paymentMode}`,
-            `Bagage: ${baggageType}`,
-            `Adultes: ${adultPassengers}`,
-            `Enfants: ${childPassengers}`,
-          ]
-            .filter(Boolean)
-            .join(" | ") || undefined,
+        meetingPoint: meetingPoint || undefined,
+        paymentMethod: paymentMode,
+        baggageType,
+        adultPassengers,
+        childPassengers,
         totalFcfa,
       });
       setConfirmed(true);
