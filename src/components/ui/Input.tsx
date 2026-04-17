@@ -7,7 +7,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, ...props }, ref) => {
+  ({ className, label, error, suppressHydrationWarning, ...props }, ref) => {
     return (
       <div className="w-full">
         {label && (
@@ -25,6 +25,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             className
           )}
           {...props}
+          suppressHydrationWarning={suppressHydrationWarning ?? true}
         />
         {error && (
           <p className="mt-1.5 text-sm text-red-600">{error}</p>

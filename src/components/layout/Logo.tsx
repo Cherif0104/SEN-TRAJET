@@ -37,8 +37,7 @@ export function Logo({ className = "", showIcon = true }: LogoProps) {
               alt="SEN TRAJET"
               width={200}
               height={40}
-              className="h-10 w-auto object-contain object-left"
-              style={{ width: "auto", height: "2.5rem" }}
+              className="object-contain object-left"
               sizes="(max-width: 640px) 140px, 200px"
               priority
               onError={() => setImgError(true)}
