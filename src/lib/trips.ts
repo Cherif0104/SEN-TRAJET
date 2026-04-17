@@ -2,7 +2,11 @@ import { supabase } from "@/lib/supabase";
 import { textIncludesNormalized } from "@/lib/search";
 import type { PickupMode } from "@/lib/pricing";
 import { simulatePriceFromDistance } from "@/lib/distancePricing";
-import { parseBudgetFcfa } from "@/lib/tripSearchRules";
+import {
+  parseBudgetFcfa,
+  type ServiceClassFilter,
+  type VehicleTypeFilter,
+} from "@/lib/tripSearchRules";
 
 export type TripType =
   | "interurbain_location"
@@ -25,6 +29,7 @@ export type Trip = {
   vehicle: string;
   category: string;
   seats: string;
+  totalSeats?: number;
   price: number;
   basePrice?: number;
   pickupMode?: PickupMode;
@@ -41,6 +46,21 @@ function filterTrips(trips: Trip[], depart: string, destination: string): Trip[]
   return trips.filter(
     (trip) => matchesTripRoute(trip, depart, destination)
   );
+}
+
+function matchesVehicleType(totalSeats: number, vehicleType?: VehicleTypeFilter): boolean {
+  if (!vehicleType) return true;
+  if (vehicleType === "citadine") return totalSeats <= 5;
+  if (vehicleType === "minivan") return totalSeats >= 6 && totalSeats <= 9;
+  return totalSeats >= 10;
+}
+
+function matchesServiceClass(category: string, serviceClass?: ServiceClassFilter): boolean {
+  if (!serviceClass) return true;
+  const normalized = category.trim().toLowerCase();
+  if (serviceClass === "eco") return normalized === "eco" || normalized === "standard";
+  if (serviceClass === "confort") return normalized === "confort";
+  return normalized === "premium" || normalized === "confort plus" || normalized === "confort_plus";
 }
 
 function toDuration(minutes: number | null): string {
@@ -78,8 +98,17 @@ export async function searchTrips(params: {
   /** Budget max du client (FCFA) — filtre les trajets au prix inférieur ou égal */
   maxPriceFcfa?: number;
   pickupMode?: PickupMode;
+  vehicleType?: VehicleTypeFilter;
+  serviceClass?: ServiceClassFilter;
 }): Promise<Trip[]> {
-  const { depart, destination, date: dateParam, pickupMode = "driver_point" } = params;
+  const {
+    depart,
+    destination,
+    date: dateParam,
+    pickupMode = "driver_point",
+    vehicleType,
+    serviceClass,
+  } = params;
   const maxPriceFcfa = typeof params.maxPriceFcfa === "number" ? params.maxPriceFcfa : parseBudgetFcfa(String(params.maxPriceFcfa ?? ""));
 
   if (!hasSupabasePublicConfig()) {
@@ -143,6 +172,7 @@ export async function searchTrips(params: {
       vehicle: String(row.vehicle_name ?? "Véhicule"),
       category,
       seats: `${Math.max(availableSeats, 0)}/${Math.max(totalSeats, 1)}`,
+      totalSeats: Math.max(totalSeats, 1),
       basePrice: Number(row.base_price_fcfa ?? row.price_fcfa ?? 0),
       homePickupExtraFcfa: Number(row.home_pickup_extra_fcfa ?? 2000),
       pickupMode: (row.pickup_mode as PickupMode) ?? "driver_point",
@@ -154,6 +184,9 @@ export async function searchTrips(params: {
     };
   }));
 
-  return filterTrips(normalizedTrips, depart, destination);
+  return filterTrips(normalizedTrips, depart, destination).filter((trip) =>
+    matchesVehicleType(Number(trip.totalSeats ?? 0), vehicleType) &&
+    matchesServiceClass(trip.category, serviceClass)
+  );
 }
 

@@ -13,6 +13,7 @@ import {
   computeRentalEstimateForListing,
   createRentalBooking,
   getRentalListingById,
+  type RentalBookingFlow,
   type RentalBooking,
   type RentalListing,
   validateRentalPeriod,
@@ -28,10 +29,13 @@ function ReserverLocationPageContent() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [bookingFlow, setBookingFlow] = useState<RentalBookingFlow>("payment_now");
+  const [customerBudgetFcfa, setCustomerBudgetFcfa] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdBooking, setCreatedBooking] = useState<RentalBooking | null>(null);
+  const supportPhone = process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "+221775558899";
 
   useEffect(() => {
     if (!listingId) return;
@@ -80,6 +84,9 @@ function ReserverLocationPageContent() {
         startDate,
         endDate,
         notes,
+        bookingFlow,
+        supportCallbackRequested: bookingFlow === "callback_support",
+        customerBudgetFcfa: customerBudgetFcfa.trim() ? Number(customerBudgetFcfa) : undefined,
       });
       setCreatedBooking(booking);
     } catch (err) {
@@ -126,13 +133,18 @@ function ReserverLocationPageContent() {
   }
 
   if (createdBooking) {
+    const isCallbackFlow = createdBooking.booking_flow === "callback_support" || createdBooking.status === "pending";
     return (
       <div className="flex min-h-screen flex-col bg-neutral-50">
         <Header />
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
-          <h1 className="text-2xl font-bold text-neutral-900">Paiement de votre location</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">
+            {isCallbackFlow ? "Demande envoyée au support" : "Paiement de votre location"}
+          </h1>
           <p className="mt-1 text-neutral-600">
-            Votre demande est créée avec le statut <strong>Paiement en attente</strong>.
+            {isCallbackFlow
+              ? "Votre demande est enregistrée. Un agent vous recontacte dans les prochaines heures."
+              : "Votre demande est créée avec le statut Paiement en attente."}
           </p>
           <Card className="mt-6 rounded-3xl">
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
@@ -144,17 +156,28 @@ function ReserverLocationPageContent() {
               Réservation: {createdBooking.total_days} jour{createdBooking.total_days > 1 ? "s" : ""} ·
               du {createdBooking.start_date} au {createdBooking.end_date}
             </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <Button onClick={handleConfirmPayment} isLoading={confirmingPayment}>
-                Confirmer paiement (simulation)
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => router.push("/compte/locations?created=1")}
-              >
-                Payer plus tard
-              </Button>
-            </div>
+            {isCallbackFlow ? (
+              <div className="mt-5 space-y-2">
+                <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                  Contact support: <a className="font-semibold underline" href={`tel:${supportPhone}`}>{supportPhone}</a>
+                </div>
+                <Button onClick={() => router.push("/compte/locations?created=1&callback=1")} fullWidth>
+                  Voir mes locations
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <Button onClick={handleConfirmPayment} isLoading={confirmingPayment}>
+                  Confirmer paiement (simulation)
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push("/compte/locations?created=1")}
+                >
+                  Payer plus tard
+                </Button>
+              </div>
+            )}
           </Card>
         </main>
       </div>
@@ -164,13 +187,13 @@ function ReserverLocationPageContent() {
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-7">
         <h1 className="text-2xl font-bold text-neutral-900">Réserver une location</h1>
-        <p className="mt-1 text-neutral-600">
-          Choisissez les dates, vérifiez le montant et confirmez votre demande.
+        <p className="mt-1 text-sm text-neutral-600">
+          Choisissez les dates et finalisez avec paiement simulé ou rappel support.
         </p>
 
-        <Card className="mt-6 rounded-3xl">
+        <Card className="mt-4 rounded-3xl">
           {listing ? (
             <>
               <p className="text-sm text-neutral-600">Véhicule</p>
@@ -185,7 +208,7 @@ function ReserverLocationPageContent() {
             <p className="text-sm text-neutral-500">Chargement du véhicule…</p>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -210,11 +233,55 @@ function ReserverLocationPageContent() {
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-800">Notes (optionnel)</label>
               <textarea
-                className="min-h-[100px] w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="min-h-[88px] w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Heure souhaitée, besoins spécifiques..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
+            </div>
+
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                Mode de finalisation
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setBookingFlow("payment_now")}
+                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                    bookingFlow === "payment_now"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                      : "border-neutral-300 bg-white text-neutral-700"
+                  }`}
+                >
+                  Payer maintenant (simulation)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingFlow("callback_support")}
+                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                    bookingFlow === "callback_support"
+                      ? "border-sky-500 bg-sky-50 text-sky-800"
+                      : "border-neutral-300 bg-white text-neutral-700"
+                  }`}
+                >
+                  Être rappelé par le support
+                </button>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <Input
+                  label="Budget (FCFA, optionnel)"
+                  type="number"
+                  min={0}
+                  placeholder="Ex: 80000"
+                  value={customerBudgetFcfa}
+                  onChange={(e) => setCustomerBudgetFcfa(e.target.value)}
+                />
+                <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                  Support: <a className="font-semibold underline" href={`tel:${supportPhone}`}>{supportPhone}</a>
+                  <p className="mt-1 text-xs text-sky-800">Réponse estimée: 1 à 3 heures.</p>
+                </div>
+              </div>
             </div>
 
             {estimate && (
@@ -232,8 +299,8 @@ function ReserverLocationPageContent() {
               </div>
             )}
 
-            <Button type="submit" isLoading={submitting} disabled={!listing || !user}>
-              Confirmer ma demande de location
+            <Button type="submit" isLoading={submitting} disabled={!listing || !user} fullWidth>
+              {bookingFlow === "callback_support" ? "Demander un rappel support" : "Confirmer ma demande de location"}
             </Button>
           </form>
         </Card>

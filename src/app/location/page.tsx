@@ -6,7 +6,13 @@ import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Car, ShieldCheck, Clock3, Search, Filter } from "lucide-react";
-import { getRentalListings, type RentalListing } from "@/lib/rentals";
+import {
+  getRentalListings,
+  type RentalListing,
+  type RentalMode,
+  type ServiceClassLevel,
+  type TransportVehicleCategory,
+} from "@/lib/rentals";
 import { senegalCities } from "@/data/senegalLocations";
 
 export default function LocationPage() {
@@ -14,11 +20,37 @@ export default function LocationPage() {
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<TransportVehicleCategory | "">("");
+  const [serviceClass, setServiceClass] = useState<ServiceClassLevel | "">("");
+  const [rentalMode, setRentalMode] = useState<RentalMode | "">("");
+
+  const categoryLabel: Record<TransportVehicleCategory, string> = {
+    citadine: "Citadine",
+    suv_berline: "SUV/Berline",
+    familiale: "Familiale",
+    minivan: "Minivan",
+    minibus: "Minibus",
+    bus: "Bus",
+  };
+  const classLabel: Record<ServiceClassLevel, string> = {
+    eco: "Eco",
+    confort: "Confort",
+    confort_plus: "Confort+",
+    premium: "Premium",
+    premium_plus: "Premium+",
+  };
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    getRentalListings({ status: "active", city: city || undefined, q: query || undefined })
+    getRentalListings({
+      status: "active",
+      city: city || undefined,
+      category: category || undefined,
+      serviceClass: serviceClass || undefined,
+      rentalMode: rentalMode || undefined,
+      q: query || undefined,
+    })
       .then((rows) => {
         if (mounted) setListings(rows);
       })
@@ -28,7 +60,7 @@ export default function LocationPage() {
     return () => {
       mounted = false;
     };
-  }, [city, query]);
+  }, [city, query, category, serviceClass, rentalMode]);
 
   const totalAvailable = useMemo(() => listings.length, [listings.length]);
 
@@ -57,8 +89,8 @@ export default function LocationPage() {
               {totalAvailable} véhicule{totalAvailable > 1 ? "s" : ""} disponible{totalAvailable > 1 ? "s" : ""}
             </span>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <label className="sm:col-span-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <label className="sm:col-span-2 lg:col-span-1">
               <span className="sr-only">Rechercher un véhicule</span>
               <div className="flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-neutral-200 bg-white px-3">
                 <Search className="h-4 w-4 text-neutral-400" />
@@ -70,7 +102,7 @@ export default function LocationPage() {
                 />
               </div>
             </label>
-            <label>
+            <label className="lg:col-span-1">
               <span className="sr-only">Filtrer par ville</span>
               <div className="flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-neutral-200 bg-white px-3">
                 <Filter className="h-4 w-4 text-neutral-400" />
@@ -87,6 +119,49 @@ export default function LocationPage() {
                   <option key={c} value={c} />
                 ))}
               </datalist>
+            </label>
+            <label className="lg:col-span-1">
+              <span className="sr-only">Filtrer par catégorie</span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TransportVehicleCategory | "")}
+                className="min-h-[44px] w-full rounded-xl border-2 border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:border-primary focus:outline-none"
+              >
+                <option value="">Toutes catégories</option>
+                <option value="citadine">Citadine</option>
+                <option value="suv_berline">SUV/Berline</option>
+                <option value="familiale">Familiale</option>
+                <option value="minivan">Minivan</option>
+                <option value="minibus">Minibus</option>
+                <option value="bus">Bus</option>
+              </select>
+            </label>
+            <label className="lg:col-span-1">
+              <span className="sr-only">Filtrer par classe</span>
+              <select
+                value={serviceClass}
+                onChange={(e) => setServiceClass(e.target.value as ServiceClassLevel | "")}
+                className="min-h-[44px] w-full rounded-xl border-2 border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:border-primary focus:outline-none"
+              >
+                <option value="">Toutes classes</option>
+                <option value="eco">Eco</option>
+                <option value="confort">Confort</option>
+                <option value="confort_plus">Confort+</option>
+                <option value="premium">Premium</option>
+                <option value="premium_plus">Premium+</option>
+              </select>
+            </label>
+            <label className="lg:col-span-1">
+              <span className="sr-only">Filtrer par mode</span>
+              <select
+                value={rentalMode}
+                onChange={(e) => setRentalMode(e.target.value as RentalMode | "")}
+                className="min-h-[44px] w-full rounded-xl border-2 border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:border-primary focus:outline-none"
+              >
+                <option value="">Avec ou sans chauffeur</option>
+                <option value="with_driver">Avec chauffeur</option>
+                <option value="without_driver">Sans chauffeur</option>
+              </select>
             </label>
           </div>
         </section>
@@ -116,6 +191,10 @@ export default function LocationPage() {
               <p className="mt-1 text-xs text-neutral-500">
                 {vehicle.seats} places · {vehicle.fuel_type} · {vehicle.mileage_km.toLocaleString("fr-FR")} km
               </p>
+              <p className="mt-1 text-xs text-neutral-600">
+                {categoryLabel[vehicle.transport_vehicle_category]} · {classLabel[vehicle.service_class]} ·{" "}
+                {vehicle.rental_mode === "with_driver" ? "Avec chauffeur" : "Sans chauffeur"}
+              </p>
               <p className="mt-3 text-sm font-semibold text-neutral-900">
                 {vehicle.daily_rate_fcfa.toLocaleString("fr-FR")} FCFA / jour
               </p>
@@ -134,6 +213,9 @@ export default function LocationPage() {
                 <Button variant="ghost" onClick={() => {
                   setCity("");
                   setQuery("");
+                  setCategory("");
+                  setServiceClass("");
+                  setRentalMode("");
                 }}>
                   Réinitialiser les filtres
                 </Button>

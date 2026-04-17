@@ -90,7 +90,9 @@ export default function CompteDemandesPage() {
                     {req.trip_type === "colis" && (
                       <p className="mt-1 text-xs text-neutral-600">
                         {(req.parcel_quantity ?? 1)} colis · {req.parcel_weight_kg ?? "?"} kg ·{" "}
-                        {req.is_fragile ? "Fragile" : "Standard"}
+                        {req.is_fragile ? "Fragile" : "Standard"} ·{" "}
+                        {req.colis_dispatch_mode === "depot_assiste" ? "Dépôt assisté" : "Direct trajet"} ·{" "}
+                        {(req.requested_vehicle_category ?? req.preferred_vehicle_type ?? "catégorie libre")}
                       </p>
                     )}
                     <span

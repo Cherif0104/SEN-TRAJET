@@ -60,6 +60,22 @@ export default function RentalListingDetailPage() {
     );
   }
 
+  const categoryLabel: Record<RentalListing["transport_vehicle_category"], string> = {
+    citadine: "Citadine",
+    suv_berline: "SUV/Berline",
+    familiale: "Familiale",
+    minivan: "Minivan",
+    minibus: "Minibus",
+    bus: "Bus",
+  };
+  const classLabel: Record<RentalListing["service_class"], string> = {
+    eco: "Eco",
+    confort: "Confort",
+    confort_plus: "Confort+",
+    premium: "Premium",
+    premium_plus: "Premium+",
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
@@ -96,6 +112,10 @@ export default function RentalListingDetailPage() {
             <Spec label="Couleur" value={listing.color || "N/A"} />
             <Spec label="Moteur" value={listing.engine_size_l ? `${listing.engine_size_l}L` : "N/A"} />
             <Spec label="Sièges" value={`${listing.seats}`} />
+            <Spec label="Catégorie" value={categoryLabel[listing.transport_vehicle_category]} />
+            <Spec label="Classe" value={classLabel[listing.service_class]} />
+            <Spec label="Mode location" value={listing.rental_mode === "with_driver" ? "Avec chauffeur" : "Sans chauffeur"} />
+            <Spec label="Éligibilité" value={listing.eligibility_status} />
             <Spec label="Climatisation" value={listing.has_air_conditioning ? "Oui" : "Non"} />
             <Spec label="Climatisation fonctionnelle" value={listing.ac_operational ? "Oui" : "Non"} />
             <Spec label="Airbags fonctionnels" value={listing.airbags_operational ? "Oui" : "Non"} />

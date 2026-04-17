@@ -18,6 +18,7 @@ function CompteLocationsPageContent() {
   const [bookings, setBookings] = useState<RentalBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const supportPhone = process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "+221775558899";
 
   useEffect(() => {
     if (!user?.id) return;
@@ -71,6 +72,13 @@ function CompteLocationsPageContent() {
           message="Paiement confirmé (simulation). Votre location est maintenant confirmée."
         />
       )}
+      {params.get("callback") === "1" && (
+        <FeedbackBanner
+          className="mt-4"
+          tone="info"
+          message="Votre demande de rappel est enregistrée. Un agent vous contacte rapidement."
+        />
+      )}
 
       {loading ? (
         <ListSkeleton className="mt-6 animate-pulse space-y-3" items={2} itemClassName="h-28 rounded-xl bg-neutral-200" />
@@ -100,6 +108,14 @@ function CompteLocationsPageContent() {
                   <p className="mt-1 text-sm text-neutral-500">
                     {booking.total_fcfa.toLocaleString("fr-FR")} FCFA
                   </p>
+                  {booking.booking_flow === "callback_support" && (
+                    <p className="mt-1 text-xs text-sky-700">
+                      Mode: Rappel support
+                      {booking.customer_budget_fcfa != null
+                        ? ` · Budget ${booking.customer_budget_fcfa.toLocaleString("fr-FR")} FCFA`
+                        : ""}
+                    </p>
+                  )}
                 </div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${rentalStatusStyle(booking.status)}`}
@@ -117,6 +133,14 @@ function CompteLocationsPageContent() {
                   >
                     Confirmer paiement (simulation)
                   </Button>
+                )}
+                {booking.status === "pending" && booking.booking_flow === "callback_support" && (
+                  <a
+                    href={`tel:${supportPhone}`}
+                    className="inline-flex h-8 items-center justify-center rounded-lg border border-sky-300 bg-sky-50 px-3 text-xs font-semibold text-sky-900"
+                  >
+                    Appeler le support
+                  </a>
                 )}
                 <Button href={`/location/${booking.listing_id}`} variant="ghost" size="sm">
                   Revoir le véhicule

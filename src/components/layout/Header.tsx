@@ -23,7 +23,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200/90 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
-      <div className="mx-auto flex h-[3.25rem] max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-3 sm:px-5 lg:px-7">
         <Logo />
 
         <nav className="hidden md:flex md:items-center md:gap-8">
@@ -111,7 +111,7 @@ export function Header() {
         <button
           type="button"
           aria-label="Menu"
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 md:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           {menuOpen ? (

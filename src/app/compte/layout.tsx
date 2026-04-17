@@ -53,14 +53,14 @@ export default function CompteLayout({
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
-      <div className="mx-auto flex w-full max-w-4xl flex-1 gap-6 px-4 py-6 sm:px-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 gap-4 px-3 py-4 sm:px-5 sm:py-5">
         <aside className="hidden w-56 shrink-0 md:block">
-          <nav className="sticky top-20 rounded-xl border border-neutral-200 bg-white p-2 shadow-card">
+          <nav className="sticky top-16 rounded-xl border border-neutral-200 bg-white p-1.5 shadow-card">
             {nav.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
+                className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium ${
                   pathname === href
                     ? "bg-primary/10 text-primary"
                     : "text-neutral-600 hover:bg-neutral-100"
@@ -71,13 +71,13 @@ export default function CompteLayout({
             ))}
             <Link
               href="/messages"
-              className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+              className="mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
             >
               <MessageCircle className="h-5 w-5" /> Messages
             </Link>
             <Link
               href="/contact"
-              className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+              className="mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
             >
               <HelpCircle className="h-5 w-5" /> Aide / Réclamation
             </Link>
@@ -85,28 +85,28 @@ export default function CompteLayout({
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
-      <nav className="fixed inset-x-0 bottom-3 z-40 px-3 md:hidden">
-        <div className="mx-auto flex max-w-md items-center rounded-2xl border border-neutral-200/90 bg-white/95 p-1.5 shadow-lg backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-2 z-40 px-2 md:hidden">
+        <div className="mx-auto flex max-w-md items-center rounded-xl border border-neutral-200/90 bg-white/95 p-1 shadow-lg backdrop-blur">
           {mobileNav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium transition ${
+                className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium transition ${
                   active
                     ? "bg-primary/10 text-primary"
                     : "text-neutral-500 hover:bg-neutral-100 active:scale-[0.98]"
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? "text-primary" : "text-neutral-500"}`} />
+                <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-neutral-500"}`} />
                 <span className="truncate">{label}</span>
               </Link>
             );
           })}
         </div>
       </nav>
-      <div className="h-20 md:hidden" />
+      <div className="h-16 md:hidden" />
     </div>
   );
 }

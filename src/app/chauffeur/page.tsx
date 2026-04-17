@@ -67,17 +67,17 @@ export default function ChauffeurDashboardPage() {
   return (
     <>
       {/* Boarding chauffeur : accueil personnalisé */}
-      <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-card sm:p-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/15 text-lg font-bold text-primary">
+      <section className="rounded-xl border border-neutral-200 bg-white p-4 shadow-card sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
               {initials}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
+              <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
                 Bonjour, {firstName}
               </h1>
-              <p className="mt-1 text-neutral-600">
+              <p className="mt-0.5 text-sm text-neutral-600">
                 Publiez un trajet ou répondez aux demandes des voyageurs.
               </p>
             </div>
@@ -106,7 +106,7 @@ export default function ChauffeurDashboardPage() {
         />
       )}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -192,7 +192,7 @@ export default function ChauffeurDashboardPage() {
         </Card>
       </div>
 
-      <Card className="mt-4 border border-neutral-200 bg-neutral-50">
+      <Card className="mt-3 border border-neutral-200 bg-neutral-50">
         <h2 className="text-sm font-semibold text-neutral-900">Parcours chauffeur recommandé</h2>
         <div className="mt-2 grid gap-2 text-sm text-neutral-600 sm:grid-cols-3">
           <p className="rounded-lg bg-white px-3 py-2">1. Publier un trajet clair (axe + heure + prix)</p>
@@ -203,8 +203,8 @@ export default function ChauffeurDashboardPage() {
 
       {recentRequests.length > 0 && (
         <>
-          <div className="mt-8 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-neutral-900">
+          <div className="mt-5 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-neutral-900">
               Dernières demandes
             </h2>
             <Link
@@ -214,7 +214,7 @@ export default function ChauffeurDashboardPage() {
               Tout voir
             </Link>
           </div>
-          <div className="mt-3 space-y-3">
+          <div className="mt-2.5 space-y-2.5">
             {recentRequests.map((req) => (
               <Card key={req.id} variant="interactive">
                 <div className="flex items-start justify-between">
@@ -251,7 +251,7 @@ export default function ChauffeurDashboardPage() {
         </>
       )}
       {recentRequests.length === 0 && (
-        <Card className="mt-8 border border-neutral-200">
+        <Card className="mt-5 border border-neutral-200">
           <h2 className="text-base font-semibold text-neutral-900">Aucune demande ouverte actuellement</h2>
           <p className="mt-1 text-sm text-neutral-600">
             Publiez un trajet maintenant pour être visible dès qu&apos;une nouvelle demande apparaît.
@@ -262,7 +262,7 @@ export default function ChauffeurDashboardPage() {
         </Card>
       )}
 
-      <p className="mt-8 text-center text-sm text-neutral-500">
+      <p className="mt-5 text-center text-sm text-neutral-500">
         <Link href="/contact" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
           <HelpCircle className="h-4 w-4" /> Aide / Réclamation
         </Link>

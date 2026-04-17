@@ -1,9 +1,20 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, type ElementType } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, SlidersHorizontal, Search, MapPin, Loader2, Calendar, ArrowRightLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  SlidersHorizontal,
+  Search,
+  MapPin,
+  Loader2,
+  Calendar,
+  ArrowRightLeft,
+  CarFront,
+  Bus,
+  Users,
+} from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +28,9 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   buildTripSearchQueryString,
   parseBudgetFcfa,
+  type ServiceClassFilter,
   validateTripSearchInput,
+  type VehicleTypeFilter,
 } from "@/lib/tripSearchRules";
 import {
   communesByDepartment,
@@ -32,6 +45,23 @@ const CATEGORY_OPTIONS = [
   { value: "Confort", label: "Confort" },
   { value: "Premium", label: "Premium" },
   { value: "Standard", label: "Standard" },
+];
+
+const VEHICLE_TYPE_OPTIONS: Array<{
+  value: VehicleTypeFilter;
+  label: string;
+  description: string;
+  icon: ElementType<{ className?: string }>;
+}> = [
+  { value: "citadine", label: "Citadine", description: "4-5 places", icon: CarFront },
+  { value: "minivan", label: "Minivan", description: "6-9 places", icon: Users },
+  { value: "bus", label: "Bus", description: "10-15 places", icon: Bus },
+];
+
+const SERVICE_CLASS_OPTIONS: Array<{ value: ServiceClassFilter; label: string }> = [
+  { value: "eco", label: "Eco" },
+  { value: "confort", label: "Confort" },
+  { value: "confort_plus", label: "Confort+" },
 ];
 
 function parseAvailableSeats(seats: string): number {
@@ -80,6 +110,8 @@ function RechercheContent() {
   const paramHeure = searchParams.get("heure") ?? "";
   const paramBudget = searchParams.get("budget") ?? "";
   const paramPickupMode = (searchParams.get("pickupMode") as PickupMode) || "driver_point";
+  const paramVehicleType = (searchParams.get("vehicleType") as VehicleTypeFilter | null) ?? "";
+  const paramServiceClass = (searchParams.get("serviceClass") as ServiceClassFilter | null) ?? "";
 
   const [formDepart, setFormDepart] = useState(paramDepart);
   const [formDestination, setFormDestination] = useState(paramDestination);
@@ -87,6 +119,8 @@ function RechercheContent() {
   const [formHeure, setFormHeure] = useState(paramHeure);
   const [formBudget, setFormBudget] = useState(paramBudget);
   const [formPickupMode, setFormPickupMode] = useState<PickupMode>(paramPickupMode);
+  const [formVehicleType, setFormVehicleType] = useState<VehicleTypeFilter | "">(paramVehicleType);
+  const [formServiceClass, setFormServiceClass] = useState<ServiceClassFilter | "">(paramServiceClass);
   const [formError, setFormError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState<"depart" | "destination" | null>(null);
   const [departRegion, setDepartRegion] = useState("");
@@ -114,6 +148,8 @@ function RechercheContent() {
     setFormHeure(paramHeure);
     setFormBudget(paramBudget);
     setFormPickupMode(paramPickupMode);
+    setFormVehicleType(paramVehicleType);
+    setFormServiceClass(paramServiceClass);
 
     const departHierarchy = inferLocationHierarchy(paramDepart);
     setDepartRegion(departHierarchy.region);
@@ -126,7 +162,7 @@ function RechercheContent() {
     setDestinationDepartment(destinationHierarchy.department);
     setDestinationCommune(destinationHierarchy.commune);
     setDestinationManualMode(Boolean(paramDestination && !destinationHierarchy.region));
-  }, [paramDepart, paramDestination, paramDate, paramHeure, paramBudget, paramPickupMode]);
+  }, [paramDepart, paramDestination, paramDate, paramHeure, paramBudget, paramPickupMode, paramVehicleType, paramServiceClass]);
 
   useEffect(() => {
     if (!hasSearchParams) {
@@ -145,6 +181,8 @@ function RechercheContent() {
       ...(paramDate ? { date: paramDate } : {}),
       ...(budgetNum && budgetNum > 0 ? { maxPriceFcfa: budgetNum } : {}),
       pickupMode: paramPickupMode,
+      ...(paramVehicleType ? { vehicleType: paramVehicleType } : {}),
+      ...(paramServiceClass ? { serviceClass: paramServiceClass } : {}),
     })
       .then((nextTrips) => {
         if (mounted) {
@@ -168,7 +206,7 @@ function RechercheContent() {
     return () => {
       mounted = false;
     };
-  }, [hasSearchParams, paramDepart, paramDestination, paramDate, paramBudget, paramPickupMode]);
+  }, [hasSearchParams, paramDepart, paramDestination, paramDate, paramBudget, paramPickupMode, paramVehicleType, paramServiceClass]);
 
   const filteredTrips = useMemo(() => {
     let list = trips;
@@ -219,6 +257,8 @@ function RechercheContent() {
       date: formDate || undefined,
       budget: formBudget,
       pickupMode: formPickupMode,
+      vehicleType: formVehicleType || undefined,
+      serviceClass: formServiceClass || undefined,
     });
     if (!validation.ok) {
       setFormError(validation.message);
@@ -255,6 +295,55 @@ function RechercheContent() {
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
             Sélectionnez votre trajet et réservez en quelques étapes.
           </p>
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Catégories de voyage
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {VEHICLE_TYPE_OPTIONS.map(({ value, label, description, icon: Icon }) => {
+                const active = formVehicleType === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormVehicleType((prev) => (prev === value ? "" : value))}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition ${
+                      active
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-900"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    <div className={`rounded-lg p-1.5 ${active ? "bg-emerald-100" : "bg-slate-100"}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{label}</p>
+                      <p className="text-xs opacity-80">{description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {SERVICE_CLASS_OPTIONS.map((option) => {
+                const active = formServiceClass === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormServiceClass((prev) => (prev === option.value ? "" : option.value))}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      active
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                        : "border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
           <form onSubmit={handleSearchSubmit} className="mt-4 space-y-3.5 sm:mt-5 sm:space-y-4">
             {formError && (
               <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -625,6 +714,16 @@ function RechercheContent() {
                       day: "numeric",
                       month: "short",
                     })}
+                  </span>
+                )}
+                {paramVehicleType && (
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800">
+                    {VEHICLE_TYPE_OPTIONS.find((item) => item.value === paramVehicleType)?.label ?? paramVehicleType}
+                  </span>
+                )}
+                {paramServiceClass && (
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-800">
+                    Classe {SERVICE_CLASS_OPTIONS.find((item) => item.value === paramServiceClass)?.label ?? paramServiceClass}
                   </span>
                 )}
                 <div className="ml-auto flex items-center gap-2">

@@ -27,6 +27,20 @@ export type TripRequest = {
   pickup_address: string | null;
   delivery_address: string | null;
   declared_value_fcfa: number | null;
+  colis_dispatch_mode: "direct_trip" | "depot_assiste";
+  preferred_vehicle_type: string | null;
+  requested_vehicle_category:
+    | "citadine"
+    | "suv_berline"
+    | "familiale"
+    | "minivan"
+    | "minibus"
+    | "bus"
+    | null;
+  requested_service_class: "eco" | "confort" | "confort_plus" | "premium" | "premium_plus" | null;
+  urgency_level: "normal" | "urgent" | "express";
+  relay_dropoff_label: string | null;
+  support_callback_requested: boolean;
   status: "open" | "matched" | "cancelled" | "expired";
   created_at: string;
   expires_at: string;
@@ -42,6 +56,13 @@ export type ParcelDetails = {
   pickupAddress?: string;
   deliveryAddress?: string;
   declaredValueFcfa?: number;
+  colisDispatchMode?: "direct_trip" | "depot_assiste";
+  preferredVehicleType?: string;
+  requestedVehicleCategory?: "citadine" | "suv_berline" | "familiale" | "minivan" | "minibus" | "bus";
+  requestedServiceClass?: "eco" | "confort" | "confort_plus" | "premium" | "premium_plus";
+  urgencyLevel?: "normal" | "urgent" | "express";
+  relayDropoffLabel?: string;
+  supportCallbackRequested?: boolean;
 };
 
 export async function createRequest(params: {
@@ -84,6 +105,16 @@ export async function createRequest(params: {
       pickup_address: params.parcelDetails?.pickupAddress ?? null,
       delivery_address: params.parcelDetails?.deliveryAddress ?? null,
       declared_value_fcfa: params.parcelDetails?.declaredValueFcfa ?? null,
+      colis_dispatch_mode: params.parcelDetails?.colisDispatchMode ?? "direct_trip",
+      preferred_vehicle_type: params.parcelDetails?.preferredVehicleType ?? null,
+      requested_vehicle_category:
+        params.parcelDetails?.requestedVehicleCategory ??
+        params.parcelDetails?.preferredVehicleType ??
+        null,
+      requested_service_class: params.parcelDetails?.requestedServiceClass ?? null,
+      urgency_level: params.parcelDetails?.urgencyLevel ?? "normal",
+      relay_dropoff_label: params.parcelDetails?.relayDropoffLabel ?? null,
+      support_callback_requested: params.parcelDetails?.supportCallbackRequested ?? false,
     };
 
   const { data, error } = await supabase.from("trip_requests").insert(payload).select().single();

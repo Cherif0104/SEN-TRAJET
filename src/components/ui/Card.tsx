@@ -12,7 +12,7 @@ export function Card({
   return (
     <div
       className={clsx(
-        "bg-white rounded-card shadow-card p-5 border border-neutral-200/80",
+        "bg-white rounded-2xl shadow-card p-3.5 sm:p-4 border border-neutral-200/80",
         variant === "elevated" && "shadow-[0px_4px_16px_rgba(0,0,0,0.12)]",
         variant === "interactive" &&
           "hover:shadow-[0px_4px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.995] transition-all duration-200 cursor-pointer",

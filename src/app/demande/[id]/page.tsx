@@ -178,11 +178,31 @@ export default function DemandeDetailPage() {
                 Volume: {request.parcel_volume_label || "Non précisé"} · Fragile: {request.is_fragile ? "Oui" : "Non"}
               </p>
               <p className="mt-1">
+                Mode: {request.colis_dispatch_mode === "depot_assiste" ? "Dépôt assisté" : "Direct trajet"} · Urgence:{" "}
+                {request.urgency_level}
+              </p>
+              <p className="mt-1">
+                Véhicule souhaité: {request.requested_vehicle_category || request.preferred_vehicle_type || "Non précisé"}
+              </p>
+              <p className="mt-1">
+                Classe souhaitée: {request.requested_service_class || "Non précisé"}
+              </p>
+              <p className="mt-1">
                 Retrait: {request.pickup_address || "Non précisé"}
               </p>
               <p className="mt-1">
                 Livraison: {request.delivery_address || "Non précisé"}
               </p>
+              {request.relay_dropoff_label && (
+                <p className="mt-1">
+                  Dépôt/relais: {request.relay_dropoff_label}
+                </p>
+              )}
+              {request.support_callback_requested && (
+                <p className="mt-1 font-medium text-sky-800">
+                  Rappel support demandé
+                </p>
+              )}
               {request.declared_value_fcfa != null && (
                 <p className="mt-1">
                   Valeur déclarée: {request.declared_value_fcfa.toLocaleString("fr-FR")} FCFA

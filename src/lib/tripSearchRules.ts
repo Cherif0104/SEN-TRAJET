@@ -1,11 +1,16 @@
 import type { PickupMode } from "@/lib/pricing";
 
+export type VehicleTypeFilter = "citadine" | "minivan" | "bus";
+export type ServiceClassFilter = "eco" | "confort" | "confort_plus";
+
 export type TripSearchInput = {
   depart: string;
   destination: string;
   date?: string;
   budget?: string;
   pickupMode: PickupMode;
+  vehicleType?: VehicleTypeFilter;
+  serviceClass?: ServiceClassFilter;
 };
 
 export type ValidatedTripSearch = {
@@ -14,6 +19,8 @@ export type ValidatedTripSearch = {
   date?: string;
   budgetFcfa?: number;
   pickupMode: PickupMode;
+  vehicleType?: VehicleTypeFilter;
+  serviceClass?: ServiceClassFilter;
 };
 
 export function parseBudgetFcfa(rawBudget?: string): number | undefined {
@@ -43,6 +50,8 @@ export function validateTripSearchInput(input: TripSearchInput):
       ...(input.date ? { date: input.date } : {}),
       ...(budgetFcfa ? { budgetFcfa } : {}),
       pickupMode: input.pickupMode,
+      ...(input.vehicleType ? { vehicleType: input.vehicleType } : {}),
+      ...(input.serviceClass ? { serviceClass: input.serviceClass } : {}),
     },
   };
 }
@@ -54,5 +63,7 @@ export function buildTripSearchQueryString(input: ValidatedTripSearch): string {
   params.set("pickupMode", input.pickupMode);
   if (input.date) params.set("date", input.date);
   if (input.budgetFcfa) params.set("budget", String(input.budgetFcfa));
+  if (input.vehicleType) params.set("vehicleType", input.vehicleType);
+  if (input.serviceClass) params.set("serviceClass", input.serviceClass);
   return params.toString();
 }

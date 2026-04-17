@@ -4,6 +4,16 @@ import { clampNonNegative, percentOf, roundFcfa } from "@/lib/pricingMath";
 
 export type RentalOperatingMode = "platform_managed" | "marketplace_partner";
 export type RentalListingStatus = "draft" | "pending_review" | "active" | "paused" | "rejected";
+export type TransportVehicleCategory =
+  | "citadine"
+  | "suv_berline"
+  | "familiale"
+  | "minivan"
+  | "minibus"
+  | "bus";
+export type ServiceClassLevel = "eco" | "confort" | "confort_plus" | "premium" | "premium_plus";
+export type RentalMode = "with_driver" | "without_driver";
+export type EligibilityStatus = "pending_review" | "eligible" | "not_eligible";
 export type RentalBookingStatus =
   | "pending"
   | "pending_payment"
@@ -12,12 +22,21 @@ export type RentalBookingStatus =
   | "completed"
   | "cancelled";
 
+export type RentalBookingFlow = "payment_now" | "callback_support";
+
 export type RentalListing = {
   id: string;
   owner_profile_id: string;
   partner_id: string | null;
   operating_mode: RentalOperatingMode;
   status: RentalListingStatus;
+  transport_vehicle_category: TransportVehicleCategory;
+  service_class: ServiceClassLevel;
+  rental_mode: RentalMode;
+  eligibility_status: EligibilityStatus;
+  compliance_score: number;
+  class_validated_at: string | null;
+  class_validated_by: string | null;
   is_verified: boolean;
   title: string;
   brand: string;
@@ -74,6 +93,9 @@ export type RentalBooking = {
   partner_commission_fcfa: number;
   owner_net_fcfa: number;
   total_fcfa: number;
+  booking_flow: RentalBookingFlow;
+  support_callback_requested: boolean;
+  customer_budget_fcfa: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -85,6 +107,9 @@ export type CreateRentalListingInput = {
   ownerProfileId: string;
   partnerId?: string | null;
   operatingMode: RentalOperatingMode;
+  transportVehicleCategory?: TransportVehicleCategory;
+  serviceClass?: ServiceClassLevel;
+  rentalMode?: RentalMode;
   title: string;
   brand: string;
   model: string;
@@ -112,6 +137,97 @@ export type CreateRentalListingInput = {
   pickupLocationLabel?: string | null;
   mainPhotoUrl?: string | null;
 };
+
+const SERVICE_CLASS_RULES: Record<ServiceClassLevel, { minYear: number; requiresAc: boolean }> = {
+  eco: { minYear: 2010, requiresAc: false },
+  confort: { minYear: 2015, requiresAc: true },
+  confort_plus: { minYear: 2018, requiresAc: true },
+  premium: { minYear: 2020, requiresAc: true },
+  premium_plus: { minYear: 2022, requiresAc: true },
+};
+
+export function checkServiceClassEligibility(params: {
+  serviceClass: ServiceClassLevel;
+  year: number | null | undefined;
+  hasAirConditioning?: boolean;
+  acOperational?: boolean;
+}) {
+  const rule = SERVICE_CLASS_RULES[params.serviceClass];
+  const year = typeof params.year === "number" ? params.year : null;
+  const hasAcOk = (params.hasAirConditioning ?? false) && (params.acOperational ?? false);
+
+  if (!year || !Number.isFinite(year)) {
+    return {
+      eligible: false,
+      reason: "Renseignez une année de véhicule valide pour attribuer une classe.",
+      minYear: rule.minYear,
+      requiresAc: rule.requiresAc,
+    };
+  }
+
+  if (year < rule.minYear) {
+    return {
+      eligible: false,
+      reason: `La classe ${params.serviceClass} exige une année minimale ${rule.minYear}.`,
+      minYear: rule.minYear,
+      requiresAc: rule.requiresAc,
+    };
+  }
+
+  if (rule.requiresAc && !hasAcOk) {
+    return {
+      eligible: false,
+      reason: `La classe ${params.serviceClass} exige une climatisation opérationnelle.`,
+      minYear: rule.minYear,
+      requiresAc: rule.requiresAc,
+    };
+  }
+
+  return {
+    eligible: true,
+    reason: null,
+    minYear: rule.minYear,
+    requiresAc: rule.requiresAc,
+  };
+}
+
+export function getHighestEligibleServiceClass(params: {
+  year: number | null | undefined;
+  hasAirConditioning?: boolean;
+  acOperational?: boolean;
+}): ServiceClassLevel {
+  const descending: ServiceClassLevel[] = ["premium_plus", "premium", "confort_plus", "confort", "eco"];
+  for (const level of descending) {
+    const check = checkServiceClassEligibility({
+      serviceClass: level,
+      year: params.year,
+      hasAirConditioning: params.hasAirConditioning,
+      acOperational: params.acOperational,
+    });
+    if (check.eligible) return level;
+  }
+  return "eco";
+}
+
+export function computeRentalComplianceScore(listing: Pick<
+  RentalListing,
+  | "has_air_conditioning"
+  | "ac_operational"
+  | "airbags_operational"
+  | "seatbelts_operational"
+  | "has_spare_tire"
+  | "insurance_valid_until"
+  | "technical_inspection_valid_until"
+>) {
+  let score = 0;
+  if (listing.seatbelts_operational) score += 20;
+  if (listing.airbags_operational) score += 20;
+  if (listing.has_spare_tire) score += 10;
+  if (listing.has_air_conditioning && listing.ac_operational) score += 15;
+  if (listing.insurance_valid_until) score += 20;
+  if (listing.technical_inspection_valid_until) score += 15;
+  return Math.max(0, Math.min(100, score));
+}
 
 export function computeRentalDays(startDate: string, endDate: string): number {
   const start = new Date(`${startDate}T00:00:00`);
@@ -169,6 +285,9 @@ export function computeRentalFinancials(params: {
 export async function getRentalListings(filters?: {
   city?: string;
   status?: RentalListingStatus;
+  category?: TransportVehicleCategory;
+  serviceClass?: ServiceClassLevel;
+  rentalMode?: RentalMode;
   q?: string;
 }) {
   let q = supabase
@@ -178,6 +297,9 @@ export async function getRentalListings(filters?: {
 
   if (filters?.city) q = q.ilike("city", `%${filters.city}%`);
   if (filters?.status) q = q.eq("status", filters.status);
+  if (filters?.category) q = q.eq("transport_vehicle_category", filters.category);
+  if (filters?.serviceClass) q = q.eq("service_class", filters.serviceClass);
+  if (filters?.rentalMode) q = q.eq("rental_mode", filters.rentalMode);
   if (filters?.q) q = q.or(`title.ilike.%${filters.q}%,brand.ilike.%${filters.q}%,model.ilike.%${filters.q}%`);
 
   const { data, error } = await q;
@@ -196,12 +318,33 @@ export async function getRentalListingById(listingId: string) {
 }
 
 export async function createRentalListing(input: CreateRentalListingInput) {
+  const serviceClass = input.serviceClass ?? "eco";
+  const classEligibility = checkServiceClassEligibility({
+    serviceClass,
+    year: input.year ?? null,
+    hasAirConditioning: input.hasAirConditioning,
+    acOperational: input.acOperational,
+  });
+  if (!classEligibility.eligible) {
+    throw new Error(classEligibility.reason ?? "Classe de service non éligible.");
+  }
+
+  const seats = input.seats ?? 4;
+  const inferredCategory: TransportVehicleCategory =
+    seats <= 4 ? "citadine" :
+    seats <= 6 ? "suv_berline" :
+    seats <= 7 ? "familiale" :
+    seats <= 15 ? "minivan" :
+    seats <= 30 ? "minibus" : "bus";
   const { data, error } = await supabase
     .from("rental_listings")
     .insert({
       owner_profile_id: input.ownerProfileId,
       partner_id: input.partnerId ?? null,
       operating_mode: input.operatingMode,
+      transport_vehicle_category: input.transportVehicleCategory ?? inferredCategory,
+      service_class: serviceClass,
+      rental_mode: input.rentalMode ?? "with_driver",
       title: input.title,
       brand: input.brand,
       model: input.model,
@@ -216,7 +359,7 @@ export async function createRentalListing(input: CreateRentalListingInput) {
       color: input.color ?? null,
       first_registration_date: input.firstRegistrationDate ?? null,
       transmission: input.transmission ?? "manuel",
-      seats: input.seats ?? 4,
+      seats,
       has_air_conditioning: input.hasAirConditioning ?? false,
       ac_operational: input.acOperational ?? false,
       airbags_operational: input.airbagsOperational ?? false,
@@ -252,12 +395,52 @@ export async function updateRentalListingStatus(listingId: string, status: Renta
   return data as RentalListing;
 }
 
+export async function revalidateRentalListingClass(params: {
+  listingId: string;
+  serviceClass: ServiceClassLevel;
+  validatorProfileId: string;
+}) {
+  const listing = await getRentalListingById(params.listingId);
+  if (!listing) throw new Error("Véhicule introuvable.");
+
+  const eligibility = checkServiceClassEligibility({
+    serviceClass: params.serviceClass,
+    year: listing.year,
+    hasAirConditioning: listing.has_air_conditioning,
+    acOperational: listing.ac_operational,
+  });
+  if (!eligibility.eligible) {
+    throw new Error(eligibility.reason ?? "Classe non éligible.");
+  }
+
+  const complianceScore = computeRentalComplianceScore(listing);
+  const { data, error } = await supabase
+    .from("rental_listings")
+    .update({
+      service_class: params.serviceClass,
+      eligibility_status: "eligible",
+      class_validated_at: new Date().toISOString(),
+      class_validated_by: params.validatorProfileId,
+      compliance_score: complianceScore,
+      is_verified: true,
+      status: listing.status === "draft" ? "pending_review" : listing.status,
+    })
+    .eq("id", params.listingId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as RentalListing;
+}
+
 export async function createRentalBooking(params: {
   listingId: string;
   clientId: string;
   startDate: string;
   endDate: string;
   notes?: string;
+  bookingFlow?: RentalBookingFlow;
+  supportCallbackRequested?: boolean;
+  customerBudgetFcfa?: number;
   platformPercent?: number;
   partnerPercent?: number;
 }) {
@@ -269,6 +452,10 @@ export async function createRentalBooking(params: {
   if (days <= 0) throw new Error("Période de location invalide.");
 
   const commissionConfig = await getCommissionConfig(listing.partner_id ?? undefined);
+  const customerBudgetFcfa =
+    typeof params.customerBudgetFcfa === "number" && Number.isFinite(params.customerBudgetFcfa)
+      ? Math.max(0, Math.round(params.customerBudgetFcfa))
+      : null;
   const financials = computeRentalFinancials({
     dailyRateFcfa: listing.daily_rate_fcfa,
     days,
@@ -286,7 +473,10 @@ export async function createRentalBooking(params: {
       owner_profile_id: listing.owner_profile_id,
       partner_id: listing.partner_id,
       operating_mode: listing.operating_mode,
-      status: "pending_payment",
+      status: params.bookingFlow === "callback_support" ? "pending" : "pending_payment",
+      booking_flow: params.bookingFlow ?? "payment_now",
+      support_callback_requested: params.supportCallbackRequested ?? false,
+      customer_budget_fcfa: customerBudgetFcfa,
       start_date: params.startDate,
       end_date: params.endDate,
       total_days: days,

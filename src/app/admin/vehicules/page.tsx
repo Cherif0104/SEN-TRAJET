@@ -3,17 +3,33 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { getRentalListings, updateRentalListingStatus, type RentalListing } from "@/lib/rentals";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  getRentalListings,
+  revalidateRentalListingClass,
+  updateRentalListingStatus,
+  type RentalListing,
+  type ServiceClassLevel,
+} from "@/lib/rentals";
 
 export default function AdminVehiculesPage() {
+  const { user } = useAuth();
   const [rows, setRows] = useState<RentalListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [classByVehicle, setClassByVehicle] = useState<Record<string, ServiceClassLevel>>({});
 
   const refresh = () => {
     setLoading(true);
     getRentalListings()
-      .then((data) => setRows(data))
+      .then((data) => {
+        setRows(data);
+        setClassByVehicle(
+          Object.fromEntries(
+            data.map((vehicle) => [vehicle.id, vehicle.service_class])
+          ) as Record<string, ServiceClassLevel>
+        );
+      })
       .finally(() => setLoading(false));
   };
 
@@ -25,6 +41,23 @@ export default function AdminVehiculesPage() {
     setProcessingId(id);
     try {
       await updateRentalListingStatus(id, status);
+      refresh();
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const revalidateClass = async (id: string) => {
+    if (!user?.id) return;
+    const nextClass = classByVehicle[id];
+    if (!nextClass) return;
+    setProcessingId(id);
+    try {
+      await revalidateRentalListingClass({
+        listingId: id,
+        serviceClass: nextClass,
+        validatorProfileId: user.id,
+      });
       refresh();
     } finally {
       setProcessingId(null);
@@ -59,10 +92,47 @@ export default function AdminVehiculesPage() {
                     {vehicle.city} · {vehicle.daily_rate_fcfa.toLocaleString("fr-FR")} FCFA/jour
                   </p>
                   <p className="mt-1 text-xs text-neutral-500">
-                    Statut: {vehicle.status} · Vérifié: {vehicle.is_verified ? "Oui" : "Non"}
+                    {vehicle.transport_vehicle_category} · {vehicle.service_class} ·{" "}
+                    {vehicle.rental_mode === "with_driver" ? "Avec chauffeur" : "Sans chauffeur"}
                   </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Statut: {vehicle.status} · Eligibilité: {vehicle.eligibility_status} · Vérifié:{" "}
+                    {vehicle.is_verified ? "Oui" : "Non"}
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Score conformité: {vehicle.compliance_score ?? 0}/100
+                  </p>
+                  <div className="mt-2">
+                    <label className="mb-1 block text-xs font-medium text-neutral-700">
+                      Classe à valider
+                    </label>
+                    <select
+                      value={classByVehicle[vehicle.id] ?? vehicle.service_class}
+                      onChange={(e) =>
+                        setClassByVehicle((prev) => ({
+                          ...prev,
+                          [vehicle.id]: e.target.value as ServiceClassLevel,
+                        }))
+                      }
+                      className="min-h-[34px] rounded-lg border border-neutral-300 bg-white px-2 text-xs"
+                    >
+                      <option value="eco">Eco</option>
+                      <option value="confort">Confort</option>
+                      <option value="confort_plus">Confort+</option>
+                      <option value="premium">Premium</option>
+                      <option value="premium_plus">Premium+</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => revalidateClass(vehicle.id)}
+                    disabled={processingId === vehicle.id}
+                  >
+                    Revalider classe
+                  </Button>
                   <Button
                     size="sm"
                     onClick={() => setStatus(vehicle.id, "active")}

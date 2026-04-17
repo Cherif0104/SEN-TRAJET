@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
@@ -46,6 +47,34 @@ const PARCEL_VOLUMES = [
   { value: "moyen", label: "Moyen (valise cabine)" },
   { value: "volumineux", label: "Volumineux" },
 ];
+
+const COLIS_DISPATCH_MODES = [
+  { value: "direct_trip", label: "Direct via trajet", description: "Le chauffeur transporte le colis sur son itinéraire." },
+  { value: "depot_assiste", label: "Dépôt assisté", description: "Dépôt en point relais ou représentant local." },
+] as const;
+
+const COLIS_URGENCY_LEVELS = [
+  { value: "normal", label: "Normal" },
+  { value: "urgent", label: "Urgent" },
+  { value: "express", label: "Express" },
+] as const;
+
+const COLIS_VEHICLE_TYPES = [
+  { value: "citadine", label: "Citadine" },
+  { value: "suv_berline", label: "SUV/Berline" },
+  { value: "familiale", label: "Familiale" },
+  { value: "minivan", label: "Minivan" },
+  { value: "minibus", label: "Minibus" },
+  { value: "bus", label: "Bus" },
+] as const;
+
+const COLIS_SERVICE_CLASSES = [
+  { value: "eco", label: "Eco" },
+  { value: "confort", label: "Confort" },
+  { value: "confort_plus", label: "Confort+" },
+  { value: "premium", label: "Premium" },
+  { value: "premium_plus", label: "Premium+" },
+] as const;
 
 function PassengerCounter({
   value,
@@ -107,6 +136,14 @@ function DemandePageContent() {
   const [parcelVolumeLabel, setParcelVolumeLabel] = useState("moyen");
   const [parcelQuantity, setParcelQuantity] = useState(1);
   const [isFragile, setIsFragile] = useState(false);
+  const [colisDispatchMode, setColisDispatchMode] = useState<"direct_trip" | "depot_assiste">("direct_trip");
+  const [urgencyLevel, setUrgencyLevel] = useState<"normal" | "urgent" | "express">("normal");
+  const [preferredVehicleType, setPreferredVehicleType] = useState("minivan");
+  const [requestedServiceClass, setRequestedServiceClass] = useState<
+    "eco" | "confort" | "confort_plus" | "premium" | "premium_plus"
+  >("eco");
+  const [relayDropoffLabel, setRelayDropoffLabel] = useState("");
+  const [supportCallbackRequested, setSupportCallbackRequested] = useState(false);
   const [pickupAddress, setPickupAddress] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [declaredValueFcfa, setDeclaredValueFcfa] = useState("");
@@ -172,6 +209,19 @@ function DemandePageContent() {
               pickupAddress,
               deliveryAddress,
               declaredValueFcfa: declaredValueFcfa.trim() ? Number(declaredValueFcfa) : undefined,
+              colisDispatchMode,
+              urgencyLevel,
+              preferredVehicleType,
+              requestedVehicleCategory: preferredVehicleType as
+                | "citadine"
+                | "suv_berline"
+                | "familiale"
+                | "minivan"
+                | "minibus"
+                | "bus",
+              requestedServiceClass,
+              relayDropoffLabel: relayDropoffLabel || undefined,
+              supportCallbackRequested,
             }
           : undefined,
       });
@@ -484,6 +534,27 @@ function DemandePageContent() {
                   Détails colis
                 </p>
                 <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">Mode d&apos;envoi</label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {COLIS_DISPATCH_MODES.map((mode) => (
+                        <button
+                          key={mode.value}
+                          type="button"
+                          onClick={() => setColisDispatchMode(mode.value)}
+                          className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                            colisDispatchMode === mode.value
+                              ? "border-amber-500 bg-amber-50 text-amber-900"
+                              : "border-neutral-300 bg-white text-neutral-700"
+                          }`}
+                        >
+                          <p className="font-semibold">{mode.label}</p>
+                          <p className="mt-0.5 text-xs opacity-80">{mode.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div>
                       <label className="mb-1 block text-sm font-medium text-neutral-800">Type de colis</label>
@@ -530,6 +601,58 @@ function DemandePageContent() {
                       <PassengerCounter value={parcelQuantity} min={1} max={50} onChange={setParcelQuantity} />
                     </div>
                   </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Classe de service souhaitée
+                    </label>
+                    <select
+                      value={requestedServiceClass}
+                      onChange={(e) =>
+                        setRequestedServiceClass(
+                          e.target.value as "eco" | "confort" | "confort_plus" | "premium" | "premium_plus"
+                        )
+                      }
+                      className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      {COLIS_SERVICE_CLASSES.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-800">Urgence</label>
+                      <select
+                        value={urgencyLevel}
+                        onChange={(e) => setUrgencyLevel(e.target.value as "normal" | "urgent" | "express")}
+                        className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {COLIS_URGENCY_LEVELS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-800">
+                        Véhicule souhaité
+                      </label>
+                      <select
+                        value={preferredVehicleType}
+                        onChange={(e) => setPreferredVehicleType(e.target.value)}
+                        className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {COLIS_VEHICLE_TYPES.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <Input
                     label="Adresse de retrait"
                     placeholder="Ex: HLM 5, Dakar"
@@ -544,6 +667,14 @@ function DemandePageContent() {
                     onChange={(e) => setDeliveryAddress(e.target.value)}
                     required
                   />
+                  {colisDispatchMode === "depot_assiste" && (
+                    <Input
+                      label="Point de dépôt / représentant (optionnel)"
+                      placeholder="Ex: Dépôt SEN TRAJET Thiès"
+                      value={relayDropoffLabel}
+                      onChange={(e) => setRelayDropoffLabel(e.target.value)}
+                    />
+                  )}
                   <Input
                     label="Valeur déclarée (FCFA, optionnel)"
                     type="number"
@@ -561,6 +692,23 @@ function DemandePageContent() {
                     />
                     Colis fragile
                   </label>
+                  <label className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={supportCallbackRequested}
+                      onChange={(e) => setSupportCallbackRequested(e.target.checked)}
+                      className="h-4 w-4 rounded border-neutral-300"
+                    />
+                    Demander un rappel support
+                  </label>
+                  {colisDispatchMode === "direct_trip" && (
+                    <Link
+                      href={`/recherche?depart=${encodeURIComponent(fromCity)}&destination=${encodeURIComponent(toCity)}&date=${encodeURIComponent(departureDate)}`}
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900"
+                    >
+                      Voir les trajets compatibles
+                    </Link>
+                  )}
                 </div>
               </div>
             )}
@@ -573,7 +721,9 @@ function DemandePageContent() {
               <p className="mt-1 text-neutral-600">
                 {selectedTripTypeLabel} ·{" "}
                 {isColisFlow
-                  ? `${parcelQuantity} colis${parcelQuantity > 1 ? "s" : ""} · ${parcelWeightKg || "?"} kg`
+                  ? `${parcelQuantity} colis${parcelQuantity > 1 ? "s" : ""} · ${parcelWeightKg || "?"} kg · ${
+                      colisDispatchMode === "depot_assiste" ? "Dépôt assisté" : "Direct trajet"
+                    }`
                   : `${passengers} passager${passengers > 1 ? "s" : ""} · ${
                       pickupMode === "home_pickup" ? "Prise à domicile (+supplément)" : "Point du chauffeur"
                     }`}

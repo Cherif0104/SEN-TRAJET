@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -8,9 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { getPartnerByUserId } from "@/lib/partners";
 import {
   createRentalListing,
+  checkServiceClassEligibility,
+  getHighestEligibleServiceClass,
   getPartnerRentalListings,
   type RentalListing,
   type RentalOperatingMode,
+  type RentalMode,
+  type ServiceClassLevel,
+  type TransportVehicleCategory,
 } from "@/lib/rentals";
 import { Car } from "lucide-react";
 
@@ -29,9 +34,13 @@ export default function PartenaireLocationVehiculesPage() {
   const [city, setCity] = useState("");
   const [dailyRate, setDailyRate] = useState("30000");
   const [mode, setMode] = useState<RentalOperatingMode>("marketplace_partner");
+  const [rentalMode, setRentalMode] = useState<RentalMode>("with_driver");
+  const [transportCategory, setTransportCategory] = useState<TransportVehicleCategory>("citadine");
+  const [serviceClass, setServiceClass] = useState<ServiceClassLevel>("eco");
   const [fuelType, setFuelType] = useState("essence");
   const [engineSize, setEngineSize] = useState("1.6");
   const [year, setYear] = useState("");
+  const [seats, setSeats] = useState("4");
   const [mileage, setMileage] = useState("0");
   const [insuranceDate, setInsuranceDate] = useState("");
   const [visitDate, setVisitDate] = useState("");
@@ -39,6 +48,37 @@ export default function PartenaireLocationVehiculesPage() {
   const [hasAirbags, setHasAirbags] = useState(true);
   const [hasSeatbelts, setHasSeatbelts] = useState(true);
   const [hasSpareTire, setHasSpareTire] = useState(true);
+  const serviceClassLabel: Record<ServiceClassLevel, string> = {
+    eco: "Eco",
+    confort: "Confort",
+    confort_plus: "Confort+",
+    premium: "Premium",
+    premium_plus: "Premium+",
+  };
+
+  const numericYear = year.trim() ? Number(year) : null;
+  const eligibilityCheck = useMemo(
+    () =>
+      checkServiceClassEligibility({
+        serviceClass,
+        year: numericYear,
+        hasAirConditioning: hasAC,
+        acOperational: hasAC,
+      }),
+    [serviceClass, numericYear, hasAC]
+  );
+
+  useEffect(() => {
+    if (eligibilityCheck.eligible) return;
+    const fallbackClass = getHighestEligibleServiceClass({
+      year: numericYear,
+      hasAirConditioning: hasAC,
+      acOperational: hasAC,
+    });
+    if (fallbackClass !== serviceClass) {
+      setServiceClass(fallbackClass);
+    }
+  }, [eligibilityCheck.eligible, numericYear, hasAC, serviceClass]);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -78,10 +118,14 @@ export default function PartenaireLocationVehiculesPage() {
         model,
         plateNumber,
         city,
+        transportVehicleCategory: transportCategory,
+        serviceClass,
+        rentalMode,
         dailyRateFcfa: Number(dailyRate),
         fuelType,
         engineSizeL: engineSize ? Number(engineSize) : null,
         year: year ? Number(year) : null,
+        seats: Number(seats || 4),
         mileageKm: Number(mileage || 0),
         insuranceValidUntil: insuranceDate || null,
         technicalInspectionValidUntil: visitDate || null,
@@ -97,6 +141,7 @@ export default function PartenaireLocationVehiculesPage() {
       setModel("");
       setPlateNumber("");
       setCity("");
+      setSeats("4");
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de publier le véhicule.");
@@ -132,12 +177,61 @@ export default function PartenaireLocationVehiculesPage() {
               onChange={(e) => setDailyRate(e.target.value)}
               required
             />
+            <Input
+              label="Places passagers"
+              type="number"
+              min={1}
+              max={60}
+              value={seats}
+              onChange={(e) => setSeats(e.target.value)}
+              required
+            />
             <Input label="Carburant" value={fuelType} onChange={(e) => setFuelType(e.target.value)} />
             <Input label="Moteur (L)" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} />
-            <Input label="Année" type="number" value={year} onChange={(e) => setYear(e.target.value)} />
+            <Input label="Année" type="number" value={year} onChange={(e) => setYear(e.target.value)} required />
             <Input label="Kilométrage" type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} />
             <Input label="Assurance valide jusqu’au" type="date" value={insuranceDate} onChange={(e) => setInsuranceDate(e.target.value)} />
             <Input label="Visite technique valide jusqu’au" type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Catégorie véhicule</label>
+              <select
+                value={transportCategory}
+                onChange={(e) => setTransportCategory(e.target.value as TransportVehicleCategory)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="citadine">Citadine</option>
+                <option value="suv_berline">SUV/Berline</option>
+                <option value="familiale">Familiale</option>
+                <option value="minivan">Minivan</option>
+                <option value="minibus">Minibus</option>
+                <option value="bus">Bus</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Classe de service</label>
+              <select
+                value={serviceClass}
+                onChange={(e) => setServiceClass(e.target.value as ServiceClassLevel)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="eco">Eco</option>
+                <option value="confort">Confort</option>
+                <option value="confort_plus">Confort+</option>
+                <option value="premium">Premium</option>
+                <option value="premium_plus">Premium+</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Mode location client</label>
+              <select
+                value={rentalMode}
+                onChange={(e) => setRentalMode(e.target.value as RentalMode)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="with_driver">Avec chauffeur</option>
+                <option value="without_driver">Sans chauffeur</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -148,7 +242,18 @@ export default function PartenaireLocationVehiculesPage() {
             <ToggleField label="Roue de secours disponible" checked={hasSpareTire} onChange={setHasSpareTire} />
           </div>
 
-          <Button type="submit" isLoading={submitting}>
+          {!eligibilityCheck.eligible && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {eligibilityCheck.reason}
+            </p>
+          )}
+          {eligibilityCheck.eligible && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              Classe {serviceClassLabel[serviceClass]} validée pour ce véhicule.
+            </p>
+          )}
+
+          <Button type="submit" isLoading={submitting} disabled={!eligibilityCheck.eligible}>
             Publier le véhicule
           </Button>
         </form>
@@ -173,7 +278,11 @@ export default function PartenaireLocationVehiculesPage() {
                     {vehicle.city} · {vehicle.daily_rate_fcfa.toLocaleString("fr-FR")} FCFA/jour
                   </p>
                   <p className="text-xs text-neutral-500">
-                    Statut: {vehicle.status} · Vérifié: {vehicle.is_verified ? "Oui" : "Non"}
+                    {vehicle.transport_vehicle_category} · {vehicle.service_class} ·{" "}
+                    {vehicle.rental_mode === "with_driver" ? "Avec chauffeur" : "Sans chauffeur"}
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Statut: {vehicle.status} · Eligibilité: {vehicle.eligibility_status}
                   </p>
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700">

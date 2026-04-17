@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { getBookingsForClient } from "@/lib/bookings";
 import { getMyRequests } from "@/lib/requests";
-import { CalendarCheck, MessageCircle, Route, Package, Car, X, MapPin, Search } from "lucide-react";
+import { CalendarCheck, MessageCircle, Route, Package, Car, X, MapPin, Search, ChevronRight } from "lucide-react";
 
 const ONBOARDING_STORAGE_KEY = "sentrajet_onboarding_client_done";
 
@@ -108,81 +108,82 @@ export default function ComptePage() {
       )}
 
       {/* Dashboard client mobile-first */}
-      <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-card sm:p-6">
-        <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-blue-50 to-white p-4">
+      <section className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-card sm:p-4">
+        <div className="relative overflow-hidden rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 via-blue-50 to-white p-3">
           <div className="pointer-events-none absolute inset-0 opacity-50">
             <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full border border-sky-200" />
             <div className="absolute left-8 top-8 h-40 w-40 rounded-full border border-sky-200/70" />
           </div>
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
                 {initials}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-neutral-900">Bonjour {firstName}</h1>
-                <p className="text-sm text-neutral-600">Où allons-nous ?</p>
+                <h1 className="text-xl font-bold text-neutral-900">Bonjour {firstName}</h1>
+                <p className="text-sm text-neutral-600">Choisissez un service et continuez.</p>
               </div>
             </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
               <MapPin className="h-4 w-4 text-primary" />
             </div>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-3">
           <Link
             href="/recherche"
-            className="group rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md active:translate-y-0 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="group flex items-center gap-3 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white px-3 py-3 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
               <Route className="h-5 w-5" />
             </div>
-            <h3 className="mt-3 text-xl font-bold text-neutral-900">Je voyage</h3>
-            <p className="mt-1 text-sm text-neutral-600">Réserver une course</p>
-            <span className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-full bg-primary text-xs font-semibold text-white shadow-sm transition group-hover:shadow-md">
-              Ouvrir
-            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xl font-bold text-neutral-900">Je voyage</h3>
+              <p className="truncate text-sm text-neutral-600">Trajets citadine, minivan, bus · Eco, Confort, Confort+</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-blue-600" />
           </Link>
-
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <Link
             href="/demande?tripType=colis"
-            className="group rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md active:translate-y-0 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="group rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white px-3 py-2.5 shadow-sm transition-all duration-200 hover:border-amber-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              <Package className="h-5 w-5" />
+            <div className="flex items-center justify-between">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <Package className="h-4 w-4" />
+              </div>
+              <ChevronRight className="h-4 w-4 text-amber-600" />
             </div>
-            <h3 className="mt-3 text-xl font-bold text-neutral-900">J&apos;envoie un colis</h3>
-            <p className="mt-1 text-sm text-neutral-600">Retrait et livraison</p>
-            <span className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-full bg-amber-500 text-xs font-semibold text-white shadow-sm transition group-hover:shadow-md">
-              Ouvrir
-            </span>
+            <h3 className="mt-2 text-base font-bold text-neutral-900">Envoyer un colis</h3>
+            <p className="truncate text-xs text-neutral-600">Direct ou dépôt assisté</p>
           </Link>
 
           <Link
             href="/location"
-            className="group rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md active:translate-y-0 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="group rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white px-3 py-2.5 shadow-sm transition-all duration-200 hover:border-emerald-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <Car className="h-5 w-5" />
+            <div className="flex items-center justify-between">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                <Car className="h-4 w-4" />
+              </div>
+              <ChevronRight className="h-4 w-4 text-emerald-600" />
             </div>
-            <h3 className="mt-3 text-xl font-bold text-neutral-900">Louer une voiture</h3>
-            <p className="mt-1 text-sm text-neutral-600">Choisir un véhicule</p>
-            <span className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white shadow-sm transition group-hover:shadow-md">
-              Ouvrir
-            </span>
+            <h3 className="mt-2 text-base font-bold text-neutral-900">Location</h3>
+            <p className="truncate text-xs text-neutral-600">Payer ou demander rappel</p>
           </Link>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+        <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-2.5">
           <p className="text-xs font-medium text-neutral-600">
             Recherche guidée: choisissez région, département et commune.
           </p>
-          <Button className="mt-3 w-full" size="lg" href="/recherche">
+          <Button className="mt-2.5 w-full" size="md" href="/recherche">
             <Search className="mr-2 h-4 w-4" />
             Rechercher un trajet
           </Button>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Button size="sm" variant="ghost" href="/recherche?depart=Dakar&destination=Thiès">
               Dakar → Thiès
             </Button>
@@ -194,8 +195,8 @@ export default function ComptePage() {
       </section>
 
       {/* Accès rapides */}
-      <h2 className="mt-8 text-lg font-semibold text-neutral-900">Accès rapides</h2>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <h2 className="mt-5 text-base font-semibold text-neutral-900">Accès rapides</h2>
+      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
         <Card>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
