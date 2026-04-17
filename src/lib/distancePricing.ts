@@ -1,12 +1,5 @@
 import { supabase } from "@/lib/supabase";
-
-export type DistanceEstimate = {
-  fromPlace: string;
-  toPlace: string;
-  distanceKm: number;
-  durationMinutes: number;
-  source: string;
-};
+import { clampNonNegative, percentOf, roundFcfa } from "@/lib/pricingMath";
 
 export type PriceSimulationParams = {
   distanceKm: number;
@@ -73,24 +66,6 @@ async function loadPricingReferences() {
   return { fuels: fuelCache, profiles: profileCache, rule: pricingRuleCache };
 }
 
-export async function estimateTripDistance(
-  fromPlace: string,
-  toPlace: string
-): Promise<DistanceEstimate | null> {
-  if (!fromPlace.trim() || !toPlace.trim()) return null;
-  try {
-    const response = await fetch("/api/distance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromPlace, toPlace }),
-    });
-    if (!response.ok) return null;
-    return (await response.json()) as DistanceEstimate;
-  } catch {
-    return null;
-  }
-}
-
 export async function simulatePriceFromDistance(
   params: PriceSimulationParams
 ): Promise<PriceSimulationResult> {
@@ -117,14 +92,14 @@ export async function simulatePriceFromDistance(
       with_driver_overhead_fcfa: 2500,
     };
 
-  const fuelCostFcfa = Math.round((params.distanceKm / 100) * profile.liters_per_100km * fuel.unit_price_fcfa);
-  const operationalBase = Number(refs.rule.operational_fee_fcfa ?? 0);
+  const fuelCostFcfa = roundFcfa((clampNonNegative(params.distanceKm) / 100) * profile.liters_per_100km * fuel.unit_price_fcfa);
+  const operationalBase = clampNonNegative(Number(refs.rule.operational_fee_fcfa ?? 0));
   const withDriverCost = params.withDriver
-    ? Number(refs.rule.with_driver_fee_fcfa ?? 0) + Number(profile.with_driver_overhead_fcfa ?? 0)
+    ? clampNonNegative(Number(refs.rule.with_driver_fee_fcfa ?? 0)) + clampNonNegative(Number(profile.with_driver_overhead_fcfa ?? 0))
     : 0;
-  const operationalCostFcfa = Math.round(operationalBase + withDriverCost);
+  const operationalCostFcfa = roundFcfa(operationalBase + withDriverCost);
   const subTotal = fuelCostFcfa + operationalCostFcfa;
-  const marginFcfa = Math.round(subTotal * (Number(refs.rule.margin_percent ?? 30) / 100));
+  const marginFcfa = roundFcfa(percentOf(subTotal, Number(refs.rule.margin_percent ?? 30)));
   return {
     fuelCostFcfa,
     operationalCostFcfa,

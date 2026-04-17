@@ -611,7 +611,7 @@ export default function ProfilChauffeurPage() {
             />
           </label>
           <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
-            Digest quotidien (au lieu d'alertes unitaires)
+            Digest quotidien (au lieu d&apos;alertes unitaires)
             <input
               type="checkbox"
               checked={digestEnabled}

@@ -50,7 +50,7 @@ export default function ChauffeurReservationsPage() {
     if (b.status !== "pending") return;
     setMovingId(b.id);
     try {
-      await updateBookingStatus(b.id, "confirmed");
+      await updateBookingStatus(b.id, "in_progress");
       setSuccessMessage("Course marquée en route.");
       refresh();
     } finally {
@@ -131,7 +131,7 @@ export default function ChauffeurReservationsPage() {
               ? new Date(trip.departure_time).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
               : "—";
             const canMarkEnRoute = b.status === "pending";
-            const canMarkCompleted = b.status === "confirmed";
+            const canMarkCompleted = b.status === "confirmed" || b.status === "in_progress";
             return (
               <li key={b.id}>
                 <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

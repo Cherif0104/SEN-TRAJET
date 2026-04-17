@@ -42,14 +42,14 @@ export default function TrajetDetailPage() {
         const hasActiveCourse = bookings.some(
           (booking) =>
             booking.trip_id === trip.id &&
-            (booking.status === "pending" || booking.status === "confirmed")
+            (booking.status === "pending" || booking.status === "confirmed" || booking.status === "in_progress")
         );
         if (mounted) setTrackingEnabled(hasActiveCourse);
         return;
       }
       const booking = await getBookingByTripAndClient(trip.id, user.id);
       if (mounted) {
-        setTrackingEnabled(Boolean(booking && (booking.status === "pending" || booking.status === "confirmed")));
+        setTrackingEnabled(Boolean(booking && (booking.status === "pending" || booking.status === "confirmed" || booking.status === "in_progress")));
       }
     })();
     return () => {
@@ -103,7 +103,7 @@ export default function TrajetDetailPage() {
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4 sm:px-6 sm:py-5">
         <Link
           href="/recherche"
           className="mb-4 inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-primary"
@@ -118,10 +118,10 @@ export default function TrajetDetailPage() {
           toCity={toCity}
           userRole={mapRole}
           trackingEnabled={trackingEnabled}
-          className="mb-6"
+          className="mb-4 sm:mb-6"
         />
 
-        <section className="rounded-xl bg-white p-4 shadow-card border border-neutral-200">
+        <section className="rounded-3xl bg-white p-4 shadow-card border border-neutral-200">
           <div className="flex items-center gap-3">
             <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
               {trip.driverName.charAt(0) || "C"}
@@ -139,7 +139,7 @@ export default function TrajetDetailPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-xl bg-white p-4 shadow-card border border-neutral-200">
+        <section className="mt-3 rounded-3xl bg-white p-4 shadow-card border border-neutral-200 sm:mt-4">
           <h3 className="font-semibold text-neutral-900">Itinéraire</h3>
           <div className="mt-3 flex gap-3">
             <div className="flex flex-col items-center">
@@ -161,7 +161,7 @@ export default function TrajetDetailPage() {
           </p>
         </section>
 
-        <section className="mt-6 rounded-xl bg-white p-4 shadow-card border border-neutral-200">
+        <section className="mt-3 rounded-3xl bg-white p-4 shadow-card border border-neutral-200 sm:mt-4">
           <h3 className="font-semibold text-neutral-900">Véhicule</h3>
           <div className="mt-2">
             <VehicleBadge
@@ -175,21 +175,34 @@ export default function TrajetDetailPage() {
           </p>
         </section>
 
-        <section className="mt-6 rounded-xl bg-white p-4 shadow-card border border-neutral-200">
+        <section className="mt-3 rounded-3xl bg-white p-4 shadow-card border border-neutral-200 sm:mt-4">
           <h3 className="font-semibold text-neutral-900">Tarification</h3>
           <p className="mt-3 flex justify-between border-t border-neutral-200 pt-3 text-lg font-bold">
             <span>Prix par personne</span>
             <span>{trip.priceFcfa.toLocaleString("fr-FR")} FCFA</span>
           </p>
+          <p className="mt-2 text-xs text-neutral-500">
+            Paiement possible à la réservation selon le mode choisi.
+          </p>
         </section>
 
-        <div className="sticky bottom-0 mt-8 pb-6">
+        <section className="mt-3 rounded-3xl bg-white p-4 shadow-card border border-neutral-200 sm:mt-4">
+          <h3 className="font-semibold text-neutral-900">Conditions & informations</h3>
+          <ul className="mt-2 space-y-1 text-sm text-neutral-600">
+            <li>• Le prix indiqué est calculé par passager.</li>
+            <li>• Annulation possible avant départ si la course n&apos;est pas commencée.</li>
+            <li>• Prise en charge: point chauffeur ou domicile selon l&apos;offre.</li>
+            <li>• Le statut de réservation est visible dans votre espace client.</li>
+          </ul>
+        </section>
+
+        <div className="sticky bottom-0 mt-5 pb-5 sm:mt-6 sm:pb-6">
           <Button
             fullWidth
             size="lg"
             href={`/reservation?trajet=${id}`}
           >
-            Réserver maintenant
+            Continuer et réserver
           </Button>
         </div>
       </main>

@@ -68,7 +68,7 @@ export default function RentalListingDetailPage() {
           ← Retour aux véhicules
         </Link>
 
-        <section className="mt-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-card sm:p-8">
+        <section className="mt-4 rounded-3xl border border-neutral-200 bg-white p-6 shadow-card sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-neutral-900">
@@ -118,7 +118,7 @@ export default function RentalListingDetailPage() {
               onClick={() => router.push(`/location/reserver?listing=${listing.id}`)}
               className="min-w-[220px]"
             >
-              Réserver ce véhicule
+              Continuer et réserver
             </Button>
             <Button href="/contact" variant="secondary">
               Contacter un agent

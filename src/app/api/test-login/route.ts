@@ -15,6 +15,17 @@ const TEST_PASSWORD = process.env.TEST_ACCOUNTS_PASSWORD ?? "TestPass123!";
 type Role = "client" | "chauffeur" | "partner" | "admin" | "super_admin" | "rental_owner";
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const expectedSecret = process.env.TEST_LOGIN_SECRET;
+  if (expectedSecret) {
+    const providedSecret = request.headers.get("x-test-login-secret");
+    if (providedSecret !== expectedSecret) {
+      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
     const role = body.role as Role;

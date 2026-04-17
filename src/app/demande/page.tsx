@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -15,7 +15,7 @@ import {
 } from "@/data/senegalLocations";
 import type { TripType } from "@/lib/trips";
 import type { PickupMode } from "@/lib/pricing";
-import { ArrowRightLeft, CalendarDays, Route, ShieldCheck } from "lucide-react";
+import { ArrowRightLeft, CalendarDays, Route, ShieldCheck, Minus, Plus } from "lucide-react";
 
 const TRIP_TYPES: { value: TripType; label: string }[] = [
   { value: "interurbain_covoiturage", label: "Covoiturage interurbain" },
@@ -33,8 +33,57 @@ const TIME_RANGES = [
   { value: "nuit", label: "Nuit (22h-6h)" },
 ];
 
-export default function DemandePage() {
+const PARCEL_TYPES = [
+  { value: "document", label: "Document" },
+  { value: "petit_colis", label: "Petit colis" },
+  { value: "colis_standard", label: "Colis standard" },
+  { value: "colis_fragile", label: "Colis fragile" },
+  { value: "materiel", label: "Matériel" },
+];
+
+const PARCEL_VOLUMES = [
+  { value: "compact", label: "Compact (sac/boîte)" },
+  { value: "moyen", label: "Moyen (valise cabine)" },
+  { value: "volumineux", label: "Volumineux" },
+];
+
+function PassengerCounter({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex min-h-[48px] items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-2 py-1">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-neutral-700 shadow-sm transition active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <span className="min-w-[56px] text-center text-lg font-bold text-neutral-900">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white shadow-sm transition active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function DemandePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
 
   const [fromCity, setFromCity] = useState("");
@@ -53,8 +102,25 @@ export default function DemandePage() {
   const [driverPickupPointLabel, setDriverPickupPointLabel] = useState("");
   const [notes, setNotes] = useState("");
   const [budgetFcfa, setBudgetFcfa] = useState("");
+  const [parcelType, setParcelType] = useState("colis_standard");
+  const [parcelWeightKg, setParcelWeightKg] = useState("");
+  const [parcelVolumeLabel, setParcelVolumeLabel] = useState("moyen");
+  const [parcelQuantity, setParcelQuantity] = useState(1);
+  const [isFragile, setIsFragile] = useState(false);
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [declaredValueFcfa, setDeclaredValueFcfa] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const initialTripType = searchParams.get("tripType");
+
+  const isColisFlow = tripType === "colis";
+
+  useEffect(() => {
+    if (initialTripType === "colis") {
+      setTripType("colis");
+    }
+  }, [initialTripType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +131,21 @@ export default function DemandePage() {
     if (fromCity.trim().toLowerCase() === toCity.trim().toLowerCase()) {
       setError("Le départ et la destination doivent être différents.");
       return;
+    }
+    if (isColisFlow) {
+      const weight = parcelWeightKg.trim() ? Number(parcelWeightKg) : NaN;
+      if (!pickupAddress.trim() || !deliveryAddress.trim()) {
+        setError("Renseignez les adresses de retrait et de livraison pour le colis.");
+        return;
+      }
+      if (!Number.isFinite(weight) || weight <= 0) {
+        setError("Indiquez un poids colis valide (kg).");
+        return;
+      }
+      if (parcelQuantity <= 0) {
+        setError("La quantité de colis doit être supérieure à 0.");
+        return;
+      }
     }
     setError(null);
     setSubmitting(true);
@@ -81,6 +162,18 @@ export default function DemandePage() {
         driverPickupPointLabel: driverPickupPointLabel || undefined,
         notes: notes || undefined,
         budgetFcfa: budgetFcfa.trim() ? Number(budgetFcfa) : undefined,
+        parcelDetails: isColisFlow
+          ? {
+              parcelType,
+              parcelWeightKg: Number(parcelWeightKg),
+              parcelVolumeLabel,
+              parcelQuantity,
+              isFragile,
+              pickupAddress,
+              deliveryAddress,
+              declaredValueFcfa: declaredValueFcfa.trim() ? Number(declaredValueFcfa) : undefined,
+            }
+          : undefined,
       });
       router.push(`/demande/${request.id}`);
     } catch (err) {
@@ -91,19 +184,26 @@ export default function DemandePage() {
   };
 
   const today = new Date().toISOString().split("T")[0];
-  const canSubmit = Boolean(user && fromCity.trim() && toCity.trim() && departureDate);
+  const canSubmit = Boolean(
+    user &&
+      fromCity.trim() &&
+      toCity.trim() &&
+      departureDate &&
+      (!isColisFlow || (pickupAddress.trim() && deliveryAddress.trim() && parcelWeightKg.trim()))
+  );
   const selectedTripTypeLabel = TRIP_TYPES.find((t) => t.value === tripType)?.label ?? tripType;
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-6 sm:px-6">
+      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-5 sm:px-6">
         <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
-          Créer une demande de trajet
+          {isColisFlow ? "Créer une demande d’envoi colis" : "Créer une demande de trajet"}
         </h1>
         <p className="mt-1 text-neutral-600">
-          Décrivez votre trajet et recevez des propositions de chauffeurs en
-          temps réel.
+          {isColisFlow
+            ? "Décrivez votre colis et recevez des propositions de transporteurs en temps réel."
+            : "Décrivez votre trajet et recevez des propositions de chauffeurs en temps réel."}
         </p>
 
         <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
@@ -121,8 +221,8 @@ export default function DemandePage() {
           </p>
         </div>
 
-        <Card className="mt-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <Card className="mt-5 rounded-3xl sm:mt-6">
+          <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
             {error && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
@@ -308,7 +408,7 @@ export default function DemandePage() {
 
                 <div>
                   <label className="mb-1 block text-sm font-medium text-neutral-800">
-                    Type de trajet
+                    Type de service
                   </label>
                   <select
                     value={tripType}
@@ -323,65 +423,146 @@ export default function DemandePage() {
                   </select>
                 </div>
 
+                {!isColisFlow && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Passagers
+                    </label>
+                    <PassengerCounter value={passengers} min={1} max={8} onChange={setPassengers} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {!isColisFlow ? (
+              <>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-neutral-800">
-                    Passagers
+                    Mode de prise en charge
                   </label>
-                  <select
-                    value={passengers}
-                    onChange={(e) => setPassengers(Number(e.target.value))}
-                    className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                      <option key={n} value={n}>
-                        {n} passager{n > 1 ? "s" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setPickupMode("driver_point")}
+                      className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                        pickupMode === "driver_point"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                          : "border-neutral-300 bg-white text-neutral-700"
+                      }`}
+                    >
+                      Point du chauffeur
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPickupMode("home_pickup")}
+                      className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                        pickupMode === "home_pickup"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                          : "border-neutral-300 bg-white text-neutral-700"
+                      }`}
+                    >
+                      A domicile (+supplément)
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-neutral-500">
+                    L&apos;option domicile applique automatiquement un supplément tarifaire.
+                  </p>
+                </div>
+
+                {pickupMode === "driver_point" && (
+                  <Input
+                    label="Point de prise en charge proposé"
+                    placeholder="Ex: Station Shell Mermoz"
+                    value={driverPickupPointLabel}
+                    onChange={(e) => setDriverPickupPointLabel(e.target.value)}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                  Détails colis
+                </p>
+                <div className="space-y-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-800">Type de colis</label>
+                      <select
+                        value={parcelType}
+                        onChange={(e) => setParcelType(e.target.value)}
+                        className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {PARCEL_TYPES.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Input
+                      label="Poids (kg)"
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      placeholder="Ex: 2.5"
+                      value={parcelWeightKg}
+                      onChange={(e) => setParcelWeightKg(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-800">Volume</label>
+                      <select
+                        value={parcelVolumeLabel}
+                        onChange={(e) => setParcelVolumeLabel(e.target.value)}
+                        className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {PARCEL_VOLUMES.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-800">Quantité</label>
+                      <PassengerCounter value={parcelQuantity} min={1} max={50} onChange={setParcelQuantity} />
+                    </div>
+                  </div>
+                  <Input
+                    label="Adresse de retrait"
+                    placeholder="Ex: HLM 5, Dakar"
+                    value={pickupAddress}
+                    onChange={(e) => setPickupAddress(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Adresse de livraison"
+                    placeholder="Ex: Quartier Escale, Saint-Louis"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Valeur déclarée (FCFA, optionnel)"
+                    type="number"
+                    min={0}
+                    placeholder="Ex: 25000"
+                    value={declaredValueFcfa}
+                    onChange={(e) => setDeclaredValueFcfa(e.target.value)}
+                  />
+                  <label className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={isFragile}
+                      onChange={(e) => setIsFragile(e.target.checked)}
+                      className="h-4 w-4 rounded border-neutral-300"
+                    />
+                    Colis fragile
+                  </label>
                 </div>
               </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">
-                Mode de prise en charge
-              </label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setPickupMode("driver_point")}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                    pickupMode === "driver_point"
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                      : "border-neutral-300 bg-white text-neutral-700"
-                  }`}
-                >
-                  Point du chauffeur
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPickupMode("home_pickup")}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                    pickupMode === "home_pickup"
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                      : "border-neutral-300 bg-white text-neutral-700"
-                  }`}
-                >
-                  A domicile (+supplement)
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-neutral-500">
-                L&apos;option domicile applique automatiquement un supplément tarifaire.
-              </p>
-            </div>
-
-            {pickupMode === "driver_point" && (
-              <Input
-                label="Point de prise en charge propose"
-                placeholder="Ex: Station Shell Mermoz"
-                value={driverPickupPointLabel}
-                onChange={(e) => setDriverPickupPointLabel(e.target.value)}
-              />
             )}
 
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
@@ -390,8 +571,12 @@ export default function DemandePage() {
                 {fromCity || "Départ"} → {toCity || "Destination"} · {departureDate || "Date à définir"}
               </p>
               <p className="mt-1 text-neutral-600">
-                {selectedTripTypeLabel} · {passengers} passager{passengers > 1 ? "s" : ""} ·{" "}
-                {pickupMode === "home_pickup" ? "Prise à domicile (+supplément)" : "Point du chauffeur"}
+                {selectedTripTypeLabel} ·{" "}
+                {isColisFlow
+                  ? `${parcelQuantity} colis${parcelQuantity > 1 ? "s" : ""} · ${parcelWeightKg || "?"} kg`
+                  : `${passengers} passager${passengers > 1 ? "s" : ""} · ${
+                      pickupMode === "home_pickup" ? "Prise à domicile (+supplément)" : "Point du chauffeur"
+                    }`}
               </p>
               {budgetFcfa.trim() && (
                 <p className="mt-1 text-neutral-600">
@@ -440,7 +625,7 @@ export default function DemandePage() {
               disabled={!canSubmit}
               className="hidden sm:inline-flex"
             >
-              Publier ma demande
+              {isColisFlow ? "Publier ma demande colis" : "Publier ma demande"}
             </Button>
 
             <div className="sticky bottom-16 z-30 -mx-1 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:hidden">
@@ -451,12 +636,29 @@ export default function DemandePage() {
                 isLoading={submitting}
                 disabled={!canSubmit}
               >
-                Publier ma demande
+                {isColisFlow ? "Publier ma demande colis" : "Publier ma demande"}
               </Button>
             </div>
           </form>
         </Card>
       </main>
     </div>
+  );
+}
+
+export default function DemandePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col bg-neutral-50">
+          <Header />
+          <main className="mx-auto w-full max-w-lg flex-1 px-4 py-5 sm:px-6">
+            <div className="h-28 animate-pulse rounded-2xl bg-neutral-200" />
+          </main>
+        </div>
+      }
+    >
+      <DemandePageContent />
+    </Suspense>
   );
 }

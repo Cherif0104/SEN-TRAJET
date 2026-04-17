@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { TripType } from "@/lib/trips";
 import type { PickupMode } from "@/lib/pricing";
+import { sortRequestsForDriver } from "@/lib/requestMatching";
 
 export type TripRequest = {
   id: string;
@@ -18,10 +19,29 @@ export type TripRequest = {
   trip_type: TripType;
   notes: string | null;
   budget_fcfa: number | null;
+  parcel_type: string | null;
+  parcel_weight_kg: number | null;
+  parcel_volume_label: string | null;
+  parcel_quantity: number | null;
+  is_fragile: boolean;
+  pickup_address: string | null;
+  delivery_address: string | null;
+  declared_value_fcfa: number | null;
   status: "open" | "matched" | "cancelled" | "expired";
   created_at: string;
   expires_at: string;
   client?: { full_name: string; average_rating: number; total_reviews: number };
+};
+
+export type ParcelDetails = {
+  parcelType?: string;
+  parcelWeightKg?: number;
+  parcelVolumeLabel?: string;
+  parcelQuantity?: number;
+  isFragile?: boolean;
+  pickupAddress?: string;
+  deliveryAddress?: string;
+  declaredValueFcfa?: number;
 };
 
 export async function createRequest(params: {
@@ -39,6 +59,7 @@ export async function createRequest(params: {
   pickupMode?: PickupMode;
   driverPickupPointLabel?: string;
   homePickupExtraFcfa?: number;
+  parcelDetails?: ParcelDetails;
 }) {
   const payload = {
       client_id: params.clientId,
@@ -55,31 +76,20 @@ export async function createRequest(params: {
       trip_type: params.tripType,
       notes: params.notes || null,
       budget_fcfa: params.budgetFcfa ?? null,
+      parcel_type: params.parcelDetails?.parcelType ?? null,
+      parcel_weight_kg: params.parcelDetails?.parcelWeightKg ?? null,
+      parcel_volume_label: params.parcelDetails?.parcelVolumeLabel ?? null,
+      parcel_quantity: params.parcelDetails?.parcelQuantity ?? null,
+      is_fragile: params.parcelDetails?.isFragile ?? false,
+      pickup_address: params.parcelDetails?.pickupAddress ?? null,
+      delivery_address: params.parcelDetails?.deliveryAddress ?? null,
+      declared_value_fcfa: params.parcelDetails?.declaredValueFcfa ?? null,
     };
 
-  let { data, error } = await supabase.from("trip_requests").insert(payload).select().single();
-
-  // Backward compatibility for environments without migration.
-  if (error && String(error.message).includes("column")) {
-    ({ data, error } = await supabase
-      .from("trip_requests")
-      .insert({
-        client_id: params.clientId,
-        from_city: params.fromCity,
-        to_city: params.toCity,
-        from_place: params.fromPlace || null,
-        to_place: params.toPlace || null,
-        departure_date: params.departureDate,
-        departure_time_range: params.departureTimeRange || "flexible",
-        passengers: params.passengers,
-        trip_type: params.tripType,
-        notes: params.notes || null,
-        budget_fcfa: params.budgetFcfa ?? null,
-      })
-      .select()
-      .single());
+  const { data, error } = await supabase.from("trip_requests").insert(payload).select().single();
+  if (error) {
+    throw new Error(`Impossible de créer la demande: ${error.message}`);
   }
-  if (error) throw error;
   return data;
 }
 
@@ -133,25 +143,23 @@ export async function getOpenRequestsForDriver(driverId: string, filters?: { fro
   const { data, error } = await query;
   if (error) throw error;
   const requests = (data ?? []) as TripRequest[];
-  const profileCity = String(profile?.city ?? "").trim().toLowerCase();
 
-  return requests
-    .map((req) => {
-      const fromMatch = profileCity ? req.from_city.toLowerCase().includes(profileCity) : false;
-      const toMatch = profileCity ? req.to_city.toLowerCase().includes(profileCity) : false;
-      const locationScore = fromMatch ? 3 : toMatch ? 2 : 1;
-      const tripType = req.trip_type;
-      const categoryScore =
-        tripType === "colis" && categories.has("utilitaire")
-          ? 3
-          : (tripType === "interurbain_location" || tripType === "interurbain_covoiturage") &&
-              (categories.has("confort") || categories.has("premium") || categories.has("standard"))
-            ? 2
-            : 1;
-      return { ...req, _score: locationScore * 10 + categoryScore };
-    })
-    .sort((a, b) => b._score - a._score || a.departure_date.localeCompare(b.departure_date))
-    .map(({ _score, ...req }) => req);
+  const { data: notifiedRows } = await supabase
+    .from("driver_match_notifications")
+    .select("request_id")
+    .eq("driver_id", driverId)
+    .not("request_id", "is", null);
+  const excludedRequestIds = new Set(
+    (notifiedRows ?? [])
+      .map((row) => String((row as { request_id?: string | null }).request_id ?? ""))
+      .filter(Boolean)
+  );
+
+  const eligible = requests.filter((req) => !excludedRequestIds.has(req.id));
+  return sortRequestsForDriver(eligible, {
+    profileCity: String(profile?.city ?? ""),
+    vehicleCategories: categories,
+  });
 }
 
 export async function getMyRequests(userId: string) {

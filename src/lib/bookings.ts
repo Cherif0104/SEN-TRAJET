@@ -1,4 +1,11 @@
 import { supabase } from "@/lib/supabase";
+import { validateBookingDraft } from "@/lib/bookingRules";
+import { canTransitionBookingStatus } from "@/lib/statusLabels";
+
+async function syncTripSeatAvailability(tripId: string): Promise<void> {
+  if (!tripId) return;
+  await supabase.rpc("sync_trip_available_seats", { p_trip_id: tripId });
+}
 
 export async function createBooking(params: {
   tripId: string;
@@ -12,7 +19,16 @@ export async function createBooking(params: {
   childPassengers?: number;
   totalFcfa: number;
 }) {
-  let { data, error } = await supabase
+  const validationError = validateBookingDraft({
+    tripId: params.tripId,
+    clientId: params.clientId,
+    driverId: params.driverId,
+    passengers: params.passengers,
+    totalFcfa: params.totalFcfa,
+  });
+  if (validationError) throw new Error(validationError);
+
+  const { data, error } = await supabase
     .from("bookings")
     .insert({
       trip_id: params.tripId,
@@ -29,42 +45,49 @@ export async function createBooking(params: {
     })
     .select()
     .single();
-  // Compatibilité environnement sans migration complète.
-  if (error && String(error.message).includes("column")) {
-    ({ data, error } = await supabase
-      .from("bookings")
-      .insert({
-        trip_id: params.tripId,
-        client_id: params.clientId,
-        driver_id: params.driverId,
-        passengers: params.passengers,
-        meeting_point: params.meetingPoint || null,
-        total_fcfa: params.totalFcfa,
-        status: "pending",
-      })
-      .select()
-      .single());
+  if (error) {
+    throw new Error(`Impossible de créer la réservation: ${error.message}`);
   }
-  if (error) throw error;
+  await syncTripSeatAvailability(params.tripId);
   return data;
 }
 
 /** Annule une réservation (côté client ou chauffeur). Vérifier en amont que l’utilisateur est bien client ou chauffeur de cette réservation. */
 export async function cancelBooking(bookingId: string): Promise<void> {
+  const { data: existing, error: fetchError } = await supabase
+    .from("bookings")
+    .select("trip_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+
   const { error } = await supabase
     .from("bookings")
     .update({ status: "cancelled" })
     .eq("id", bookingId);
   if (error) throw error;
+  await syncTripSeatAvailability(String(existing?.trip_id ?? ""));
 }
 
 /** Met à jour le statut d'une réservation (ex. chauffeur marque comme terminé). */
 export async function updateBookingStatus(bookingId: string, status: string): Promise<void> {
+  const { data: existing, error: fetchError } = await supabase
+    .from("bookings")
+    .select("trip_id, status")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!existing) throw new Error("Réservation introuvable.");
+  if (!canTransitionBookingStatus(String(existing.status ?? ""), status)) {
+    throw new Error(`Transition de statut non autorisée: ${String(existing.status ?? "unknown")} -> ${status}`);
+  }
+
   const { error } = await supabase
     .from("bookings")
     .update({ status })
     .eq("id", bookingId);
   if (error) throw error;
+  await syncTripSeatAvailability(String(existing.trip_id ?? ""));
 }
 
 export async function getBookingByTripAndClient(tripId: string, clientId: string) {

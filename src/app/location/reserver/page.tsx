@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
 import {
+  confirmRentalBookingPayment,
   computeRentalDays,
+  computeRentalEstimateForListing,
   createRentalBooking,
   getRentalListingById,
-  simulateRentalPrice,
+  type RentalBooking,
   type RentalListing,
+  validateRentalPeriod,
 } from "@/lib/rentals";
-import { estimateTripDistance } from "@/lib/distancePricing";
-import { senegalCities } from "@/data/senegalLocations";
 
 function ReserverLocationPageContent() {
   const router = useRouter();
@@ -27,17 +28,10 @@ function ReserverLocationPageContent() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [destinationCity, setDestinationCity] = useState("");
-  const [withDriver, setWithDriver] = useState(true);
-  const [distanceKm, setDistanceKm] = useState<number | null>(null);
-  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
-  const [pricingSimulation, setPricingSimulation] = useState<{
-    suggestedDailyRateFcfa: number;
-    suggestedTotalFcfa: number;
-  } | null>(null);
-  const [distanceLoading, setDistanceLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createdBooking, setCreatedBooking] = useState<RentalBooking | null>(null);
 
   useEffect(() => {
     if (!listingId) return;
@@ -57,44 +51,10 @@ function ReserverLocationPageContent() {
 
   const estimate = useMemo(() => {
     if (!listing || days <= 0) return null;
-    const subtotal = listing.daily_rate_fcfa * days;
-    const total = subtotal + listing.deposit_fcfa;
-    return { subtotal, total };
+    return computeRentalEstimateForListing(listing, days);
   }, [listing, days]);
 
   const today = new Date().toISOString().slice(0, 10);
-
-  const runRouteSimulation = async () => {
-    if (!listing || !destinationCity.trim()) return;
-    setDistanceLoading(true);
-    try {
-      const distance = await estimateTripDistance(listing.city, destinationCity);
-      if (!distance) {
-        setDistanceKm(null);
-        setDurationMinutes(null);
-        setPricingSimulation(null);
-        return;
-      }
-      setDistanceKm(distance.distanceKm);
-      setDurationMinutes(distance.durationMinutes);
-      const simulation = await simulateRentalPrice({
-        distanceKm: distance.distanceKm,
-        fuelType: listing.fuel_type || "essence",
-        vehicleCategory:
-          listing.metadata?.vehicle_category && typeof listing.metadata.vehicle_category === "string"
-            ? listing.metadata.vehicle_category
-            : "confort",
-        withDriver,
-        days: days || 1,
-      });
-      setPricingSimulation({
-        suggestedDailyRateFcfa: simulation.suggestedDailyRateFcfa,
-        suggestedTotalFcfa: simulation.suggestedTotalFcfa,
-      });
-    } finally {
-      setDistanceLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,28 +67,42 @@ function ReserverLocationPageContent() {
       setError("Véhicule introuvable.");
       return;
     }
-    if (!startDate || !endDate) {
-      setError("Choisissez une période de location.");
-      return;
-    }
-    if (days <= 0) {
-      setError("La période de location est invalide.");
+    const periodError = validateRentalPeriod(startDate, endDate);
+    if (periodError) {
+      setError(periodError);
       return;
     }
     setSubmitting(true);
     try {
-      await createRentalBooking({
+      const booking = await createRentalBooking({
         listingId: listing.id,
         clientId: user.id,
         startDate,
         endDate,
         notes,
       });
-      router.push("/compte/locations?created=1");
+      setCreatedBooking(booking);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de créer la réservation.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!user || !createdBooking) return;
+    setError(null);
+    setConfirmingPayment(true);
+    try {
+      await confirmRentalBookingPayment({
+        bookingId: createdBooking.id,
+        clientId: user.id,
+      });
+      router.push("/compte/locations?created=1&paid=1");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de confirmer le paiement.");
+    } finally {
+      setConfirmingPayment(false);
     }
   };
 
@@ -151,16 +125,52 @@ function ReserverLocationPageContent() {
     );
   }
 
+  if (createdBooking) {
+    return (
+      <div className="flex min-h-screen flex-col bg-neutral-50">
+        <Header />
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
+          <h1 className="text-2xl font-bold text-neutral-900">Paiement de votre location</h1>
+          <p className="mt-1 text-neutral-600">
+            Votre demande est créée avec le statut <strong>Paiement en attente</strong>.
+          </p>
+          <Card className="mt-6 rounded-3xl">
+            {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            <p className="text-sm text-neutral-600">Montant total</p>
+            <p className="mt-1 text-2xl font-bold text-neutral-900">
+              {createdBooking.total_fcfa.toLocaleString("fr-FR")} FCFA
+            </p>
+            <p className="mt-2 text-sm text-neutral-600">
+              Réservation: {createdBooking.total_days} jour{createdBooking.total_days > 1 ? "s" : ""} ·
+              du {createdBooking.start_date} au {createdBooking.end_date}
+            </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <Button onClick={handleConfirmPayment} isLoading={confirmingPayment}>
+                Confirmer paiement (simulation)
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => router.push("/compte/locations?created=1")}
+              >
+                Payer plus tard
+              </Button>
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-bold text-neutral-900">Réserver une location</h1>
         <p className="mt-1 text-neutral-600">
-          Confirmez les dates, payez votre réservation et nous vous recontactons sous 24h pour validation finale.
+          Choisissez les dates, vérifiez le montant et confirmez votre demande.
         </p>
 
-        <Card className="mt-6">
+        <Card className="mt-6 rounded-3xl">
           {listing ? (
             <>
               <p className="text-sm text-neutral-600">Véhicule</p>
@@ -198,72 +208,6 @@ function ReserverLocationPageContent() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Destination prévue (optionnel)</label>
-              <input
-                list="cities-rental-destination"
-                className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                placeholder="Ex: Saint-Louis"
-                value={destinationCity}
-                onChange={(e) => setDestinationCity(e.target.value)}
-              />
-              <datalist id="cities-rental-destination">
-                {senegalCities.map((city) => (
-                  <option key={city} value={city} />
-                ))}
-              </datalist>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Option chauffeur</label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setWithDriver(true)}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                    withDriver ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-neutral-300 bg-white text-neutral-700"
-                  }`}
-                >
-                  Avec chauffeur
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWithDriver(false)}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                    !withDriver ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-neutral-300 bg-white text-neutral-700"
-                  }`}
-                >
-                  Sans chauffeur
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={runRouteSimulation}
-              isLoading={distanceLoading}
-              disabled={!listing || !destinationCity.trim()}
-            >
-              Simuler la tarification du trajet
-            </Button>
-
-            {distanceKm != null && pricingSimulation && (
-              <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm">
-                <p className="font-medium text-sky-900">
-                  Distance estimée: {distanceKm.toLocaleString("fr-FR")} km
-                  {durationMinutes != null ? ` · ~${durationMinutes} min` : ""}
-                </p>
-                <p className="mt-1 text-sky-800">
-                  Tarif conseillé / jour: {pricingSimulation.suggestedDailyRateFcfa.toLocaleString("fr-FR")} FCFA
-                </p>
-                <p className="text-sky-800">
-                  Tarif conseillé total: {pricingSimulation.suggestedTotalFcfa.toLocaleString("fr-FR")} FCFA
-                </p>
-              </div>
-            )}
-
-            <div>
               <label className="mb-1 block text-sm font-medium text-neutral-800">Notes (optionnel)</label>
               <textarea
                 className="min-h-[100px] w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -289,7 +233,7 @@ function ReserverLocationPageContent() {
             )}
 
             <Button type="submit" isLoading={submitting} disabled={!listing || !user}>
-              Payer et confirmer la réservation
+              Confirmer ma demande de location
             </Button>
           </form>
         </Card>

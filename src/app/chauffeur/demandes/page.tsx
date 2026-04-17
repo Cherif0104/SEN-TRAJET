@@ -50,7 +50,6 @@ export default function DemandesOuvertesPage() {
           if (v.length > 0) setVehicleId(v[0].id);
         })
         .catch(() => setFetchError("Impossible de charger vos véhicules."));
-    }
     } else {
       setLoading(false);
     }

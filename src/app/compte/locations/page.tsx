@@ -2,20 +2,22 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackBanner } from "@/components/ui/FeedbackBanner";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientRentalBookings, type RentalBooking } from "@/lib/rentals";
+import { confirmRentalBookingPayment, getClientRentalBookings, type RentalBooking } from "@/lib/rentals";
 import { RENTAL_STATUS_LABEL, rentalStatusStyle } from "@/lib/statusLabels";
 
 function CompteLocationsPageContent() {
   const { user } = useAuth();
+  const router = useRouter();
   const params = useSearchParams();
   const [bookings, setBookings] = useState<RentalBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -32,6 +34,22 @@ function CompteLocationsPageContent() {
     };
   }, [user?.id]);
 
+  const handleConfirmPayment = async (bookingId: string) => {
+    if (!user?.id) return;
+    setActionLoadingId(bookingId);
+    try {
+      await confirmRentalBookingPayment({
+        bookingId,
+        clientId: user.id,
+      });
+      const rows = await getClientRentalBookings(user.id);
+      setBookings(rows);
+      router.replace("/compte/locations?paid=1");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   return (
     <>
       <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">Mes locations</h1>
@@ -43,7 +61,14 @@ function CompteLocationsPageContent() {
         <FeedbackBanner
           className="mt-4"
           tone="success"
-          message="Votre demande de location a été créée avec succès."
+          message="Votre réservation de location a bien été enregistrée."
+        />
+      )}
+      {params.get("paid") === "1" && (
+        <FeedbackBanner
+          className="mt-4"
+          tone="success"
+          message="Paiement confirmé (simulation). Votre location est maintenant confirmée."
         />
       )}
 
@@ -83,6 +108,16 @@ function CompteLocationsPageContent() {
                 </span>
               </div>
               <div className="mt-4 flex gap-2">
+                {booking.status === "pending_payment" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleConfirmPayment(booking.id)}
+                    isLoading={actionLoadingId === booking.id}
+                  >
+                    Confirmer paiement (simulation)
+                  </Button>
+                )}
                 <Button href={`/location/${booking.listing_id}`} variant="ghost" size="sm">
                   Revoir le véhicule
                 </Button>

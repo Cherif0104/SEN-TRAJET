@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getCommissionConfig } from "@/lib/partners";
+import { clampNonNegative, percentOf, roundFcfa } from "@/lib/pricingMath";
 
 export type PickupMode = "driver_point" | "home_pickup";
 
@@ -69,13 +70,13 @@ export async function computePriceBreakdown(params: {
   const rule = await getActiveGlobalPricingRule();
   const pickupExtraFcfa =
     params.pickupMode === "home_pickup"
-      ? Math.max(0, params.homePickupExtraFcfa ?? rule.home_pickup_extra_fcfa)
+      ? clampNonNegative(params.homePickupExtraFcfa ?? rule.home_pickup_extra_fcfa)
       : 0;
 
-  const totalPriceFcfa = Math.max(0, params.basePriceFcfa) + pickupExtraFcfa;
+  const totalPriceFcfa = clampNonNegative(params.basePriceFcfa) + pickupExtraFcfa;
 
   return {
-    basePriceFcfa: Math.max(0, params.basePriceFcfa),
+    basePriceFcfa: clampNonNegative(params.basePriceFcfa),
     pickupMode: params.pickupMode,
     pickupExtraFcfa,
     totalPriceFcfa,
@@ -95,19 +96,19 @@ export async function computeRentalPriceBreakdown(params: {
   const platformFeePercent = cfg?.platform_percent ?? 10;
   const partnerSharePercent = cfg?.partner_percent ?? 4;
 
-  const safeDays = Math.max(1, params.days);
-  const subtotalFcfa = Math.max(0, params.dailyRateFcfa) * safeDays;
-  const depositFcfa = Math.max(0, params.depositFcfa ?? 0);
-  const platformCommissionFcfa = Math.round((subtotalFcfa * platformFeePercent) / 100);
+  const safeDays = Math.max(1, Math.round(params.days));
+  const subtotalFcfa = roundFcfa(clampNonNegative(params.dailyRateFcfa) * safeDays);
+  const depositFcfa = roundFcfa(params.depositFcfa ?? 0);
+  const platformCommissionFcfa = roundFcfa(percentOf(subtotalFcfa, platformFeePercent));
   const partnerCommissionFcfa =
     params.mode === "marketplace_partner"
-      ? Math.round((subtotalFcfa * partnerSharePercent) / 100)
+      ? roundFcfa(percentOf(subtotalFcfa, partnerSharePercent))
       : 0;
-  const ownerNetFcfa = Math.max(0, subtotalFcfa - platformCommissionFcfa - partnerCommissionFcfa);
+  const ownerNetFcfa = roundFcfa(subtotalFcfa - platformCommissionFcfa - partnerCommissionFcfa);
 
   return {
     days: safeDays,
-    dailyRateFcfa: Math.max(0, params.dailyRateFcfa),
+    dailyRateFcfa: clampNonNegative(params.dailyRateFcfa),
     subtotalFcfa,
     depositFcfa,
     totalClientFcfa: subtotalFcfa + depositFcfa,

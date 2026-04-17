@@ -15,11 +15,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white shadow-[0_8px_20px_rgba(5,150,105,0.22)] hover:bg-primary-dark hover:shadow-[0_10px_24px_rgba(5,150,105,0.28)] active:scale-[0.99]",
+    "bg-primary text-white shadow-[0_8px_20px_rgba(5,150,105,0.22)] hover:bg-primary-dark hover:shadow-[0_10px_24px_rgba(5,150,105,0.28)] active:scale-[0.985]",
   secondary:
-    "bg-white border border-neutral-300 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400",
+    "bg-white border border-neutral-300 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400 active:scale-[0.99]",
   tertiary: "bg-transparent text-primary hover:text-primary-dark hover:underline",
-  ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
+  ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 active:scale-[0.99]",
   outline:
     "bg-white border border-secondary text-secondary hover:bg-secondary/10 active:scale-[0.99]",
 };
@@ -47,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const classes = clsx(
-      "inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
+      "inline-flex items-center justify-center font-semibold transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
       variantClasses[variant],
       sizeClasses[size],
       fullWidth && "w-full",

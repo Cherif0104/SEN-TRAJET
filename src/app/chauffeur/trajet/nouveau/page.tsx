@@ -9,7 +9,41 @@ import { useAuth } from "@/hooks/useAuth";
 import { createTrip } from "@/lib/trips-create";
 import { computePriceBreakdown, type PickupMode } from "@/lib/pricing";
 import { senegalCities } from "@/data/senegalLocations";
-import { ArrowRightLeft, CircleDollarSign, Route, ShieldCheck } from "lucide-react";
+import { ArrowRightLeft, CircleDollarSign, Route, ShieldCheck, Minus, Plus } from "lucide-react";
+
+function SeatCounter({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex min-h-[48px] items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-2 py-1">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-neutral-700 shadow-sm transition active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <span className="min-w-[56px] text-center text-lg font-bold text-neutral-900">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white shadow-sm transition active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 export default function NouveauTrajetPage() {
   const router = useRouter();
@@ -102,11 +136,11 @@ export default function NouveauTrajetPage() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-neutral-900">
+      <h1 className="text-xl font-bold text-neutral-900 sm:text-2xl">
         Publier un trajet
       </h1>
       <p className="mt-1 text-neutral-600">
-        Proposez un trajet en quelques etapes: axe, horaires, prix et mode de prise en charge.
+        Proposez un trajet en quelques étapes : axe, horaires, prix et mode de prise en charge.
       </p>
       <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
@@ -122,8 +156,8 @@ export default function NouveauTrajetPage() {
           3. Publication
         </p>
       </div>
-      <Card className="mt-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <Card className="mt-5 rounded-3xl sm:mt-6">
+        <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
@@ -194,17 +228,7 @@ export default function NouveauTrajetPage() {
             <label className="mb-2 block text-sm font-medium text-neutral-800">
               Places disponibles
             </label>
-            <select
-              value={places}
-              onChange={(e) => setPlaces(Number(e.target.value))}
-              className="w-full min-h-[44px] rounded-button border-2 border-neutral-300 bg-white px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+            <SeatCounter value={places} min={1} max={7} onChange={setPlaces} />
           </div>
           <Input
             label="Prix par personne (FCFA)"
@@ -257,7 +281,7 @@ export default function NouveauTrajetPage() {
                     : "border-neutral-300 bg-white text-neutral-700"
                 }`}
               >
-                Prise domicile
+                Prise à domicile
               </button>
             </div>
           </div>

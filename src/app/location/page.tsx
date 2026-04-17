@@ -5,25 +5,15 @@ import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Car, ShieldCheck, Clock3, ChevronRight, Search, Filter } from "lucide-react";
+import { Car, ShieldCheck, Clock3, Search, Filter } from "lucide-react";
 import { getRentalListings, type RentalListing } from "@/lib/rentals";
 import { senegalCities } from "@/data/senegalLocations";
-import { estimateTripDistance, simulatePriceFromDistance } from "@/lib/distancePricing";
 
 export default function LocationPage() {
   const [listings, setListings] = useState<RentalListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
-  const [simFrom, setSimFrom] = useState("");
-  const [simTo, setSimTo] = useState("");
-  const [simWithDriver, setSimWithDriver] = useState(true);
-  const [simResult, setSimResult] = useState<{
-    distanceKm: number;
-    durationMinutes: number;
-    suggestedFcfa: number;
-  } | null>(null);
-  const [simLoading, setSimLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -42,36 +32,11 @@ export default function LocationPage() {
 
   const totalAvailable = useMemo(() => listings.length, [listings.length]);
 
-  const runSimulation = async () => {
-    if (!simFrom.trim() || !simTo.trim()) return;
-    setSimLoading(true);
-    try {
-      const distance = await estimateTripDistance(simFrom, simTo);
-      if (!distance) {
-        setSimResult(null);
-        return;
-      }
-      const pricing = await simulatePriceFromDistance({
-        distanceKm: distance.distanceKm,
-        fuelType: "diesel",
-        vehicleCategory: "confort",
-        withDriver: simWithDriver,
-      });
-      setSimResult({
-        distanceKm: distance.distanceKm,
-        durationMinutes: distance.durationMinutes,
-        suggestedFcfa: pricing.totalSuggestedFcfa,
-      });
-    } finally {
-      setSimLoading(false);
-    }
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-        <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-card sm:p-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
+        <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-sky-700">
             Location
           </p>
@@ -79,7 +44,7 @@ export default function LocationPage() {
             Louer une voiture
           </h1>
           <p className="mt-2 text-neutral-600">
-            Nouvelle offre SEN TRAJET: comparez les véhicules disponibles et réservez rapidement.
+            Comparez les véhicules disponibles et réservez rapidement.
           </p>
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-neutral-600">
             <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1">
@@ -126,7 +91,7 @@ export default function LocationPage() {
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
+        <section className="mt-5 grid gap-3.5 md:mt-6 md:gap-4 md:grid-cols-3">
           {loading && (
             <>
               {[1, 2, 3].map((idx) => (
@@ -135,7 +100,7 @@ export default function LocationPage() {
             </>
           )}
           {!loading && listings.map((vehicle) => (
-            <Card key={vehicle.id} className="border border-neutral-200">
+            <Card key={vehicle.id} className="rounded-3xl border border-neutral-200">
               <div className="flex items-start justify-between">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
                   <Car className="h-5 w-5" />
@@ -160,7 +125,7 @@ export default function LocationPage() {
             </Card>
           ))}
           {!loading && listings.length === 0 && (
-            <Card className="border border-neutral-200 md:col-span-3">
+            <Card className="rounded-3xl border border-neutral-200 md:col-span-3">
               <h2 className="text-lg font-semibold text-neutral-900">Aucun véhicule disponible pour ce filtre</h2>
               <p className="mt-2 text-sm text-neutral-600">
                 Modifiez la ville ou la recherche, ou contactez-nous pour une mise à disposition spécifique.
@@ -180,81 +145,21 @@ export default function LocationPage() {
           )}
         </section>
 
-        <section className="mt-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-card sm:p-6">
+        <section className="mt-6 rounded-3xl border border-neutral-200 bg-white p-5 shadow-card sm:mt-8 sm:p-6">
           <h3 className="text-lg font-semibold text-neutral-900">
-            Simuler un tarif inter-région
+            Besoin d&apos;aide pour votre location ?
           </h3>
           <p className="mt-1 text-sm text-neutral-600">
-            Estimation automatique selon distance routière et coûts carburant.
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-4">
-            <input
-              list="cities-sim-from"
-              value={simFrom}
-              onChange={(e) => setSimFrom(e.target.value)}
-              placeholder="Départ"
-              className="min-h-[44px] rounded-xl border-2 border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            />
-            <input
-              list="cities-sim-to"
-              value={simTo}
-              onChange={(e) => setSimTo(e.target.value)}
-              placeholder="Destination"
-              className="min-h-[44px] rounded-xl border-2 border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            />
-            <select
-              value={simWithDriver ? "with" : "without"}
-              onChange={(e) => setSimWithDriver(e.target.value === "with")}
-              className="min-h-[44px] rounded-xl border-2 border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            >
-              <option value="with">Avec chauffeur</option>
-              <option value="without">Sans chauffeur</option>
-            </select>
-            <Button onClick={runSimulation} isLoading={simLoading}>
-              Simuler
-            </Button>
-            <datalist id="cities-sim-from">
-              {senegalCities.map((c) => (
-                <option key={`from-${c}`} value={c} />
-              ))}
-            </datalist>
-            <datalist id="cities-sim-to">
-              {senegalCities.map((c) => (
-                <option key={`to-${c}`} value={c} />
-              ))}
-            </datalist>
-          </div>
-          {simResult && (
-            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm">
-              <p className="font-medium text-sky-900">
-                Distance: {simResult.distanceKm.toLocaleString("fr-FR")} km · ~{simResult.durationMinutes} min
-              </p>
-              <p className="mt-1 text-sky-800">
-                Tarif conseillé: {Math.round(simResult.suggestedFcfa).toLocaleString("fr-FR")} FCFA
-              </p>
-            </div>
-          )}
-        </section>
-
-        <section className="mt-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-card sm:p-6">
-          <h3 className="text-lg font-semibold text-neutral-900">
-            Étape suivante: marketplace partenaires
-          </h3>
-          <p className="mt-1 text-sm text-neutral-600">
-            Cette base est prête pour brancher les partenaires loueurs et les stocks de véhicules.
+            Notre équipe vous accompagne pour choisir le véhicule adapté et finaliser rapidement votre réservation.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Button href="/contact">
-              Devenir partenaire location
-              <ChevronRight className="ml-1 h-4 w-4" />
+            <Button href="/contact" variant="secondary">
+              Contacter SEN TRAJET
             </Button>
             <Button href="/compte" variant="ghost">
               Retour à mon compte
             </Button>
           </div>
-          <p className="mt-3 text-xs text-neutral-500">
-            Version actuelle: maquette fonctionnelle pour lancer le parcours client.
-          </p>
         </section>
       </main>
     </div>

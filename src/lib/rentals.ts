@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getCommissionConfig } from "@/lib/partners";
-import { simulatePriceFromDistance } from "@/lib/distancePricing";
+import { clampNonNegative, percentOf, roundFcfa } from "@/lib/pricingMath";
 
 export type RentalOperatingMode = "platform_managed" | "marketplace_partner";
 export type RentalListingStatus = "draft" | "pending_review" | "active" | "paused" | "rejected";
@@ -121,6 +121,25 @@ export function computeRentalDays(startDate: string, endDate: string): number {
   return Math.floor(diff / 86_400_000) + 1;
 }
 
+export function validateRentalPeriod(startDate: string, endDate: string): string | null {
+  if (!startDate || !endDate) return "Choisissez une période de location.";
+  const days = computeRentalDays(startDate, endDate);
+  if (days <= 0) return "La période de location est invalide.";
+  return null;
+}
+
+export function computeRentalEstimateForListing(
+  listing: Pick<RentalListing, "daily_rate_fcfa" | "deposit_fcfa">,
+  days: number
+): { subtotal: number; total: number } {
+  const safeDays = Math.max(1, days);
+  const subtotal = roundFcfa(clampNonNegative(listing.daily_rate_fcfa) * safeDays);
+  return {
+    subtotal,
+    total: roundFcfa(subtotal + clampNonNegative(listing.deposit_fcfa)),
+  };
+}
+
 export function computeRentalFinancials(params: {
   dailyRateFcfa: number;
   days: number;
@@ -129,14 +148,14 @@ export function computeRentalFinancials(params: {
   platformPercent: number;
   partnerPercent: number;
 }) {
-  const subtotal = Math.max(0, params.dailyRateFcfa) * Math.max(1, params.days);
-  const platformCommission = Math.round((subtotal * Math.max(0, params.platformPercent)) / 100);
+  const subtotal = roundFcfa(clampNonNegative(params.dailyRateFcfa) * Math.max(1, Math.round(params.days)));
+  const platformCommission = roundFcfa(percentOf(subtotal, Math.max(0, params.platformPercent)));
   const partnerCommission =
     params.mode === "marketplace_partner"
-      ? Math.round((subtotal * Math.max(0, params.partnerPercent)) / 100)
+      ? roundFcfa(percentOf(subtotal, Math.max(0, params.partnerPercent)))
       : 0;
-  const ownerNet = Math.max(0, subtotal - platformCommission - partnerCommission);
-  const total = subtotal + Math.max(0, params.depositFcfa);
+  const ownerNet = roundFcfa(subtotal - platformCommission - partnerCommission);
+  const total = roundFcfa(subtotal + clampNonNegative(params.depositFcfa));
 
   return {
     subtotalFcfa: subtotal,
@@ -288,6 +307,25 @@ export async function createRentalBooking(params: {
   return data as RentalBooking;
 }
 
+export async function confirmRentalBookingPayment(params: {
+  bookingId: string;
+  clientId: string;
+}) {
+  const { data, error } = await supabase
+    .from("rental_bookings")
+    .update({ status: "confirmed" })
+    .eq("id", params.bookingId)
+    .eq("client_id", params.clientId)
+    .eq("status", "pending_payment")
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error("Cette réservation n'est pas en attente de paiement.");
+  }
+  return data as RentalBooking;
+}
+
 export async function getClientRentalBookings(clientId: string) {
   const { data, error } = await supabase
     .from("rental_bookings")
@@ -363,26 +401,4 @@ export async function createRentalHandoverEvent(params: {
     .single();
   if (error) throw error;
   return data;
-}
-
-export async function simulateRentalPrice(params: {
-  distanceKm: number;
-  fuelType: string;
-  vehicleCategory: string;
-  withDriver: boolean;
-  days: number;
-}) {
-  const base = await simulatePriceFromDistance({
-    distanceKm: params.distanceKm,
-    fuelType: params.fuelType,
-    vehicleCategory: params.vehicleCategory,
-    withDriver: params.withDriver,
-  });
-  const safeDays = Math.max(1, params.days);
-  const perDay = Math.round(base.totalSuggestedFcfa);
-  return {
-    suggestedDailyRateFcfa: perDay,
-    suggestedTotalFcfa: perDay * safeDays,
-    breakdown: base,
-  };
 }

@@ -13,6 +13,12 @@ import { VehicleBadge } from "@/components/ui/VehicleBadge";
 import { searchTrips, type Trip } from "@/lib/trips";
 import type { PickupMode } from "@/lib/pricing";
 import { reverseGeocode } from "@/lib/geocode";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  buildTripSearchQueryString,
+  parseBudgetFcfa,
+  validateTripSearchInput,
+} from "@/lib/tripSearchRules";
 import {
   communesByDepartment,
   departmentsByRegion,
@@ -66,6 +72,7 @@ function inferLocationHierarchy(value: string): LocationHierarchy {
 
 function RechercheContent() {
   const router = useRouter();
+  const { profile, user } = useAuth();
   const searchParams = useSearchParams();
   const paramDepart = searchParams.get("depart") ?? "";
   const paramDestination = searchParams.get("destination") ?? "";
@@ -94,6 +101,7 @@ function RechercheContent() {
   const hasSearchParams = Boolean(paramDepart.trim() && paramDestination.trim());
   const [loading, setLoading] = useState(hasSearchParams);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterMaxPrice, setFilterMaxPrice] = useState("");
@@ -123,12 +131,14 @@ function RechercheContent() {
   useEffect(() => {
     if (!hasSearchParams) {
       setTrips([]);
+      setSearchError(null);
       setLoading(false);
       return;
     }
     let mounted = true;
     setLoading(true);
-    const budgetNum = paramBudget ? parseInt(paramBudget, 10) : undefined;
+    setSearchError(null);
+    const budgetNum = parseBudgetFcfa(paramBudget);
     searchTrips({
       depart: paramDepart,
       destination: paramDestination,
@@ -137,7 +147,20 @@ function RechercheContent() {
       pickupMode: paramPickupMode,
     })
       .then((nextTrips) => {
-        if (mounted) setTrips(nextTrips);
+        if (mounted) {
+          setTrips(nextTrips);
+          setSearchError(null);
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setTrips([]);
+          setSearchError(
+            err instanceof Error
+              ? err.message
+              : "Un incident technique empêche la recherche pour le moment."
+          );
+        }
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -163,6 +186,10 @@ function RechercheContent() {
 
   const hasResults = useMemo(() => filteredTrips.length > 0, [filteredTrips.length]);
   const hasActiveFilters = filterCategory || filterMaxPrice || filterMinSeats;
+  const clientFirstName =
+    profile?.full_name?.trim()?.split(/\s+/)[0] ||
+    user?.email?.split("@")[0] ||
+    "cher client";
 
   const applyMyPosition = (field: "depart" | "destination") => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
@@ -186,27 +213,20 @@ function RechercheContent() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const depart = formDepart.trim();
-    const destination = formDestination.trim();
-    if (!depart || !destination) {
-      setFormError("Renseignez le départ et la destination pour lancer la recherche.");
-      return;
-    }
-    if (depart.toLowerCase() === destination.toLowerCase()) {
-      setFormError("Le départ et la destination doivent être différents.");
+    const validation = validateTripSearchInput({
+      depart: formDepart,
+      destination: formDestination,
+      date: formDate || undefined,
+      budget: formBudget,
+      pickupMode: formPickupMode,
+    });
+    if (!validation.ok) {
+      setFormError(validation.message);
       return;
     }
     setFormError(null);
-    const params = new URLSearchParams();
-    params.set("depart", depart);
-    params.set("destination", destination);
-    if (formDate) params.set("date", formDate);
+    const params = new URLSearchParams(buildTripSearchQueryString(validation.value));
     if (formHeure) params.set("heure", formHeure);
-    if (formBudget.trim()) {
-      const b = parseInt(formBudget, 10);
-      if (!Number.isNaN(b) && b > 0) params.set("budget", String(b));
-    }
-    params.set("pickupMode", formPickupMode);
     router.push(`/recherche?${params.toString()}`);
   };
 
@@ -215,7 +235,7 @@ function RechercheContent() {
   return (
     <>
       <Header />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 pb-28 sm:px-6 sm:py-8 sm:pb-8">
         <Link
           href="/"
           className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-emerald-700"
@@ -225,17 +245,17 @@ function RechercheContent() {
         </Link>
 
         {/* Formulaire de recherche — toujours visible */}
-        <Card className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xl shadow-slate-200/35 sm:p-7">
+        <Card className="rounded-3xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-4 shadow-xl shadow-slate-200/35 sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-600">
             Recherche
           </p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             Trouver un trajet
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Départ, destination, date : affichez les offres disponibles ou affinez avec le budget.
+            Sélectionnez votre trajet et réservez en quelques étapes.
           </p>
-          <form onSubmit={handleSearchSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleSearchSubmit} className="mt-4 space-y-3.5 sm:mt-5 sm:space-y-4">
             {formError && (
               <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {formError}
@@ -514,7 +534,7 @@ function RechercheContent() {
                       : "border-slate-200 bg-white text-slate-700"
                   }`}
                 >
-                  A domicile (+supplement)
+                  A domicile (+supplément)
                 </button>
               </div>
             </div>
@@ -571,7 +591,7 @@ function RechercheContent() {
 
         {hasSearchParams && (
           <>
-            <section className="mt-10 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-lg shadow-slate-200/30 sm:p-6">
+            <section className="mt-6 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-200/30 sm:mt-8 sm:p-6">
               <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
                 Trajets disponibles · {paramDepart} → {paramDestination}
                 {paramBudget && parseInt(paramBudget, 10) > 0 && (
@@ -591,7 +611,7 @@ function RechercheContent() {
                 {paramHeure && ` · ${paramHeure}`}
                 {` · ${paramPickupMode === "home_pickup" ? "Prise en charge domicile" : "Point chauffeur"}`}
               </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4">
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200/60">
                   {paramDepart}
                 </span>
@@ -678,8 +698,33 @@ function RechercheContent() {
                   <div key={i} className="h-32 rounded-xl bg-neutral-200" />
                 ))}
               </div>
+            ) : searchError ? (
+              <Card className="mt-6 rounded-3xl border border-red-200 bg-red-50/70">
+                <h2 className="text-lg font-semibold text-neutral-900">
+                  Incident technique temporaire
+                </h2>
+                <p className="mt-2 text-sm text-neutral-700">
+                  Nous ne pouvons pas charger les trajets pour le moment. Réessayez dans quelques instants.
+                </p>
+                <p className="mt-2 text-xs text-red-700">{searchError}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const params = new URLSearchParams(window.location.search);
+                      params.set("retry", String(Date.now()));
+                      router.push(`/recherche?${params.toString()}`);
+                    }}
+                  >
+                    Réessayer
+                  </Button>
+                  <Button size="sm" variant="ghost" href="/demande">
+                    Publier une demande
+                  </Button>
+                </div>
+              </Card>
             ) : !hasResults ? (
-              <Card className="mt-6">
+              <Card className="mt-6 rounded-3xl border border-amber-200 bg-amber-50/60">
                 <h2 className="text-lg font-semibold text-neutral-900">
                   {hasActiveFilters ? "Aucun trajet ne correspond aux filtres" : paramBudget && parseInt(paramBudget, 10) > 0 ? "Aucun trajet dans votre budget" : "Aucun trajet trouvé pour le moment"}
                 </h2>
@@ -688,7 +733,7 @@ function RechercheContent() {
                     ? "Modifiez ou réinitialisez les filtres."
                     : paramBudget && parseInt(paramBudget, 10) > 0
                       ? "Augmentez votre budget ou modifiez la date / les villes. Vous pouvez aussi publier une demande."
-                      : "Modifiez la date ou les villes, ou publiez une demande pour que les chauffeurs vous proposent un trajet."}
+                      : `Oups ${clientFirstName}, nous n'avons pas trouvé de trajet pour ce créneau. Créez votre demande et un chauffeur pourra prendre en charge votre voyage.`}
                 </p>
                 {hasActiveFilters && (
                   <Button
@@ -717,7 +762,7 @@ function RechercheContent() {
                 </div>
               </Card>
             ) : (
-              <div className="mt-6 space-y-4">
+              <div className="mt-5 space-y-3.5 sm:mt-6 sm:space-y-4">
                 <p className="text-sm font-medium text-slate-600">
                   {filteredTrips.length} trajet{filteredTrips.length !== 1 ? "s" : ""} — sélectionnez une offre pour continuer
                 </p>
@@ -725,11 +770,11 @@ function RechercheContent() {
                   <Card
                     key={trip.id}
                     variant="interactive"
-                    className="rounded-2xl border border-slate-200/80 shadow-sm"
+                    className="rounded-3xl border border-slate-200/80 bg-white shadow-sm"
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-900">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-sm font-bold text-emerald-900">
                           {trip.driver.charAt(0)}
                         </div>
                         <div>
@@ -765,11 +810,11 @@ function RechercheContent() {
                         )}
                         {paramPickupMode === "home_pickup" && (
                           <p className="text-xs text-emerald-700">
-                            Inclut supplement domicile (+{(trip.homePickupExtraFcfa ?? 2000).toLocaleString("fr-FR")} FCFA)
+                            Inclut supplément domicile (+{(trip.homePickupExtraFcfa ?? 2000).toLocaleString("fr-FR")} FCFA)
                           </p>
                         )}
                         <Button size="sm" href={`/trajet/${trip.id}`}>
-                          Réserver ce trajet
+                          Voir + réserver
                         </Button>
                       </div>
                     </div>
@@ -778,7 +823,7 @@ function RechercheContent() {
               </div>
             )}
 
-            <div className="fixed bottom-4 left-4 right-4 z-30 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:hidden">
+            <div className="fixed bottom-3 left-3 right-3 z-30 rounded-3xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:hidden">
               <div className="flex gap-2">
                 <Button href="/demande" fullWidth size="sm" variant="secondary">
                   Publier une demande

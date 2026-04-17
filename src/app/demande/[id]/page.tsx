@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Calendar, Users, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Clock, Package } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -75,6 +75,7 @@ export default function DemandeDetailPage() {
 
   const isOpen = request.status === "open";
   const isMatched = request.status === "matched";
+  const isColis = request.trip_type === "colis";
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
@@ -147,13 +148,48 @@ export default function DemandeDetailPage() {
               <span className="capitalize">{request.departure_time_range}</span>
             </div>
             <div className="flex items-center gap-2 text-neutral-600">
-              <Users className="h-4 w-4 shrink-0 text-primary" />
-              <span>
-                {request.passengers} passager
-                {request.passengers > 1 ? "s" : ""}
-              </span>
+              {isColis ? (
+                <>
+                  <Package className="h-4 w-4 shrink-0 text-primary" />
+                  <span>
+                    {request.parcel_quantity ?? 1} colis
+                    {(request.parcel_quantity ?? 1) > 1 ? "s" : ""}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Users className="h-4 w-4 shrink-0 text-primary" />
+                  <span>
+                    {request.passengers} passager
+                    {request.passengers > 1 ? "s" : ""}
+                  </span>
+                </>
+              )}
             </div>
           </div>
+          {isColis && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <p className="font-semibold">Détails colis</p>
+              <p className="mt-1">
+                Type: {request.parcel_type || "Non précisé"} · Poids:{" "}
+                {request.parcel_weight_kg != null ? `${request.parcel_weight_kg} kg` : "Non précisé"}
+              </p>
+              <p className="mt-1">
+                Volume: {request.parcel_volume_label || "Non précisé"} · Fragile: {request.is_fragile ? "Oui" : "Non"}
+              </p>
+              <p className="mt-1">
+                Retrait: {request.pickup_address || "Non précisé"}
+              </p>
+              <p className="mt-1">
+                Livraison: {request.delivery_address || "Non précisé"}
+              </p>
+              {request.declared_value_fcfa != null && (
+                <p className="mt-1">
+                  Valeur déclarée: {request.declared_value_fcfa.toLocaleString("fr-FR")} FCFA
+                </p>
+              )}
+            </div>
+          )}
           {request.notes && (
             <p className="mt-3 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
               {request.notes}

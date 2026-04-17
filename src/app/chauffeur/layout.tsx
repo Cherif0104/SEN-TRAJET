@@ -110,21 +110,28 @@ export default function ChauffeurLayout({
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-neutral-200 bg-white md:hidden">
-        {mobileNav.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-[11px] ${
-              pathname === href ? "text-primary" : "text-neutral-500"
-            }`}
-          >
-            <Icon className="h-5 w-5" />
-            <span className="truncate">{label}</span>
-          </Link>
-        ))}
+      <nav className="fixed inset-x-0 bottom-3 z-40 px-3 md:hidden">
+        <div className="mx-auto flex max-w-md items-center rounded-2xl border border-neutral-200/90 bg-white/95 p-1.5 shadow-lg backdrop-blur">
+          {mobileNav.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium transition ${
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-neutral-500 hover:bg-neutral-100 active:scale-[0.98]"
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${active ? "text-primary" : "text-neutral-500"}`} />
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
-      <div className="h-16 md:hidden" />
+      <div className="h-20 md:hidden" />
     </div>
   );
 }

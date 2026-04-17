@@ -75,15 +75,21 @@ export default function CompteReservationsPage() {
         </Card>
       ) : (
         <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-4">
             <Card className="border border-neutral-200 bg-neutral-50">
               <p className="text-xs text-neutral-500">Total</p>
               <p className="text-xl font-bold text-neutral-900">{bookings.length}</p>
             </Card>
+            <Card className="border border-amber-200 bg-amber-50">
+              <p className="text-xs text-amber-700">En attente</p>
+              <p className="text-xl font-bold text-amber-800">
+                {bookings.filter((b) => b.status === "pending").length}
+              </p>
+            </Card>
             <Card className="border border-emerald-200 bg-emerald-50">
               <p className="text-xs text-emerald-700">Confirmées</p>
               <p className="text-xl font-bold text-emerald-800">
-                {bookings.filter((b) => b.status === "confirmed").length}
+                {bookings.filter((b) => b.status === "confirmed" || b.status === "in_progress").length}
               </p>
             </Card>
             <Card className="border border-sky-200 bg-sky-50">

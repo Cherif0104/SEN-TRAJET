@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { textIncludesNormalized } from "@/lib/search";
 import type { PickupMode } from "@/lib/pricing";
 import { simulatePriceFromDistance } from "@/lib/distancePricing";
+import { parseBudgetFcfa } from "@/lib/tripSearchRules";
 
 export type TripType =
   | "interurbain_location"
@@ -32,11 +33,13 @@ export type Trip = {
   suggestedPriceFcfa?: number;
 };
 
+function matchesTripRoute(trip: Trip, depart: string, destination: string): boolean {
+  return textIncludesNormalized(trip.from, depart) && textIncludesNormalized(trip.to, destination);
+}
+
 function filterTrips(trips: Trip[], depart: string, destination: string): Trip[] {
   return trips.filter(
-    (trip) =>
-      textIncludesNormalized(trip.from, depart) &&
-      textIncludesNormalized(trip.to, destination)
+    (trip) => matchesTripRoute(trip, depart, destination)
   );
 }
 
@@ -76,86 +79,81 @@ export async function searchTrips(params: {
   maxPriceFcfa?: number;
   pickupMode?: PickupMode;
 }): Promise<Trip[]> {
-  const { depart, destination, date: dateParam, maxPriceFcfa, pickupMode = "driver_point" } = params;
+  const { depart, destination, date: dateParam, pickupMode = "driver_point" } = params;
+  const maxPriceFcfa = typeof params.maxPriceFcfa === "number" ? params.maxPriceFcfa : parseBudgetFcfa(String(params.maxPriceFcfa ?? ""));
 
   if (!hasSupabasePublicConfig()) {
-    return [];
+    throw new Error("Configuration Supabase manquante pour la recherche de trajets.");
   }
 
-  try {
-    let q = supabase
-      .from("trips")
-      .select("*")
-      .eq("status", "active")
-      .gt("available_seats", 0)
-      .ilike("from_city", `%${depart}%`)
-      .ilike("to_city", `%${destination}%`)
-      .order("departure_time", { ascending: true })
-      .limit(50);
+  let q = supabase
+    .from("trips")
+    .select("*")
+    .eq("status", "active")
+    .gt("available_seats", 0)
+    .ilike("from_city", `%${depart}%`)
+    .ilike("to_city", `%${destination}%`)
+    .order("departure_time", { ascending: true })
+    .limit(50);
 
-    if (dateParam) {
-      const start = new Date(`${dateParam}T00:00:00.000Z`);
-      const end = new Date(`${dateParam}T23:59:59.999Z`);
-      q = q.gte("departure_time", start.toISOString()).lte("departure_time", end.toISOString());
-    }
-
-    if (maxPriceFcfa != null && maxPriceFcfa > 0) {
-      const adjustedBudget = pickupMode === "home_pickup" ? Math.max(0, maxPriceFcfa - 2000) : maxPriceFcfa;
-      q = q.lte("price_fcfa", adjustedBudget);
-    }
-
-    const { data, error } = await q;
-
-    if (error) {
-      console.error("[searchTrips]", error);
-      return [];
-    }
-    if (!data || !Array.isArray(data)) return [];
-
-    const normalizedTrips: Trip[] = await Promise.all(data.map(async (row: Record<string, unknown>) => {
-      const availableSeats = Number(row.available_seats ?? 0);
-      const totalSeats = Number(row.total_seats ?? 4);
-      const category = String(row.vehicle_category ?? "Standard");
-      const simulated = await simulatePriceFromDistance({
-        distanceKm: Number(row.distance_km ?? 0),
-        fuelType: "diesel",
-        vehicleCategory:
-          category.toLowerCase() === "premium"
-            ? "premium"
-            : category.toLowerCase() === "confort"
-              ? "confort"
-              : "standard",
-        withDriver: true,
-      });
-      return {
-        id: String(row.id ?? ""),
-        driver: String(row.driver_name ?? "Chauffeur"),
-        rating: Number(row.rating ?? 0),
-        reviews: Number(row.reviews ?? 0),
-        departure: toHourLabel(String(row.departure_time ?? "")),
-        arrival: toHourLabel(String(row.arrival_time ?? "")),
-        from: String(row.from_city ?? ""),
-        to: String(row.to_city ?? ""),
-        km: Number(row.distance_km ?? 0),
-        duration: toDuration(Number(row.duration_minutes ?? 0)),
-        vehicle: String(row.vehicle_name ?? "Véhicule"),
-        category,
-        seats: `${Math.max(availableSeats, 0)}/${Math.max(totalSeats, 1)}`,
-        basePrice: Number(row.base_price_fcfa ?? row.price_fcfa ?? 0),
-        homePickupExtraFcfa: Number(row.home_pickup_extra_fcfa ?? 2000),
-        pickupMode: (row.pickup_mode as PickupMode) ?? "driver_point",
-        price:
-          Number(row.base_price_fcfa ?? row.price_fcfa ?? 0) +
-          (pickupMode === "home_pickup" ? Number(row.home_pickup_extra_fcfa ?? 2000) : 0),
-        tripType: (row.trip_type as TripType) ?? "interurbain_covoiturage",
-        suggestedPriceFcfa: simulated.totalSuggestedFcfa,
-      };
-    }));
-
-    return filterTrips(normalizedTrips, depart, destination);
-  } catch (err) {
-    console.error("[searchTrips]", err);
-    return [];
+  if (dateParam) {
+    const start = new Date(`${dateParam}T00:00:00.000Z`);
+    const end = new Date(`${dateParam}T23:59:59.999Z`);
+    q = q.gte("departure_time", start.toISOString()).lte("departure_time", end.toISOString());
   }
+
+  if (maxPriceFcfa != null && maxPriceFcfa > 0) {
+    const adjustedBudget = pickupMode === "home_pickup" ? Math.max(0, maxPriceFcfa - 2000) : maxPriceFcfa;
+    q = q.lte("price_fcfa", adjustedBudget);
+  }
+
+  const { data, error } = await q;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data || !Array.isArray(data)) return [];
+
+  const normalizedTrips: Trip[] = await Promise.all(data.map(async (row: Record<string, unknown>) => {
+    const availableSeats = Number(row.available_seats ?? 0);
+    const totalSeats = Number(row.total_seats ?? 4);
+    const category = String(row.vehicle_category ?? "Standard");
+    const simulated = await simulatePriceFromDistance({
+      distanceKm: Number(row.distance_km ?? 0),
+      fuelType: "diesel",
+      vehicleCategory:
+        category.toLowerCase() === "premium"
+          ? "premium"
+          : category.toLowerCase() === "confort"
+            ? "confort"
+            : "standard",
+      withDriver: true,
+    });
+    return {
+      id: String(row.id ?? ""),
+      driver: String(row.driver_name ?? "Chauffeur"),
+      rating: Number(row.rating ?? 0),
+      reviews: Number(row.reviews ?? 0),
+      departure: toHourLabel(String(row.departure_time ?? "")),
+      arrival: toHourLabel(String(row.arrival_time ?? "")),
+      from: String(row.from_city ?? ""),
+      to: String(row.to_city ?? ""),
+      km: Number(row.distance_km ?? 0),
+      duration: toDuration(Number(row.duration_minutes ?? 0)),
+      vehicle: String(row.vehicle_name ?? "Véhicule"),
+      category,
+      seats: `${Math.max(availableSeats, 0)}/${Math.max(totalSeats, 1)}`,
+      basePrice: Number(row.base_price_fcfa ?? row.price_fcfa ?? 0),
+      homePickupExtraFcfa: Number(row.home_pickup_extra_fcfa ?? 2000),
+      pickupMode: (row.pickup_mode as PickupMode) ?? "driver_point",
+      price:
+        Number(row.base_price_fcfa ?? row.price_fcfa ?? 0) +
+        (pickupMode === "home_pickup" ? Number(row.home_pickup_extra_fcfa ?? 2000) : 0),
+      tripType: (row.trip_type as TripType) ?? "interurbain_covoiturage",
+      suggestedPriceFcfa: simulated.totalSuggestedFcfa,
+    };
+  }));
+
+  return filterTrips(normalizedTrips, depart, destination);
 }
 
