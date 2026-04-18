@@ -1,10 +1,17 @@
-const CACHE_NAME = "sen-trajet-v1";
+const CACHE_NAME = "sen-trajet-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
   "/icons/icon-192.svg",
   "/icons/icon-512.svg",
 ];
+
+function offlineResponse(body, status) {
+  return new Response(body, {
+    status: status ?? 503,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -26,24 +33,30 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  const url = new URL(request.url);
-
   if (request.method !== "GET") return;
-  // Ne pas intercepter les requêtes non http(s) (ex. chrome-extension://)
-  if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
-  // API calls and Supabase: network-first
+  const url = new URL(request.url);
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+  // Laisser le navigateur gérer WebSocket (Realtime Supabase, etc.)
+  if (url.protocol === "wss:" || url.protocol === "ws:") return;
+  const upgrade = request.headers.get("Upgrade");
+  if (upgrade && upgrade.toLowerCase() === "websocket") return;
+
+  // API calls and Supabase: network-first, toujours une Response valide
   if (
     url.pathname.startsWith("/api") ||
     url.hostname.includes("supabase")
   ) {
     event.respondWith(
-      fetch(request).catch(() => caches.match(request))
+      fetch(request).catch(() =>
+        caches.match(request).then(
+          (cached) => cached ?? offlineResponse("Réseau indisponible.", 503)
+        )
+      )
     );
     return;
   }
 
-  // Ne mettre en cache que les requêtes http/https (pas chrome-extension, etc.)
   const isCacheableRequest =
     url.protocol === "http:" || url.protocol === "https:";
 
@@ -61,20 +74,21 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith(".svg")
   ) {
     event.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ||
-          fetch(request).then((response) => {
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request)
+          .then((response) => {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => safePut(cache, request, clone));
             return response;
           })
-      )
+          .catch(() => offlineResponse("Ressource indisponible hors ligne.", 503));
+      })
     );
     return;
   }
 
-  // Pages: stale-while-revalidate
+  // Pages: stale-while-revalidate — ne jamais résoudre avec undefined
   event.respondWith(
     caches.match(request).then((cached) => {
       const networkFetch = fetch(request)
@@ -84,7 +98,17 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => cached);
-      return cached || networkFetch;
+
+      if (cached) {
+        void networkFetch.catch(() => {});
+        return Promise.resolve(cached);
+      }
+
+      return networkFetch.then((r) =>
+        r instanceof Response
+          ? r
+          : offlineResponse("Réseau indisponible. Rechargez la page.", 503)
+      );
     })
   );
 });

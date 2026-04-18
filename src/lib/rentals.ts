@@ -282,6 +282,17 @@ export function computeRentalFinancials(params: {
   };
 }
 
+/** Aligné sur `rental_listings_category_capacity_chk` et la taxonomie véhicules (migrations 170004 / 180001). */
+export function inferTransportVehicleCategoryFromSeats(seats: number): TransportVehicleCategory {
+  const s = Number.isFinite(seats) ? Math.floor(seats) : 4;
+  if (s <= 0 || s <= 4) return "citadine";
+  if (s <= 6) return "suv_berline";
+  if (s <= 7) return "familiale";
+  if (s <= 15) return "minivan";
+  if (s <= 30) return "minibus";
+  return "bus";
+}
+
 export async function getRentalListings(filters?: {
   city?: string;
   status?: RentalListingStatus;
@@ -330,25 +341,15 @@ export async function createRentalListing(input: CreateRentalListingInput) {
   }
 
   const seats = input.seats ?? 4;
-  const inferredCategory: TransportVehicleCategory =
-    seats <= 5
-      ? "citadine"
-      : seats <= 7
-        ? "suv_berline"
-        : seats <= 9
-          ? "familiale"
-          : seats <= 15
-            ? "minivan"
-            : seats <= 30
-              ? "minibus"
-              : "bus";
+  const inferredCategory =
+    input.transportVehicleCategory ?? inferTransportVehicleCategoryFromSeats(seats);
   const { data, error } = await supabase
     .from("rental_listings")
     .insert({
       owner_profile_id: input.ownerProfileId,
       partner_id: input.partnerId ?? null,
       operating_mode: input.operatingMode,
-      transport_vehicle_category: input.transportVehicleCategory ?? inferredCategory,
+      transport_vehicle_category: inferredCategory,
       service_class: serviceClass,
       rental_mode: input.rentalMode ?? "with_driver",
       title: input.title,
@@ -381,7 +382,10 @@ export async function createRentalListing(input: CreateRentalListingInput) {
     })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) {
+    const msg = (error as { message?: string }).message?.trim();
+    throw new Error(msg || "Insertion rental_listings impossible.");
+  }
   return data as RentalListing;
 }
 

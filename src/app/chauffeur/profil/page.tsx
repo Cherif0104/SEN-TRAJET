@@ -49,7 +49,7 @@ import {
   type ServiceClassLevel,
 } from "@/lib/vehicleFormTaxonomy";
 import { getDriverComplianceChecks, scheduleDriverComplianceLifecycle, type ComplianceCheck } from "@/lib/compliance";
-import { createRentalListing } from "@/lib/rentals";
+import { createRentalListing, type TransportVehicleCategory } from "@/lib/rentals";
 
 type Vehicle = {
   id: string;
@@ -628,6 +628,17 @@ export default function ProfilChauffeurPage() {
         return;
       }
 
+      const transportCategory: TransportVehicleCategory | undefined =
+        vehicle.transport_vehicle_category &&
+        isVehicleTypeFilterString(vehicle.transport_vehicle_category)
+          ? (vehicle.transport_vehicle_category as TransportVehicleCategory)
+          : undefined;
+      const serviceClassPublish: ServiceClassLevel =
+        vehicle.service_class &&
+        (SERVICE_CLASS_VALUES as readonly string[]).includes(vehicle.service_class)
+          ? (vehicle.service_class as ServiceClassLevel)
+          : "confort";
+
       await createRentalListing({
         ownerProfileId: user.id,
         operatingMode: "marketplace_partner",
@@ -637,7 +648,8 @@ export default function ProfilChauffeurPage() {
         plateNumber: vehicle.plate_number,
         city: profile.city.trim(),
         dailyRateFcfa: 30000,
-        serviceClass: "confort",
+        transportVehicleCategory: transportCategory,
+        serviceClass: serviceClassPublish,
         rentalMode: "with_driver",
         year: vehicle.year,
         seats: vehicle.seats,
