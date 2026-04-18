@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+
+const realtimeOff =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_SUPABASE_REALTIME === "false";
 import {
   fetchLatestTripLocations,
   type TripLocationRow,
@@ -49,8 +53,11 @@ export function useTripLocations(tripId: string | null): UseTripLocationsResult 
     refetch();
   }, [refetch]);
 
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+
   useEffect(() => {
-    if (!tripId) return;
+    if (!tripId || realtimeOff) return;
 
     const channel = supabase
       .channel(`trip_locations:${tripId}`)
@@ -63,15 +70,19 @@ export function useTripLocations(tripId: string | null): UseTripLocationsResult 
           filter: `trip_id=eq.${tripId}`,
         },
         () => {
-          refetch();
+          void refetchRef.current();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          supabase.removeChannel(channel);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tripId, refetch]);
+  }, [tripId]);
 
   return {
     clientPosition,

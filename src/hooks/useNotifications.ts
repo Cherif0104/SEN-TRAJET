@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+
+const realtimeOff =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_SUPABASE_REALTIME === "false";
 
 export type Notification = {
   id: string;
@@ -32,12 +36,15 @@ export function useNotifications(userId: string | null) {
     }
   }, [userId]);
 
+  const fetchRef = useRef(fetchNotifications);
+  fetchRef.current = fetchNotifications;
+
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || realtimeOff) return;
 
     const channel = supabase
       .channel(`notifications:${userId}`)
@@ -50,15 +57,19 @@ export function useNotifications(userId: string | null) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          fetchNotifications();
+          void fetchRef.current();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          supabase.removeChannel(channel);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, fetchNotifications]);
+  }, [userId]);
 
   const markAsRead = useCallback(
     async (notifId: string) => {

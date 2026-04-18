@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+
+const realtimeOff =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_SUPABASE_REALTIME === "false";
 import { getProposalsForRequest, type Proposal } from "@/lib/proposals";
 
 export function useProposals(requestId: string | null) {
@@ -25,9 +29,12 @@ export function useProposals(requestId: string | null) {
     refresh();
   }, [refresh]);
 
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
   // Realtime subscription for new proposals
   useEffect(() => {
-    if (!requestId) return;
+    if (!requestId || realtimeOff) return;
 
     const channel = supabase
       .channel(`proposals:${requestId}`)
@@ -40,15 +47,19 @@ export function useProposals(requestId: string | null) {
           filter: `request_id=eq.${requestId}`,
         },
         () => {
-          refresh();
+          void refreshRef.current();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          supabase.removeChannel(channel);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [requestId, refresh]);
+  }, [requestId]);
 
   return { proposals, loading, refresh };
 }

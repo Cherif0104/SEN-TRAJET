@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isMissingSchemaObjectError } from "@/lib/postgrestErrors";
 import { getCommissionConfig } from "@/lib/partners";
 import { clampNonNegative, percentOf, roundFcfa } from "@/lib/pricingMath";
 
@@ -343,47 +344,63 @@ export async function createRentalListing(input: CreateRentalListingInput) {
   const seats = input.seats ?? 4;
   const inferredCategory =
     input.transportVehicleCategory ?? inferTransportVehicleCategoryFromSeats(seats);
-  const { data, error } = await supabase
-    .from("rental_listings")
-    .insert({
-      owner_profile_id: input.ownerProfileId,
-      partner_id: input.partnerId ?? null,
-      operating_mode: input.operatingMode,
-      transport_vehicle_category: inferredCategory,
-      service_class: serviceClass,
-      rental_mode: input.rentalMode ?? "with_driver",
-      title: input.title,
-      brand: input.brand,
-      model: input.model,
-      plate_number: input.plateNumber,
-      city: input.city,
-      daily_rate_fcfa: input.dailyRateFcfa,
-      deposit_fcfa: input.depositFcfa ?? 0,
-      mileage_km: input.mileageKm ?? 0,
-      fuel_type: input.fuelType ?? "essence",
-      engine_size_l: input.engineSizeL ?? null,
-      year: input.year ?? null,
-      color: input.color ?? null,
-      first_registration_date: input.firstRegistrationDate ?? null,
-      transmission: input.transmission ?? "manuel",
-      seats,
-      has_air_conditioning: input.hasAirConditioning ?? false,
-      ac_operational: input.acOperational ?? false,
-      airbags_operational: input.airbagsOperational ?? false,
-      seatbelts_operational: input.seatbeltsOperational ?? true,
-      has_spare_tire: input.hasSpareTire ?? false,
-      technical_inspection_valid_until: input.technicalInspectionValidUntil ?? null,
-      insurance_valid_until: input.insuranceValidUntil ?? null,
-      had_accident: input.hadAccident ?? false,
-      accident_details: input.accidentDetails ?? null,
-      pickup_location_label: input.pickupLocationLabel ?? null,
-      main_photo_url: input.mainPhotoUrl ?? null,
-      status: "pending_review",
-    })
-    .select("*")
-    .single();
+
+  const rowFull = {
+    owner_profile_id: input.ownerProfileId,
+    partner_id: input.partnerId ?? null,
+    operating_mode: input.operatingMode,
+    transport_vehicle_category: inferredCategory,
+    service_class: serviceClass,
+    rental_mode: input.rentalMode ?? "with_driver",
+    title: input.title,
+    brand: input.brand,
+    model: input.model,
+    plate_number: input.plateNumber,
+    city: input.city,
+    daily_rate_fcfa: input.dailyRateFcfa,
+    deposit_fcfa: input.depositFcfa ?? 0,
+    mileage_km: input.mileageKm ?? 0,
+    fuel_type: input.fuelType ?? "essence",
+    engine_size_l: input.engineSizeL ?? null,
+    year: input.year ?? null,
+    color: input.color ?? null,
+    first_registration_date: input.firstRegistrationDate ?? null,
+    transmission: input.transmission ?? "manuel",
+    seats,
+    has_air_conditioning: input.hasAirConditioning ?? false,
+    ac_operational: input.acOperational ?? false,
+    airbags_operational: input.airbagsOperational ?? false,
+    seatbelts_operational: input.seatbeltsOperational ?? true,
+    has_spare_tire: input.hasSpareTire ?? false,
+    technical_inspection_valid_until: input.technicalInspectionValidUntil ?? null,
+    insurance_valid_until: input.insuranceValidUntil ?? null,
+    had_accident: input.hadAccident ?? false,
+    accident_details: input.accidentDetails ?? null,
+    pickup_location_label: input.pickupLocationLabel ?? null,
+    main_photo_url: input.mainPhotoUrl ?? null,
+    status: "pending_review" as const,
+  };
+
+  const {
+    transport_vehicle_category: _t,
+    service_class: _s,
+    rental_mode: _r,
+    ...rowLegacy
+  } = rowFull;
+
+  let { data, error } = await supabase.from("rental_listings").insert(rowFull).select("*").single();
+  if (error && isMissingSchemaObjectError(error)) {
+    const retry = await supabase.from("rental_listings").insert(rowLegacy).select("*").single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) {
-    const msg = (error as { message?: string }).message?.trim();
+    const e = error as { code?: string; message?: string };
+    const msg = e.message?.trim() ?? "";
+    if (e.code === "23505" || msg.includes("duplicate key") || msg.includes("unique constraint")) {
+      throw new Error("Cette immatriculation est déjà enregistrée pour la location.");
+    }
     throw new Error(msg || "Insertion rental_listings impossible.");
   }
   return data as RentalListing;
