@@ -10,12 +10,48 @@ import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
 import { updateProfile } from "@/lib/profiles";
-import { Users, Car, Package, ArrowLeft } from "lucide-react";
+import { Users, Car, Package, ArrowLeft, Building2 } from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
-type RoleType = "client" | "driver" | "partner";
+type RoleType = "client" | "driver" | "partner" | "rental_owner";
 type DriverVehicleType = "personnes" | "utilitaire";
+
+function formatAuthErrorMessage(rawMessage: string | null | undefined, mode: AuthMode): string {
+  const msg = String(rawMessage ?? "").toLowerCase();
+
+  if (!msg) {
+    return "Une erreur est survenue. Réessayez dans quelques instants.";
+  }
+
+  if (
+    msg.includes("rate limit") ||
+    msg.includes("over_email_send_rate_limit") ||
+    msg.includes("email rate limit exceeded")
+  ) {
+    return mode === "email"
+      ? "Trop de tentatives d'inscription par email en peu de temps. Patientez quelques minutes ou utilisez l'inscription par téléphone."
+      : "Trop de tentatives en peu de temps. Patientez quelques minutes puis réessayez.";
+  }
+
+  if (msg.includes("user already registered")) {
+    return "Ce compte existe déjà. Connectez-vous ou utilisez un autre email.";
+  }
+
+  if (msg.includes("invalid email")) {
+    return "Adresse email invalide. Vérifiez le format puis réessayez.";
+  }
+
+  if (msg.includes("password")) {
+    return "Mot de passe invalide. Utilisez un mot de passe plus robuste.";
+  }
+
+  if (msg.includes("otp")) {
+    return "Code SMS invalide ou expiré. Demandez un nouveau code.";
+  }
+
+  return rawMessage ?? "Une erreur est survenue. Réessayez dans quelques instants.";
+}
 
 function InscriptionPageContent() {
   const router = useRouter();
@@ -38,6 +74,10 @@ function InscriptionPageContent() {
       setRole("partner");
       setStep("form");
     }
+    if (roleParam === "loueur") {
+      setRole("rental_owner");
+      setStep("form");
+    }
     if (roleParam === "chauffeur") {
       setRole("driver");
       setStep("vehicle");
@@ -50,7 +90,16 @@ function InscriptionPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const canShowForm = role === "client" || role === "partner" || (role === "driver" && driverVehicleType);
+  const isPartnerLikeRole = role === "partner" || role === "rental_owner";
+  const canShowForm = role === "client" || isPartnerLikeRole || (role === "driver" && driverVehicleType);
+  const signupButtonLabel =
+    role === "partner"
+      ? "S'inscrire comme partenaire"
+      : role === "rental_owner"
+        ? "S'inscrire comme loueur pro"
+        : role === "driver"
+          ? "S'inscrire comme chauffeur"
+          : "S'inscrire comme passager";
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +120,7 @@ function InscriptionPageContent() {
         },
       });
       if (err) {
-        setError(err.message ?? "Erreur lors de l'inscription.");
+        setError(formatAuthErrorMessage(err.message, "email"));
         setLoading(false);
         return;
       }
@@ -106,7 +155,7 @@ function InscriptionPageContent() {
         },
       });
       if (err) {
-        setError(err.message ?? "Impossible d'envoyer le code.");
+        setError(formatAuthErrorMessage(err.message, "phone"));
         setLoading(false);
         return;
       }
@@ -134,12 +183,12 @@ function InscriptionPageContent() {
         type: "sms",
       });
       if (err) {
-        setError(err.message ?? "Code invalide ou expiré.");
+        setError(formatAuthErrorMessage(err.message, "phone"));
         setLoading(false);
         return;
       }
       const { data: { user } } = await supabase.auth.getUser();
-      if (role === "partner") {
+      if (isPartnerLikeRole) {
         router.push("/partenaire/onboarding");
         router.refresh();
         return;
@@ -167,7 +216,7 @@ function InscriptionPageContent() {
   return (
     <AuthPageScaffold
       title="Créer un compte"
-      subtitle="Passagers, chauffeurs ou partenaires : inscrivez-vous en quelques minutes."
+      subtitle="Passagers, chauffeurs, partenaires ou loueurs pro : inscrivez-vous en quelques minutes."
     >
         {/* Étape 1 : Choix Client ou Chauffeur */}
         {step === "choice" && (
@@ -205,7 +254,24 @@ function InscriptionPageContent() {
                 </div>
                 <span className="text-lg font-semibold text-slate-900">Chauffeur</span>
                 <span className="text-sm text-slate-600">
-                  J&apos;ai un véhicule et je propose des trajets
+                  Je propose des trajets et je peux aussi louer mes véhicules
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("rental_owner");
+                  setStep("form");
+                  setError(null);
+                }}
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40 sm:col-span-2"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
+                  <Building2 className="h-7 w-7" />
+                </div>
+                <span className="text-lg font-semibold text-slate-900">Loueur pro</span>
+                <span className="text-sm text-slate-600">
+                  Je fais uniquement de la location de véhicules (catalogue pro)
                 </span>
               </button>
             </div>
@@ -284,7 +350,7 @@ function InscriptionPageContent() {
         {/* Étape formulaire */}
         {step === "form" && canShowForm && (
           <>
-            {(role === "driver" || role === "partner") && (
+            {(role === "driver" || isPartnerLikeRole) && (
               <button
                 type="button"
                 onClick={() => {
@@ -317,7 +383,7 @@ function InscriptionPageContent() {
             <Card className="mt-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/35">
               {success && authMode === "email" && (
                 <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 ring-1 ring-emerald-200/60">
-                  {role === "partner"
+                  {isPartnerLikeRole
                     ? "Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous pour compléter votre espace partenaire."
                     : "Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous."}
                 </p>
@@ -342,7 +408,7 @@ function InscriptionPageContent() {
                   <Input label="Email" type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   <Input label="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                   <Button type="submit" fullWidth isLoading={loading}>
-                    {role === "partner" ? "S'inscrire comme partenaire" : role === "driver" ? "S'inscrire comme chauffeur" : "S'inscrire comme passager"}
+                    {signupButtonLabel}
                   </Button>
                 </form>
               )}

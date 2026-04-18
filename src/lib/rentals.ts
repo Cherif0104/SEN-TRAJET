@@ -331,11 +331,17 @@ export async function createRentalListing(input: CreateRentalListingInput) {
 
   const seats = input.seats ?? 4;
   const inferredCategory: TransportVehicleCategory =
-    seats <= 4 ? "citadine" :
-    seats <= 6 ? "suv_berline" :
-    seats <= 7 ? "familiale" :
-    seats <= 15 ? "minivan" :
-    seats <= 30 ? "minibus" : "bus";
+    seats <= 5
+      ? "citadine"
+      : seats <= 7
+        ? "suv_berline"
+        : seats <= 9
+          ? "familiale"
+          : seats <= 15
+            ? "minivan"
+            : seats <= 30
+              ? "minibus"
+              : "bus";
   const { data, error } = await supabase
     .from("rental_listings")
     .insert({

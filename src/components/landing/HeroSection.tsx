@@ -16,6 +16,7 @@ export function HeroSection() {
   const [heure, setHeure] = useState("");
   const [pickupMode, setPickupMode] = useState<PickupMode>("driver_point");
   const [geolocating, setGeolocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const cityOptions = useMemo(() => senegalCities, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -30,21 +31,29 @@ export function HeroSection() {
   };
 
   const applyMyLocation = (field: "depart" | "destination") => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoError("La géolocalisation n’est pas disponible sur cet appareil.");
+      return;
+    }
+    setGeoError(null);
     setGeolocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const city = await reverseGeocode(latitude, longitude);
-        const label = city ?? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        const label = (await reverseGeocode(latitude, longitude)) ?? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         if (field === "depart") setDepart(label);
         else setDestination(label);
         setGeolocating(false);
       },
-      () => {
+      (err) => {
         setGeolocating(false);
+        setGeoError(
+          err.code === 1
+            ? "Position refusée : autorisez la localisation pour le site dans les paramètres du navigateur."
+            : "Impossible d’obtenir votre position. Réessayez ou saisissez une ville."
+        );
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 12000 }
     );
   };
 
@@ -163,6 +172,11 @@ export function HeroSection() {
               <option key={city} value={city} />
             ))}
           </datalist>
+          {geoError && (
+            <p className="mt-3 text-sm text-amber-800" role="alert">
+              {geoError}
+            </p>
+          )}
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="inline-flex rounded-xl border border-neutral-200 bg-neutral-50 p-1">

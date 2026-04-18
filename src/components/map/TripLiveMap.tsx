@@ -95,8 +95,8 @@ export function TripLiveMap({
       return;
     }
     let mounted = true;
-    getPosition().then((pos) => {
-      if (!mounted || !pos) return;
+    getPosition().then((res) => {
+      if (!mounted || !res.ok) return;
       setTrackingReady(true);
       startWatching();
     });

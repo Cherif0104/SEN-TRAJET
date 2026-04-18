@@ -1,22 +1,22 @@
 /**
- * Reverse geocoding : coordonnées → nom de lieu (ville / commune).
- * Utilise l'API Google Geocoding si NEXT_PUBLIC_GOOGLE_MAPS_API_KEY est défini.
+ * Reverse géocodage : coordonnées → nom de lieu.
+ * Appelle la route Next `/api/geocode/reverse` (Google si clé serveur/publique, sinon Nominatim).
  */
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+import { formatCoordinatesLabel } from "@/lib/geoFormat";
+
+export { formatCoordinatesLabel };
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
-  if (!API_KEY || !lat || !lng) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${API_KEY}&language=fr`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.status !== "OK" || !data.results?.[0]) return null;
-    const comp = data.results[0].address_components as Array<{ long_name: string; types: string[] }>;
-    const locality = comp.find((c) => c.types.includes("locality"))?.long_name;
-    const admin2 = comp.find((c) => c.types.includes("administrative_area_level_2"))?.long_name;
-    const admin1 = comp.find((c) => c.types.includes("administrative_area_level_1"))?.long_name;
-    return locality || admin2 || admin1 || data.results[0].formatted_address || null;
+    const res = await fetch(
+      `/api/geocode/reverse?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
+    );
+    if (!res.ok) return formatCoordinatesLabel(lat, lng);
+    const data = (await res.json()) as { label: string | null; fallback: string | null };
+    const text = (data.label || data.fallback || "").trim();
+    return text || formatCoordinatesLabel(lat, lng);
   } catch {
-    return null;
+    return formatCoordinatesLabel(lat, lng);
   }
 }

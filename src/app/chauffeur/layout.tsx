@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, PlusCircle, Coins, CalendarCheck, FileSearch, User, HelpCircle } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Coins, CalendarCheck, FileSearch, User, HelpCircle, Route } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { supabase } from "@/lib/supabase";
 import { updateProfile } from "@/lib/profiles";
@@ -11,6 +11,7 @@ import { canAccessDriverZone } from "@/lib/rbac";
 
 const nav = [
   { href: "/chauffeur", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/chauffeur/trajets", label: "Mes trajets", icon: Route },
   { href: "/chauffeur/trajet/nouveau", label: "Publier un trajet", icon: PlusCircle },
   { href: "/chauffeur/reservations", label: "Mes réservations", icon: CalendarCheck },
   { href: "/chauffeur/demandes", label: "Demandes", icon: FileSearch },
@@ -21,6 +22,7 @@ const nav = [
 
 const mobileNav = [
   { href: "/chauffeur", label: "Accueil", icon: LayoutDashboard },
+  { href: "/chauffeur/trajets", label: "Trajets", icon: Route },
   { href: "/chauffeur/trajet/nouveau", label: "Publier", icon: PlusCircle },
   { href: "/chauffeur/reservations", label: "Résa", icon: CalendarCheck },
   { href: "/chauffeur/profil", label: "Profil", icon: User },

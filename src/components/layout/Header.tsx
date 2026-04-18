@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/Button";
@@ -9,17 +10,31 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, profile, loading, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    setMenuOpen(false);
+    router.push("/");
+    router.refresh();
+  };
 
   const isDriver = profile?.role === "driver";
   const isPartner = ["partner", "partner_manager", "partner_operator", "rental_owner"].includes(profile?.role ?? "");
   const isAdmin = ["admin", "super_admin", "commercial", "trainer", "regional_manager"].includes(profile?.role ?? "");
-  const isClient = user && !isDriver && !isPartner && !isAdmin;
   const isLoggedIn = !!user;
 
-  const hubHref = isAdmin ? "/admin" : isPartner ? "/partenaire" : isDriver ? "/chauffeur" : "/compte";
-  const hubLabel = isAdmin ? "Administration" : isPartner ? "Mon espace" : isDriver ? "Tableau de bord" : "Mon compte";
+  /** Une seule URL : la page /dashboard redirige selon le rôle (admin, partenaire, chauffeur, client). */
+  const hubHref = "/dashboard";
+  const hubLabel = isAdmin
+    ? "Administration"
+    : isPartner
+      ? "Mon espace"
+      : isDriver
+        ? "Tableau de bord"
+        : "Mon compte";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200/90 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
@@ -84,7 +99,8 @@ export function Header() {
                 </span>
               </Link>
               <button
-                onClick={signOut}
+                type="button"
+                onClick={() => void handleSignOut()}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
                 title="Déconnexion"
               >
@@ -178,14 +194,7 @@ export function Header() {
                       {profile?.full_name || user.email?.split("@")[0]}
                     </span>
                   </div>
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    onClick={() => {
-                      signOut();
-                      setMenuOpen(false);
-                    }}
-                  >
+                  <Button variant="secondary" fullWidth onClick={() => void handleSignOut()}>
                     Déconnexion
                   </Button>
                 </>

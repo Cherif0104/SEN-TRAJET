@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import {
   updateProfile,
   getDriverVehicles,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { DocumentUpload } from "@/components/documents/DocumentUpload";
 import { getDriverComplianceChecks, scheduleDriverComplianceLifecycle, type ComplianceCheck } from "@/lib/compliance";
+import { createRentalListing } from "@/lib/rentals";
 
 type Vehicle = {
   id: string;
@@ -108,6 +110,8 @@ export default function ProfilChauffeurPage() {
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [maxNotifsPerDay, setMaxNotifsPerDay] = useState(6);
   const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
+  const [publishingRentalVehicleId, setPublishingRentalVehicleId] = useState<string | null>(null);
+  const [rentalFeedback, setRentalFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -257,6 +261,77 @@ export default function ProfilChauffeurPage() {
     }
   };
 
+  const canPublishVehicleToRental = (vehicle: Vehicle) => {
+    return vehicle.category === "confort" || vehicle.category === "premium";
+  };
+
+  const publishVehicleToRental = async (vehicle: Vehicle) => {
+    if (!user) return;
+    setRentalFeedback(null);
+    if (!profile?.city?.trim()) {
+      setRentalFeedback({
+        tone: "error",
+        message: "Renseignez d'abord votre ville dans votre profil chauffeur.",
+      });
+      return;
+    }
+    if (!canPublishVehicleToRental(vehicle)) {
+      setRentalFeedback({
+        tone: "error",
+        message: "Seuls les véhicules Confort ou Confort+ peuvent être publiés en location.",
+      });
+      return;
+    }
+
+    setPublishingRentalVehicleId(vehicle.id);
+    try {
+      const { data: existing } = await supabase
+        .from("rental_listings")
+        .select("id")
+        .eq("owner_profile_id", user.id)
+        .eq("plate_number", vehicle.plate_number)
+        .maybeSingle();
+
+      if (existing?.id) {
+        setRentalFeedback({
+          tone: "success",
+          message: "Ce véhicule est déjà présent dans votre catalogue location.",
+        });
+        return;
+      }
+
+      await createRentalListing({
+        ownerProfileId: user.id,
+        operatingMode: "marketplace_partner",
+        title: `${vehicle.brand} ${vehicle.model}`.trim(),
+        brand: vehicle.brand,
+        model: vehicle.model,
+        plateNumber: vehicle.plate_number,
+        city: profile.city.trim(),
+        dailyRateFcfa: 30000,
+        serviceClass: "confort",
+        rentalMode: "with_driver",
+        year: vehicle.year,
+        seats: vehicle.seats,
+        hasAirConditioning: vehicle.air_conditioning,
+        acOperational: vehicle.air_conditioning,
+      });
+
+      setRentalFeedback({
+        tone: "success",
+        message:
+          "Véhicule ajouté à la location (statut en revue). Vous pouvez ajuster le tarif dans l'espace partenaire/location.",
+      });
+    } catch (err) {
+      setRentalFeedback({
+        tone: "error",
+        message: err instanceof Error ? err.message : "Impossible de publier ce véhicule en location.",
+      });
+    } finally {
+      setPublishingRentalVehicleId(null);
+    }
+  };
+
   return (
     <>
       <h1 className="text-xl font-bold text-neutral-900">Mon profil</h1>
@@ -323,6 +398,17 @@ export default function ProfilChauffeurPage() {
           <Plus className="mr-1 h-4 w-4" /> Ajouter
         </Button>
       </div>
+      {rentalFeedback && (
+        <p
+          className={`mt-2 rounded-lg px-3 py-2 text-sm ${
+            rentalFeedback.tone === "success"
+              ? "bg-emerald-50 text-emerald-800"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {rentalFeedback.message}
+        </p>
+      )}
 
       {vehicles.length === 0 && !showAddVehicle && (
         <Card className="mt-3">
@@ -409,6 +495,19 @@ export default function ProfilChauffeurPage() {
                 )}
                 <Button size="sm" variant="ghost" onClick={() => startEditVehicle(v)}>
                   <Pencil className="mr-1 h-3.5 w-3.5" /> Modifier
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => publishVehicleToRental(v)}
+                  disabled={publishingRentalVehicleId === v.id || !canPublishVehicleToRental(v)}
+                  title={
+                    canPublishVehicleToRental(v)
+                      ? "Publier ce véhicule en location"
+                      : "Nécessite une catégorie Confort ou Confort+"
+                  }
+                >
+                  {publishingRentalVehicleId === v.id ? "..." : "Mettre en location"}
                 </Button>
                 <Button
                   size="sm"

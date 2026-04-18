@@ -11,25 +11,27 @@ import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
-import { Users, Car, Building2, Loader2, Shield, Crown } from "lucide-react";
-
 type AuthMode = "email" | "phone";
 type PhoneStep = "send" | "verify";
-type TestRole = "client" | "chauffeur" | "partner" | "admin" | "super_admin" | "rental_owner";
-
-const TEST_ACCOUNTS: { role: TestRole; label: string; icon: typeof Users }[] = [
-  { role: "client", label: "Test Client", icon: Users },
-  { role: "chauffeur", label: "Test Driver", icon: Car },
-  { role: "partner", label: "Test Partner", icon: Building2 },
-  { role: "admin", label: "Test Admin", icon: Shield },
-  { role: "super_admin", label: "Test Super Admin", icon: Crown },
-  { role: "rental_owner", label: "Test Loueur", icon: Car },
-];
 
 /** URLs internes autorisées après connexion (évite open redirect). */
 function isAllowedNext(path: string): boolean {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return false;
-  const allowed = ["/compte", "/chauffeur", "/partenaire", "/admin", "/location", "/recherche", "/demande", "/trajet", "/reservation", "/messages", "/avis", "/"];
+  const allowed = [
+    "/compte",
+    "/chauffeur",
+    "/partenaire",
+    "/admin",
+    "/dashboard",
+    "/location",
+    "/recherche",
+    "/demande",
+    "/trajet",
+    "/reservation",
+    "/messages",
+    "/avis",
+    "/",
+  ];
   return allowed.some((prefix) => path === prefix || path.startsWith(prefix + "/"));
 }
 
@@ -61,7 +63,6 @@ function ConnexionPageContent() {
   const [otp, setOtp] = useState("");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("send");
   const [loading, setLoading] = useState(false);
-  const [testLoginLoading, setTestLoginLoading] = useState<TestRole | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Redirection si déjà connecté — navigation forcée pour éviter blocage sur "Redirection…"
@@ -77,48 +78,6 @@ function ConnexionPageContent() {
       window.location.replace(resolved || "/");
     });
   }, [authLoading, user, profile?.role, searchParams]);
-
-  const handleTestLogin = async (role: TestRole) => {
-    setError(null);
-    setTestLoginLoading(role);
-    try {
-      const res = await fetch("/api/test-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Connexion démo impossible.");
-        setTestLoginLoading(null);
-        return;
-      }
-      const { email: testEmail, password: testPassword, redirect: targetUrl } = data;
-      if (!testEmail || !testPassword || !targetUrl) {
-        setError("Réponse invalide.");
-        setTestLoginLoading(null);
-        return;
-      }
-      // Force une session propre pour éviter les courses de redirection entre comptes test.
-      await supabase.auth.signOut();
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
-      });
-      if (signInErr) {
-        setError(signInErr.message ?? "Connexion impossible.");
-        setTestLoginLoading(null);
-        return;
-      }
-      const resolved = await resolvePostLoginRedirect(targetUrl);
-      window.location.replace(resolved || targetUrl);
-      return;
-    } catch {
-      setError("Erreur réseau.");
-    } finally {
-      setTestLoginLoading(null);
-    }
-  };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,30 +290,6 @@ function ConnexionPageContent() {
             </form>
           )}
         </Card>
-
-        <div className="mt-6 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-800">
-            Comptes démo — un clic pour vous connecter
-          </p>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {TEST_ACCOUNTS.map(({ role, label, icon: Icon }) => (
-              <li key={role}>
-                <button
-                  type="button"
-                  onClick={() => handleTestLogin(role)}
-                  disabled={testLoginLoading !== null}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition-colors hover:border-emerald-300 hover:bg-emerald-50/80 disabled:opacity-50"
-                >
-                  <Icon className="h-5 w-5 shrink-0 text-emerald-700" />
-                  <span>{label}</span>
-                  {testLoginLoading === role ? (
-                    <Loader2 className="ml-auto h-4 w-4 animate-spin text-emerald-600" />
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
 
         <p className="mt-8 text-center text-sm text-slate-600">
           Pas encore de compte ?{" "}

@@ -1,6 +1,7 @@
 import type { PickupMode } from "@/lib/pricing";
+import { isVehicleTypeFilter, type VehicleTypeFilter } from "@/lib/vehicleCategories";
 
-export type VehicleTypeFilter = "citadine" | "minivan" | "bus";
+export type { VehicleTypeFilter };
 export type ServiceClassFilter = "eco" | "confort" | "confort_plus";
 
 export type TripSearchInput = {
@@ -42,6 +43,8 @@ export function validateTripSearchInput(input: TripSearchInput):
     return { ok: false, message: "Le départ et la destination doivent être différents." };
   }
   const budgetFcfa = parseBudgetFcfa(input.budget);
+  const vehicleType =
+    input.vehicleType && isVehicleTypeFilter(String(input.vehicleType)) ? input.vehicleType : undefined;
   return {
     ok: true,
     value: {
@@ -50,7 +53,7 @@ export function validateTripSearchInput(input: TripSearchInput):
       ...(input.date ? { date: input.date } : {}),
       ...(budgetFcfa ? { budgetFcfa } : {}),
       pickupMode: input.pickupMode,
-      ...(input.vehicleType ? { vehicleType: input.vehicleType } : {}),
+      ...(vehicleType ? { vehicleType } : {}),
       ...(input.serviceClass ? { serviceClass: input.serviceClass } : {}),
     },
   };

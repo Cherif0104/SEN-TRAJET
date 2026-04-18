@@ -31,12 +31,11 @@ export function Logo({ className = "", showIcon = true }: LogoProps) {
             </span>
           </>
         ) : (
-          <span className="relative flex h-10 w-auto min-w-[140px] max-w-[200px] items-center sm:min-w-[160px] sm:max-w-[220px]">
+          <span className="relative block h-10 w-[140px] shrink-0 sm:w-[200px]">
             <Image
               src="/logo-sen-trajet.png"
               alt="SEN TRAJET"
-              width={200}
-              height={40}
+              fill
               className="object-contain object-left"
               sizes="(max-width: 640px) 140px, 200px"
               priority

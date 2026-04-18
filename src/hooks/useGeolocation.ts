@@ -18,11 +18,15 @@ interface UseGeolocationOptions {
   watch?: boolean;
 }
 
+export type GetPositionResult =
+  | { ok: true; position: GeoPosition }
+  | { ok: false; error: string };
+
 interface UseGeolocationResult {
   position: GeoPosition | null;
   error: string | null;
   loading: boolean;
-  getPosition: () => Promise<GeoPosition | null>;
+  getPosition: () => Promise<GetPositionResult>;
   startWatching: () => void;
   stopWatching: () => void;
 }
@@ -65,10 +69,11 @@ export function useGeolocation(
     setPosition(null);
   }, []);
 
-  const getPosition = useCallback(async (): Promise<GeoPosition | null> => {
+  const getPosition = useCallback(async (): Promise<GetPositionResult> => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setError("Géolocalisation non supportée");
-      return null;
+      const msg = "Géolocalisation non supportée";
+      setError(msg);
+      return { ok: false, error: msg };
     }
     setLoading(true);
     setError(null);
@@ -78,18 +83,27 @@ export function useGeolocation(
           handlePosition(pos);
           setLoading(false);
           resolve({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy ?? undefined,
-            heading: pos.coords.heading ?? undefined,
-            speed: pos.coords.speed != null ? pos.coords.speed * 3.6 : undefined,
-            timestamp: pos.timestamp,
+            ok: true,
+            position: {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy ?? undefined,
+              heading: pos.coords.heading ?? undefined,
+              speed: pos.coords.speed != null ? pos.coords.speed * 3.6 : undefined,
+              timestamp: pos.timestamp,
+            },
           });
         },
         (err) => {
           handleError(err);
           setLoading(false);
-          resolve(null);
+          const msg =
+            err.code === 1
+              ? "Géolocalisation refusée. Autorisez la position dans le navigateur."
+              : err.code === 2
+                ? "Position indisponible"
+                : "Délai dépassé pour la position";
+          resolve({ ok: false, error: msg });
         },
         { enableHighAccuracy, timeout, maximumAge }
       );

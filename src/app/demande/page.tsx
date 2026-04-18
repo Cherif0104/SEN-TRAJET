@@ -17,6 +17,7 @@ import {
 import type { TripType } from "@/lib/trips";
 import type { PickupMode } from "@/lib/pricing";
 import { ArrowRightLeft, CalendarDays, Route, ShieldCheck, Minus, Plus } from "lucide-react";
+import { VEHICLE_TYPE_META, VEHICLE_TYPE_VALUES, type VehicleTypeFilter } from "@/lib/vehicleCategories";
 
 const TRIP_TYPES: { value: TripType; label: string }[] = [
   { value: "interurbain_covoiturage", label: "Covoiturage interurbain" },
@@ -59,14 +60,10 @@ const COLIS_URGENCY_LEVELS = [
   { value: "express", label: "Express" },
 ] as const;
 
-const COLIS_VEHICLE_TYPES = [
-  { value: "citadine", label: "Citadine" },
-  { value: "suv_berline", label: "SUV/Berline" },
-  { value: "familiale", label: "Familiale" },
-  { value: "minivan", label: "Minivan" },
-  { value: "minibus", label: "Minibus" },
-  { value: "bus", label: "Bus" },
-] as const;
+const COLIS_VEHICLE_TYPES = VEHICLE_TYPE_VALUES.map((value) => ({
+  value,
+  label: VEHICLE_TYPE_META[value].label,
+}));
 
 const COLIS_SERVICE_CLASSES = [
   { value: "eco", label: "Eco" },
@@ -212,13 +209,7 @@ function DemandePageContent() {
               colisDispatchMode,
               urgencyLevel,
               preferredVehicleType,
-              requestedVehicleCategory: preferredVehicleType as
-                | "citadine"
-                | "suv_berline"
-                | "familiale"
-                | "minivan"
-                | "minibus"
-                | "bus",
+              requestedVehicleCategory: preferredVehicleType as VehicleTypeFilter,
               requestedServiceClass,
               relayDropoffLabel: relayDropoffLabel || undefined,
               supportCallbackRequested,

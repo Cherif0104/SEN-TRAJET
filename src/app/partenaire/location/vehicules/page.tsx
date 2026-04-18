@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -17,9 +18,12 @@ import {
   type ServiceClassLevel,
   type TransportVehicleCategory,
 } from "@/lib/rentals";
-import { Car } from "lucide-react";
+import { Car, CalendarClock, Wallet, CheckCircle2, Circle } from "lucide-react";
+
+const RENTAL_SETUP_AVAILABILITY_KEY = "sentrajet_rental_setup_availability_seen";
 
 export default function PartenaireLocationVehiculesPage() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [rows, setRows] = useState<RentalListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +52,8 @@ export default function PartenaireLocationVehiculesPage() {
   const [hasAirbags, setHasAirbags] = useState(true);
   const [hasSeatbelts, setHasSeatbelts] = useState(true);
   const [hasSpareTire, setHasSpareTire] = useState(true);
+  const [hasSeenAvailability, setHasSeenAvailability] = useState(false);
+  const isSetupFlow = searchParams.get("setup") === "1";
   const serviceClassLabel: Record<ServiceClassLevel, string> = {
     eco: "Eco",
     confort: "Confort",
@@ -96,6 +102,20 @@ export default function PartenaireLocationVehiculesPage() {
   useEffect(() => {
     refresh().catch(() => setLoading(false));
   }, [refresh]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setHasSeenAvailability(window.localStorage.getItem(RENTAL_SETUP_AVAILABILITY_KEY) === "1");
+  }, []);
+
+  const hasCatalog = rows.length > 0;
+  const hasPricing = rows.some((row) => Number(row.daily_rate_fcfa) > 0);
+  const setupSteps = [
+    { label: "Catalogue publié", done: hasCatalog },
+    { label: "Tarif défini", done: hasPricing },
+    { label: "Disponibilités consultées", done: hasSeenAvailability },
+  ] as const;
+  const completedSetupSteps = setupSteps.filter((step) => step.done).length;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,6 +177,47 @@ export default function PartenaireLocationVehiculesPage() {
         Publiez vos véhicules avec fiche technique complète et conformité.
       </p>
 
+      {isSetupFlow && (
+        <Card className="mt-4 border border-emerald-200 bg-emerald-50/40">
+          <p className="text-sm font-semibold text-emerald-900">Parcours express loueur pro</p>
+          <p className="mt-1 text-xs text-emerald-800/90">
+            1) Ajoutez le véhicule au catalogue, 2) définissez le tarif/jour, 3) suivez les disponibilités et réservations.
+          </p>
+          <p className="mt-2 text-xs font-semibold text-emerald-900">
+            Progression: {completedSetupSteps}/3
+          </p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+              style={{ width: `${(completedSetupSteps / 3) * 100}%` }}
+            />
+          </div>
+          <div className="mt-2 grid gap-1">
+            {setupSteps.map((step) => (
+              <p key={step.label} className="flex items-center gap-2 text-xs text-emerald-900">
+                {step.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+                {step.label}
+              </p>
+            ))}
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <Button size="sm" variant="secondary">
+              <Car className="mr-1 h-4 w-4" /> Catalogue
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => document.getElementById("daily-rate-fcfa")?.focus()}
+            >
+              <Wallet className="mr-1 h-4 w-4" /> Tarifs
+            </Button>
+            <Button size="sm" variant="secondary" href="/partenaire/location/reservations?setup=1">
+              <CalendarClock className="mr-1 h-4 w-4" /> Disponibilités
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card className="mt-6 border border-neutral-200">
         <h2 className="text-base font-semibold text-neutral-900">Nouveau véhicule</h2>
         <form onSubmit={onSubmit} className="mt-4 space-y-3">
@@ -170,6 +231,7 @@ export default function PartenaireLocationVehiculesPage() {
             <Input label="Modèle" value={model} onChange={(e) => setModel(e.target.value)} required />
             <Input label="Plaque" value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} required />
             <Input
+              id="daily-rate-fcfa"
               label="Tarif/jour (FCFA)"
               type="number"
               min={1}

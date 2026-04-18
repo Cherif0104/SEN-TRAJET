@@ -49,18 +49,45 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data: { session: s } }) => {
-        setSession(s);
-        setUser(s?.user ?? null);
-        setProfile(null);
-        if (s?.user) void fetchProfile(s.user.id);
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
+    let cancelled = false;
+
+    async function initSession() {
+      const {
+        data: { session: initial },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+
+      let session = initial;
+      let nextUser = initial?.user ?? null;
+
+      // Rafraîchit le JWT ; si le refresh token est révoqué / absent, déconnexion locale propre.
+      if (nextUser) {
+        const { data: userData, error } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (error || !userData.user) {
+          await supabase.auth.signOut({ scope: "local" });
+          session = null;
+          nextUser = null;
+        } else {
+          nextUser = userData.user;
+          const {
+            data: { session: afterRefresh },
+          } = await supabase.auth.getSession();
+          if (!cancelled && afterRefresh) session = afterRefresh;
+        }
+      }
+
+      if (cancelled) return;
+      setSession(session);
+      setUser(nextUser);
+      setProfile(null);
+      if (nextUser) void fetchProfile(nextUser.id);
+      setLoading(false);
+    }
+
+    void initSession().catch(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     const {
       data: { subscription },
@@ -72,7 +99,10 @@ export function useAuth() {
       else setProfile(null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const signOut = useCallback(async () => {

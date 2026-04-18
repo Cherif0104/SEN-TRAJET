@@ -2,11 +2,9 @@ import { supabase } from "@/lib/supabase";
 import { textIncludesNormalized } from "@/lib/search";
 import type { PickupMode } from "@/lib/pricing";
 import { simulatePriceFromDistance } from "@/lib/distancePricing";
-import {
-  parseBudgetFcfa,
-  type ServiceClassFilter,
-  type VehicleTypeFilter,
-} from "@/lib/tripSearchRules";
+import { parseBudgetFcfa, type ServiceClassFilter } from "@/lib/tripSearchRules";
+import type { VehicleTypeFilter } from "@/lib/vehicleCategories";
+import { matchesVehicleTypeBand } from "@/lib/vehicleCategories";
 
 export type TripType =
   | "interurbain_location"
@@ -50,9 +48,7 @@ function filterTrips(trips: Trip[], depart: string, destination: string): Trip[]
 
 function matchesVehicleType(totalSeats: number, vehicleType?: VehicleTypeFilter): boolean {
   if (!vehicleType) return true;
-  if (vehicleType === "citadine") return totalSeats <= 5;
-  if (vehicleType === "minivan") return totalSeats >= 6 && totalSeats <= 9;
-  return totalSeats >= 10;
+  return matchesVehicleTypeBand(totalSeats, vehicleType);
 }
 
 function matchesServiceClass(category: string, serviceClass?: ServiceClassFilter): boolean {

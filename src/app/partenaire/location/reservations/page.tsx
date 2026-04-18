@@ -1,16 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { getPartnerByUserId } from "@/lib/partners";
 import { getOwnerRentalBookings, getPartnerRentalBookings, type RentalBooking } from "@/lib/rentals";
 import { RENTAL_STATUS_LABEL, rentalStatusStyle } from "@/lib/statusLabels";
+import { CheckCircle2 } from "lucide-react";
+
+const RENTAL_SETUP_AVAILABILITY_KEY = "sentrajet_rental_setup_availability_seen";
 
 export default function PartenaireLocationReservationsPage() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [rows, setRows] = useState<RentalBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const fromSetup = searchParams.get("setup") === "1";
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(RENTAL_SETUP_AVAILABILITY_KEY, "1");
+    }
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -35,6 +48,21 @@ export default function PartenaireLocationReservationsPage() {
     <>
       <h1 className="text-xl font-bold text-neutral-900">Réservations location</h1>
       <p className="mt-1 text-neutral-600">Suivez les locations confirmées, actives et clôturées.</p>
+
+      {fromSetup && (
+        <Card className="mt-4 border border-emerald-200 bg-emerald-50/40">
+          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+            <CheckCircle2 className="h-4 w-4" />
+            Étape validée: disponibilités consultées
+          </p>
+          <p className="mt-1 text-xs text-emerald-800/90">
+            Retournez à la flotte pour voir votre progression complète 3/3.
+          </p>
+          <Button size="sm" variant="secondary" href="/partenaire/location/vehicules?setup=1" className="mt-3">
+            Retour au parcours express
+          </Button>
+        </Card>
+      )}
 
       {loading ? (
         <div className="mt-6 space-y-3">

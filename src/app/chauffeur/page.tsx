@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FeedbackBanner } from "@/components/ui/FeedbackBanner";
 import { useAuth } from "@/hooks/useAuth";
+import { getDriverPublishingReadiness, type DriverPublishingReadiness } from "@/lib/driverReadiness";
+import { getDriverTripPublishingState, type DriverTripPublishingState } from "@/lib/tripPublishing";
 import { getOpenRequests, type TripRequest } from "@/lib/requests";
 import { getBookingsForDriver, type BookingWithTrip } from "@/lib/bookings";
-import { MapPin, Calendar, Users, CreditCard, Car, ClipboardList, HelpCircle, History } from "lucide-react";
+import { MapPin, Calendar, Users, CreditCard, Car, ClipboardList, HelpCircle, History, CheckCircle2, CircleAlert } from "lucide-react";
 import { TripTypeBadge } from "@/components/ui/TripTypeBadge";
 
 function getInitials(name: string | null, email?: string) {
@@ -27,6 +29,8 @@ export default function ChauffeurDashboardPage() {
   const [upcomingReservationsCount, setUpcomingReservationsCount] = useState<number>(0);
   const [completedReservationsCount, setCompletedReservationsCount] = useState<number>(0);
   const [showPublishedSuccess, setShowPublishedSuccess] = useState(false);
+  const [readiness, setReadiness] = useState<DriverPublishingReadiness | null>(null);
+  const [publishingState, setPublishingState] = useState<DriverTripPublishingState | null>(null);
 
   useEffect(() => {
     getOpenRequests()
@@ -60,6 +64,16 @@ export default function ChauffeurDashboardPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    getDriverPublishingReadiness(user.id)
+      .then(setReadiness)
+      .catch(() => setReadiness(null));
+    getDriverTripPublishingState(user.id)
+      .then(setPublishingState)
+      .catch(() => setPublishingState(null));
+  }, [user?.id]);
+
   const displayName = profile?.full_name?.trim() || user?.email?.split("@")[0] || "";
   const firstName = profile?.full_name?.trim()?.split(/\s+/)[0] || displayName;
   const initials = getInitials(profile?.full_name ?? null, user?.email);
@@ -85,11 +99,11 @@ export default function ChauffeurDashboardPage() {
           <Button
             variant="primary"
             size="lg"
-            href="/chauffeur/trajet/nouveau"
+            href={readiness?.ready ? "/chauffeur/trajet/nouveau" : "/chauffeur/profil"}
             className="shrink-0"
           >
             <Car className="mr-2 h-5 w-5" />
-            Publier un trajet
+            {readiness?.ready ? "Publier un trajet" : "Compléter mon profil"}
           </Button>
         </div>
         <div className="mt-3">
@@ -104,6 +118,44 @@ export default function ChauffeurDashboardPage() {
           tone="success"
           message="Trajet publié avec succès. Vous pouvez maintenant suivre les réservations."
         />
+      )}
+      {readiness && (
+        <Card className={`mt-4 border ${readiness.ready ? "border-emerald-200 bg-emerald-50/40" : "border-amber-200 bg-amber-50/40"}`}>
+          <h2 className={`text-sm font-semibold ${readiness.ready ? "text-emerald-900" : "text-amber-900"}`}>
+            Conformité publication trajet
+          </h2>
+          <p className={`mt-1 text-xs ${readiness.ready ? "text-emerald-800" : "text-amber-800"}`}>
+            Progression: {Math.round(readiness.completion * 100)}% · Région de référence: {readiness.defaultRegion ?? "à renseigner"}
+          </p>
+          <div className="mt-2 space-y-1">
+            {readiness.steps.map((step) => (
+              <p key={step.key} className={`flex items-center gap-2 text-xs ${step.done ? "text-emerald-900" : "text-amber-900"}`}>
+                {step.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
+                {step.label}
+              </p>
+            ))}
+          </div>
+          {!readiness.ready && (
+            <Button size="sm" variant="secondary" href="/chauffeur/profil" className="mt-3">
+              Finaliser ma conformité
+            </Button>
+          )}
+        </Card>
+      )}
+      {publishingState && (
+        <Card className="mt-3 border border-sky-200 bg-sky-50/40">
+          <h2 className="text-sm font-semibold text-sky-900">Wallet publication</h2>
+          <p className="mt-1 text-xs text-sky-800">
+            Gratuit restant: {publishingState.freeTripsRemaining}/20 · Solde:{" "}
+            {publishingState.walletBalanceCredits} crédit(s) · Découvert restant:{" "}
+            {publishingState.loanRemainingTrips} trajet(s)
+          </p>
+          {!publishingState.canPublish && (
+            <Button size="sm" variant="secondary" href="/chauffeur/credits/recharger" className="mt-2">
+              Recharger pour republier
+            </Button>
+          )}
+        </Card>
       )}
 
       <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -136,17 +188,17 @@ export default function ChauffeurDashboardPage() {
             </div>
             <div>
               <h3 className="font-semibold text-neutral-900">Mes trajets</h3>
-              <p className="text-sm text-neutral-500">Gérer mes trajets</p>
+              <p className="text-sm text-neutral-500">Publications, résas en attente, confirmées, clôturées</p>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            href="/chauffeur/trajet/nouveau"
-            className="mt-3"
-          >
-            Nouveau trajet
-          </Button>
+          <div className="mt-3 flex flex-col gap-2">
+            <Button variant="secondary" size="sm" href="/chauffeur/trajets" className="w-full">
+              Voir mes trajets
+            </Button>
+            <Button variant="ghost" size="sm" href="/chauffeur/trajet/nouveau" className="w-full">
+              Nouveau trajet
+            </Button>
+          </div>
         </Card>
 
         <Card>

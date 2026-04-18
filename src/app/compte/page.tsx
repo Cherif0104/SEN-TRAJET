@@ -140,7 +140,9 @@ export default function ComptePage() {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-xl font-bold text-neutral-900">Je voyage</h3>
-              <p className="truncate text-sm text-neutral-600">Trajets citadine, minivan, bus · Eco, Confort, Confort+</p>
+              <p className="truncate text-sm text-neutral-600">
+                Citadine, SUV, familiale, minivan, minibus, bus · Eco, Confort, Confort+
+              </p>
             </div>
             <ChevronRight className="h-4 w-4 text-blue-600" />
           </Link>

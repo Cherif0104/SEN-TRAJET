@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { LocationSmartInput } from "@/components/map/LocationSmartInput";
 import { useAuth } from "@/hooks/useAuth";
 import { createTrip } from "@/lib/trips-create";
 import { computePriceBreakdown, type PickupMode } from "@/lib/pricing";
-import { senegalCities } from "@/data/senegalLocations";
-import { ArrowRightLeft, CircleDollarSign, Route, ShieldCheck, Minus, Plus } from "lucide-react";
+import { getDriverPublishingReadiness, type DriverPublishingReadiness } from "@/lib/driverReadiness";
+import {
+  getDriverTripPublishingState,
+  TRIP_PUBLICATION_COST_FCFA,
+  type DriverTripPublishingState,
+} from "@/lib/tripPublishing";
+import { ArrowRightLeft, CircleDollarSign, Route, ShieldCheck, Minus, Plus, CheckCircle2, CircleAlert } from "lucide-react";
 
 function SeatCounter({
   value,
@@ -60,6 +66,8 @@ export default function NouveauTrajetPage() {
   const [homePickupExtraFcfa, setHomePickupExtraFcfa] = useState("2000");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<DriverPublishingReadiness | null>(null);
+  const [publishingState, setPublishingState] = useState<DriverTripPublishingState | null>(null);
   const today = new Date().toISOString().split("T")[0];
   const priceNum = Number(prix);
   const homeExtraNum = Number(homePickupExtraFcfa);
@@ -74,10 +82,33 @@ export default function NouveauTrajetPage() {
     }
   }, [user, authLoading, router]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    getDriverPublishingReadiness(user.id)
+      .then(setReadiness)
+      .catch(() => setReadiness(null));
+    getDriverTripPublishingState(user.id)
+      .then(setPublishingState)
+      .catch(() => setPublishingState(null));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!profile?.city?.trim()) return;
+    setDepart((prev) => (prev.trim() ? prev : profile.city!.trim()));
+  }, [profile?.city]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!user || !profile) return;
+    if (!readiness?.ready) {
+      setError("Votre compte chauffeur n'est pas encore conforme pour publier un trajet.");
+      return;
+    }
+    if (publishingState && !publishingState.canPublish) {
+      setError("Découvert maximum atteint. Rechargez votre wallet pour publier un nouveau trajet.");
+      return;
+    }
     if (depart.trim().toLowerCase() === arrivee.trim().toLowerCase()) {
       setError("Le départ et l'arrivée doivent être différents.");
       return;
@@ -156,6 +187,46 @@ export default function NouveauTrajetPage() {
           3. Publication
         </p>
       </div>
+      {readiness && (
+        <Card className={`mt-4 border ${readiness.ready ? "border-emerald-200 bg-emerald-50/40" : "border-amber-200 bg-amber-50/40"}`}>
+          <p className={`text-sm font-semibold ${readiness.ready ? "text-emerald-900" : "text-amber-900"}`}>
+            Conformité chauffeur: {Math.round(readiness.completion * 100)}%
+          </p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/70">
+            <div
+              className={`h-full rounded-full transition-all ${readiness.ready ? "bg-emerald-500" : "bg-amber-500"}`}
+              style={{ width: `${readiness.completion * 100}%` }}
+            />
+          </div>
+          <div className="mt-2 space-y-1">
+            {readiness.steps.map((step) => (
+              <p key={step.key} className={`flex items-center gap-2 text-xs ${step.done ? "text-emerald-900" : "text-amber-900"}`}>
+                {step.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
+                {step.label}
+              </p>
+            ))}
+          </div>
+          {!readiness.ready && (
+            <Button size="sm" variant="secondary" href="/chauffeur/profil" className="mt-3">
+              Compléter mon profil chauffeur
+            </Button>
+          )}
+        </Card>
+      )}
+      {publishingState && (
+        <Card className="mt-3 border border-sky-200 bg-sky-50/50">
+          <p className="text-sm font-semibold text-sky-900">Règle publication trajet</p>
+          <p className="mt-1 text-xs text-sky-800">
+            {publishingState.freeTripsRemaining > 0
+              ? `${publishingState.freeTripsRemaining} trajet(s) gratuits restants sur 20.`
+              : `Au-delà des 20 trajets: ${TRIP_PUBLICATION_COST_FCFA.toLocaleString("fr-FR")} FCFA par publication (1 crédit).`}
+          </p>
+          <p className="mt-1 text-xs text-sky-800">
+            Solde wallet: {publishingState.walletBalanceCredits} crédit(s) · Découvert restant:{" "}
+            {publishingState.loanRemainingTrips} trajet(s).
+          </p>
+        </Card>
+      )}
       <Card className="mt-5 rounded-3xl sm:mt-6">
         <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
           {error && (
@@ -166,21 +237,19 @@ export default function NouveauTrajetPage() {
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">Itinéraire</p>
             <div className="space-y-3">
-              <Input
+              <LocationSmartInput
                 label="Ville de départ"
                 placeholder="Dakar"
                 value={depart}
-                onChange={(e) => setDepart(e.target.value)}
-                list="cities-depart"
-                required
+                onChange={setDepart}
+                listId="chauffeur-trajet-cities-depart"
               />
-              <Input
+              <LocationSmartInput
                 label="Ville d&apos;arrivée"
                 placeholder="Thiès"
                 value={arrivee}
-                onChange={(e) => setArrivee(e.target.value)}
-                list="cities-arrivee"
-                required
+                onChange={setArrivee}
+                listId="chauffeur-trajet-cities-arrivee"
               />
               <Button
                 type="button"
@@ -197,16 +266,6 @@ export default function NouveauTrajetPage() {
               </Button>
             </div>
           </div>
-          <datalist id="cities-depart">
-            {senegalCities.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <datalist id="cities-arrivee">
-            {senegalCities.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
               label="Date"
@@ -302,11 +361,22 @@ export default function NouveauTrajetPage() {
               onChange={(e) => setHomePickupExtraFcfa(e.target.value)}
             />
           )}
-          <Button type="submit" fullWidth isLoading={loading} className="hidden md:inline-flex">
+          <Button
+            type="submit"
+            fullWidth
+            isLoading={loading}
+            disabled={(readiness?.ready === false) || (publishingState?.canPublish === false)}
+            className="hidden md:inline-flex"
+          >
             Publier le trajet
           </Button>
           <div className="sticky bottom-20 z-30 -mx-1 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-lg backdrop-blur md:hidden">
-            <Button type="submit" fullWidth isLoading={loading}>
+            <Button
+              type="submit"
+              fullWidth
+              isLoading={loading}
+              disabled={(readiness?.ready === false) || (publishingState?.canPublish === false)}
+            >
               Publier le trajet
             </Button>
           </div>

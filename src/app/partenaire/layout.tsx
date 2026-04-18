@@ -68,8 +68,8 @@ export default function PartenaireLayout({
         return;
       }
 
-      // Le parcours onboarding actuel est porté par le rôle "partner" propriétaire.
-      if (profile?.role === "partner") {
+      // Les profils propriétaires (partner / rental_owner) doivent avoir une fiche partenaire active.
+      if (profile?.role === "partner" || profile?.role === "rental_owner") {
         try {
           const partner = await getPartnerByUserId(user.id);
           if (!partner) {
