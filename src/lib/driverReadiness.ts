@@ -19,7 +19,7 @@ export type DriverPublishingReadiness = {
 };
 
 export async function getDriverPublishingReadiness(driverId: string): Promise<DriverPublishingReadiness> {
-  const [{ data: profile }, { data: vehicles }, { data: documents }] = await Promise.all([
+  const [{ data: profile }, { data: vehicles }, { data: documents }, docFilesRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, phone, city")
@@ -34,7 +34,9 @@ export async function getDriverPublishingReadiness(driverId: string): Promise<Dr
       .from("driver_documents")
       .select("doc_type, file_url")
       .eq("driver_id", driverId),
+    supabase.from("driver_document_files").select("doc_type").eq("driver_id", driverId),
   ]);
+  const docFiles = docFilesRes.error ? [] : docFilesRes.data ?? [];
 
   const hasProfile =
     Boolean(profile?.full_name?.trim()) &&
@@ -53,11 +55,11 @@ export async function getDriverPublishingReadiness(driverId: string): Promise<Dr
     );
   });
 
-  const uploadedDocTypes = new Set(
-    (documents ?? [])
-      .filter((doc) => Boolean(doc.file_url?.trim()))
-      .map((doc) => String(doc.doc_type))
-  );
+  const fromFiles = docFiles.map((r) => String((r as { doc_type: string }).doc_type));
+  const fromLegacy = (documents ?? [])
+    .filter((doc) => Boolean(doc.file_url?.trim()))
+    .map((doc) => String(doc.doc_type));
+  const uploadedDocTypes = new Set([...fromFiles, ...fromLegacy]);
   const hasAllRequiredDocs = REQUIRED_DRIVER_DOCS.every((docType) => uploadedDocTypes.has(docType));
 
   const steps: DriverReadinessStep[] = [

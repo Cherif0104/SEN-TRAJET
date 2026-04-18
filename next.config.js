@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  async rewrites() {
+    return [
+      { source: "/favicon.ico", destination: "/icons/app-icon-192.png" },
+    ];
+  },
   async headers() {
     return [
       {

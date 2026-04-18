@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isMissingSchemaObjectError } from "@/lib/postgrestErrors";
 
 export type ComplianceCheck = {
   id: string;
@@ -37,6 +38,9 @@ export async function scheduleDriverComplianceLifecycle(driverId: string): Promi
   ];
 
   const { error } = await supabase.from("driver_compliance_checks").insert(rows);
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaObjectError(error)) return;
+    throw error;
+  }
 }
 
