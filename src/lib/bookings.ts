@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { validateBookingDraft } from "@/lib/bookingRules";
 import { canTransitionBookingStatus } from "@/lib/statusLabels";
+import { isMissingSchemaObjectError } from "@/lib/postgrestErrors";
 
 async function syncTripSeatAvailability(tripId: string): Promise<void> {
   if (!tripId) return;
@@ -28,23 +29,29 @@ export async function createBooking(params: {
   });
   if (validationError) throw new Error(validationError);
 
-  const { data, error } = await supabase
-    .from("bookings")
-    .insert({
-      trip_id: params.tripId,
-      client_id: params.clientId,
-      driver_id: params.driverId,
-      passengers: params.passengers,
-      meeting_point: params.meetingPoint || null,
-      payment_method: params.paymentMethod ?? null,
-      baggage_type: params.baggageType ?? null,
-      adult_passengers: params.adultPassengers ?? null,
-      child_passengers: params.childPassengers ?? null,
-      total_fcfa: params.totalFcfa,
-      status: "pending",
-    })
-    .select()
-    .single();
+  const rowFull = {
+    trip_id: params.tripId,
+    client_id: params.clientId,
+    driver_id: params.driverId,
+    passengers: params.passengers,
+    meeting_point: params.meetingPoint || null,
+    payment_method: params.paymentMethod ?? null,
+    baggage_type: params.baggageType ?? null,
+    adult_passengers: params.adultPassengers ?? null,
+    child_passengers: params.childPassengers ?? null,
+    total_fcfa: params.totalFcfa,
+    status: "pending",
+  };
+
+  const { payment_method: _pm, baggage_type: _bt, adult_passengers: _ap, child_passengers: _cp, ...rowLegacy } =
+    rowFull;
+
+  let { data, error } = await supabase.from("bookings").insert(rowFull).select().single();
+  if (error && isMissingSchemaObjectError(error)) {
+    const retry = await supabase.from("bookings").insert(rowLegacy).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) {
     throw new Error(`Impossible de créer la réservation: ${error.message}`);
   }
