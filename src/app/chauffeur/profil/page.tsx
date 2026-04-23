@@ -117,6 +117,7 @@ export default function ProfilChauffeurPage() {
   const [complianceChecks, setComplianceChecks] = useState<ComplianceCheck[]>([]);
   const [catalogBrands, setCatalogBrands] = useState<string[]>([]);
   const [catalogModels, setCatalogModels] = useState<string[]>([]);
+  const [catalogVehicleYears, setCatalogVehicleYears] = useState<number[]>([]);
   const [vBrandSelect, setVBrandSelect] = useState("");
   const [vBrandManual, setVBrandManual] = useState("");
   const [vModelSelect, setVModelSelect] = useState("");
@@ -128,6 +129,7 @@ export default function ProfilChauffeurPage() {
   const [vPlate, setVPlate] = useState("");
   const [vSeats, setVSeats] = useState(4);
   const [vAC, setVAC] = useState(false);
+  const [vehicleWizardStep, setVehicleWizardStep] = useState<0 | 1>(0);
   const [docFileRows, setDocFileRows] = useState<DriverDocumentFileRow[]>([]);
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [vehicleFormError, setVehicleFormError] = useState<string | null>(null);
@@ -197,6 +199,36 @@ export default function ProfilChauffeurPage() {
       .catch(() => setCatalogModels([]));
   }, [vBrandSelect]);
 
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    const fallbackYears = Array.from({ length: currentYear - 1979 }, (_, i) => currentYear - i);
+    if (
+      !vBrandSelect ||
+      !vModelSelect ||
+      vBrandSelect === OTHER_BRAND_SENTINEL ||
+      vModelSelect === OTHER_MODEL_SENTINEL
+    ) {
+      setCatalogVehicleYears(fallbackYears);
+      return;
+    }
+    fetch(
+      `/api/vehicle-catalog?brand=${encodeURIComponent(vBrandSelect)}&model=${encodeURIComponent(vModelSelect)}`
+    )
+      .then((r) => r.json())
+      .then((j: { years?: number[] }) =>
+        setCatalogVehicleYears(Array.isArray(j.years) && j.years.length > 0 ? j.years : fallbackYears)
+      )
+      .catch(() => setCatalogVehicleYears(fallbackYears));
+  }, [vBrandSelect, vModelSelect]);
+
+  useEffect(() => {
+    if (!vYear) return;
+    if (catalogVehicleYears.length === 0) return;
+    if (!catalogVehicleYears.includes(Number(vYear))) {
+      setVYear("");
+    }
+  }, [catalogVehicleYears, vYear]);
+
   if (authLoading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -232,8 +264,23 @@ export default function ProfilChauffeurPage() {
     return { brand, model };
   };
 
+  const canGoNextVehicleWizard = (() => {
+    const { brand, model } = resolveBrandModel();
+    const yr = vYear.trim() ? Number(vYear) : NaN;
+    return Boolean(brand && model && vPlate.trim() && Number.isFinite(yr));
+  })();
+
   const renderVehicleFields = () => (
     <>
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-600">
+        <span className={vehicleWizardStep === 0 ? "font-semibold text-neutral-900" : ""}>Identité</span>
+        <span>→</span>
+        <span className={vehicleWizardStep === 1 ? "font-semibold text-neutral-900" : ""}>Caractéristiques</span>
+        <span className="ml-auto text-neutral-500">Étape {vehicleWizardStep + 1}/2</span>
+      </div>
+
+      {vehicleWizardStep === 0 && (
+        <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-800">Marque</label>
@@ -243,6 +290,7 @@ export default function ProfilChauffeurPage() {
               setVBrandSelect(e.target.value);
               setVModelSelect("");
               setVModelManual("");
+              setVYear("");
             }}
             className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
@@ -267,7 +315,10 @@ export default function ProfilChauffeurPage() {
             <label className="mb-1 block text-sm font-medium text-neutral-800">Modèle</label>
             <select
               value={vModelSelect}
-              onChange={(e) => setVModelSelect(e.target.value)}
+              onChange={(e) => {
+                setVModelSelect(e.target.value);
+                setVYear("");
+              }}
               className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Choisir…</option>
@@ -300,13 +351,21 @@ export default function ProfilChauffeurPage() {
           />
         )}
       <div className="grid grid-cols-2 gap-3">
-        <Input
-          label="Année"
-          type="number"
-          placeholder="2022"
-          value={vYear}
-          onChange={(e) => setVYear(e.target.value)}
-        />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-neutral-800">Année</label>
+          <select
+            value={vYear}
+            onChange={(e) => setVYear(e.target.value)}
+            className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">Choisir…</option>
+            {catalogVehicleYears.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
         <Input
           label="Plaque"
           placeholder="DK-1234-AB"
@@ -328,6 +387,11 @@ export default function ProfilChauffeurPage() {
         />
         Véhicule utilitaire (colis / charges)
       </label>
+        </>
+      )}
+
+      {vehicleWizardStep === 1 && (
+        <>
       {!vUtilitaire && (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -408,6 +472,8 @@ export default function ProfilChauffeurPage() {
         />
         Climatisation fonctionnelle
       </label>
+        </>
+      )}
     </>
   );
 
@@ -426,6 +492,11 @@ export default function ProfilChauffeurPage() {
     e.preventDefault();
     const { brand, model } = resolveBrandModel();
     if (!brand || !model) return;
+    const numericYear = vYear.trim() ? Number(vYear) : NaN;
+    if (!Number.isFinite(numericYear)) {
+      setVehicleFormError("Veuillez sélectionner une année valide.");
+      return;
+    }
     setAddingVehicle(true);
     setVehicleFormError(null);
     try {
@@ -434,7 +505,7 @@ export default function ProfilChauffeurPage() {
       const payload: VehicleInsert = {
         brand,
         model,
-        year: vYear ? Number(vYear) : undefined,
+        year: numericYear,
         plate_number: vPlate,
         category: legacy,
         seats: vSeats,
@@ -458,6 +529,7 @@ export default function ProfilChauffeurPage() {
 
   const resetVehicleForm = () => {
     setVehicleFormError(null);
+    setVehicleWizardStep(0);
     setVBrandSelect("");
     setVBrandManual("");
     setVModelSelect("");
@@ -474,6 +546,7 @@ export default function ProfilChauffeurPage() {
 
   const startEditVehicle = async (v: Vehicle) => {
     setVehicleFormError(null);
+    setVehicleWizardStep(0);
     setShowAddVehicle(false);
     setEditingVehicleId(v.id);
     const b = v.brand?.trim() || "";
@@ -531,6 +604,11 @@ export default function ProfilChauffeurPage() {
     if (!editingVehicleId) return;
     const { brand, model } = resolveBrandModel();
     if (!brand || !model) return;
+    const numericYear = vYear.trim() ? Number(vYear) : NaN;
+    if (!Number.isFinite(numericYear)) {
+      setVehicleFormError("Veuillez sélectionner une année valide.");
+      return;
+    }
     setAddingVehicle(true);
     setVehicleFormError(null);
     try {
@@ -539,7 +617,7 @@ export default function ProfilChauffeurPage() {
       await updateVehicle(user.id, editingVehicleId, {
         brand,
         model,
-        year: vYear ? Number(vYear) : undefined,
+        year: numericYear,
         plate_number: vPlate,
         category: legacy,
         seats: vSeats,
@@ -778,8 +856,39 @@ export default function ProfilChauffeurPage() {
                 onUpdated={() => getDriverVehicles(user!.id).then(setVehicles)}
               />
               <div className="flex gap-2">
-                <Button type="submit" size="sm" isLoading={addingVehicle}>Enregistrer</Button>
-                <Button type="button" variant="ghost" size="sm" onClick={resetVehicleForm}>Annuler</Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setVehicleWizardStep(0)}
+                  disabled={vehicleWizardStep === 0 || addingVehicle}
+                >
+                  Retour
+                </Button>
+                {vehicleWizardStep === 0 ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      if (!canGoNextVehicleWizard) {
+                        setVehicleFormError("Veuillez choisir marque, modèle, année et plaque.");
+                        return;
+                      }
+                      setVehicleFormError(null);
+                      setVehicleWizardStep(1);
+                    }}
+                    disabled={addingVehicle}
+                  >
+                    Suivant
+                  </Button>
+                ) : (
+                  <Button type="submit" size="sm" isLoading={addingVehicle}>
+                    Enregistrer
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" size="sm" onClick={resetVehicleForm} disabled={addingVehicle}>
+                  Annuler
+                </Button>
               </div>
             </form>
           </Card>
@@ -877,9 +986,36 @@ export default function ProfilChauffeurPage() {
               Après enregistrement, ajoutez les photos du véhicule depuis la carte du véhicule.
             </p>
             <div className="flex gap-2">
-              <Button type="submit" size="sm" isLoading={addingVehicle}>
-                Enregistrer
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setVehicleWizardStep(0)}
+                disabled={vehicleWizardStep === 0 || addingVehicle}
+              >
+                Retour
               </Button>
+              {vehicleWizardStep === 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (!canGoNextVehicleWizard) {
+                      setVehicleFormError("Veuillez choisir marque, modèle, année et plaque.");
+                      return;
+                    }
+                    setVehicleFormError(null);
+                    setVehicleWizardStep(1);
+                  }}
+                  disabled={addingVehicle}
+                >
+                  Suivant
+                </Button>
+              ) : (
+                <Button type="submit" size="sm" isLoading={addingVehicle}>
+                  Enregistrer
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="ghost"
@@ -888,6 +1024,7 @@ export default function ProfilChauffeurPage() {
                   setShowAddVehicle(false);
                   resetVehicleForm();
                 }}
+                disabled={addingVehicle}
               >
                 Annuler
               </Button>

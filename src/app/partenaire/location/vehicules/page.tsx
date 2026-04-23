@@ -35,6 +35,7 @@ export default function PartenaireLocationVehiculesPage() {
 
   const [catalogBrands, setCatalogBrands] = useState<string[]>([]);
   const [catalogModels, setCatalogModels] = useState<string[]>([]);
+  const [catalogYears, setCatalogYears] = useState<number[]>([]);
   const [brandSelect, setBrandSelect] = useState("");
   const [brandManual, setBrandManual] = useState("");
   const [modelSelect, setModelSelect] = useState("");
@@ -66,6 +67,7 @@ export default function PartenaireLocationVehiculesPage() {
   const [hasSpareTire, setHasSpareTire] = useState(true);
   const [hasSeenAvailability, setHasSeenAvailability] = useState(false);
   const isSetupFlow = searchParams.get("setup") === "1";
+  const [formStep, setFormStep] = useState<0 | 1 | 2 | 3>(0);
   const serviceClassLabel: Record<ServiceClassLevel, string> = {
     eco: "Eco",
     confort: "Confort",
@@ -121,13 +123,19 @@ export default function PartenaireLocationVehiculesPage() {
   }, []);
 
   useEffect(() => {
-    supabase
-      .from("geo_regions")
-      .select("id, name")
-      .eq("is_active", true)
-      .order("name", { ascending: true })
-      .then(({ data }) => setGeoRegions((data ?? []) as { id: string; name: string }[]))
-      .catch(() => setGeoRegions([]));
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("geo_regions")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name", { ascending: true });
+        if (error) throw error;
+        setGeoRegions((data ?? []) as { id: string; name: string }[]);
+      } catch {
+        setGeoRegions([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -138,14 +146,20 @@ export default function PartenaireLocationVehiculesPage() {
       setLocalityId("");
       return;
     }
-    supabase
-      .from("geo_departments")
-      .select("id, name, region_id")
-      .eq("is_active", true)
-      .eq("region_id", regionId)
-      .order("name", { ascending: true })
-      .then(({ data }) => setGeoDepartments((data ?? []) as { id: string; name: string; region_id: string }[]))
-      .catch(() => setGeoDepartments([]));
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("geo_departments")
+          .select("id, name, region_id")
+          .eq("is_active", true)
+          .eq("region_id", regionId)
+          .order("name", { ascending: true });
+        if (error) throw error;
+        setGeoDepartments((data ?? []) as { id: string; name: string; region_id: string }[]);
+      } catch {
+        setGeoDepartments([]);
+      }
+    })();
   }, [regionId]);
 
   useEffect(() => {
@@ -155,14 +169,20 @@ export default function PartenaireLocationVehiculesPage() {
       setLocalityId("");
       return;
     }
-    supabase
-      .from("geo_communes")
-      .select("id, name, department_id")
-      .eq("is_active", true)
-      .eq("department_id", departmentId)
-      .order("name", { ascending: true })
-      .then(({ data }) => setGeoCommunes((data ?? []) as { id: string; name: string; department_id: string }[]))
-      .catch(() => setGeoCommunes([]));
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("geo_communes")
+          .select("id, name, department_id")
+          .eq("is_active", true)
+          .eq("department_id", departmentId)
+          .order("name", { ascending: true });
+        if (error) throw error;
+        setGeoCommunes((data ?? []) as { id: string; name: string; department_id: string }[]);
+      } catch {
+        setGeoCommunes([]);
+      }
+    })();
   }, [departmentId]);
 
   useEffect(() => {
@@ -171,13 +191,19 @@ export default function PartenaireLocationVehiculesPage() {
       setLocalityId("");
       return;
     }
-    supabase
-      .from("geo_localities")
-      .select("id, name, commune_id")
-      .eq("commune_id", communeId)
-      .order("name", { ascending: true })
-      .then(({ data }) => setGeoLocalities((data ?? []) as { id: string; name: string; commune_id: string }[]))
-      .catch(() => setGeoLocalities([]));
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("geo_localities")
+          .select("id, name, commune_id")
+          .eq("commune_id", communeId)
+          .order("name", { ascending: true });
+        if (error) throw error;
+        setGeoLocalities((data ?? []) as { id: string; name: string; commune_id: string }[]);
+      } catch {
+        setGeoLocalities([]);
+      }
+    })();
   }, [communeId]);
 
   useEffect(() => {
@@ -198,6 +224,36 @@ export default function PartenaireLocationVehiculesPage() {
       .catch(() => setCatalogModels([]));
   }, [brandSelect]);
 
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    const fallbackYears = Array.from({ length: currentYear - 1979 }, (_, i) => currentYear - i);
+    if (
+      !brandSelect ||
+      !modelSelect ||
+      brandSelect === OTHER_BRAND_SENTINEL ||
+      modelSelect === OTHER_MODEL_SENTINEL
+    ) {
+      setCatalogYears(fallbackYears);
+      return;
+    }
+    fetch(
+      `/api/vehicle-catalog?brand=${encodeURIComponent(brandSelect)}&model=${encodeURIComponent(modelSelect)}`
+    )
+      .then((r) => r.json())
+      .then((j: { years?: number[] }) =>
+        setCatalogYears(Array.isArray(j.years) && j.years.length > 0 ? j.years : fallbackYears)
+      )
+      .catch(() => setCatalogYears(fallbackYears));
+  }, [brandSelect, modelSelect]);
+
+  useEffect(() => {
+    if (!year) return;
+    if (catalogYears.length === 0) return;
+    if (!catalogYears.includes(Number(year))) {
+      setYear("");
+    }
+  }, [catalogYears, year]);
+
   const resolveBrandModel = () => {
     const brand = brandSelect === OTHER_BRAND_SENTINEL ? brandManual.trim() : brandSelect.trim();
     const model =
@@ -217,6 +273,36 @@ export default function PartenaireLocationVehiculesPage() {
     { label: "Disponibilités consultées", done: hasSeenAvailability },
   ] as const;
   const completedSetupSteps = setupSteps.filter((step) => step.done).length;
+
+  const canGoNextFromStep0 = Boolean(regionId && departmentId && communeId && localityId);
+  const canGoNextFromStep1 = (() => {
+    const { brand, model } = resolveBrandModel();
+    const yr = year.trim() ? Number(year) : NaN;
+    return Boolean(brand && model && plateNumber.trim() && Number.isFinite(yr));
+  })();
+  const canGoNextFromStep2 = Boolean(seats.trim());
+
+  const goNext = () => {
+    setError(null);
+    if (formStep === 0 && !canGoNextFromStep0) {
+      setError("Veuillez sélectionner Région, Département, Commune et Arrondissement.");
+      return;
+    }
+    if (formStep === 1 && !canGoNextFromStep1) {
+      setError("Veuillez choisir marque, modèle, année et plaque (ou saisir 'Autre').");
+      return;
+    }
+    if (formStep === 2 && !canGoNextFromStep2) {
+      setError("Veuillez renseigner les caractéristiques du véhicule.");
+      return;
+    }
+    setFormStep((s) => (s === 0 ? 1 : s === 1 ? 2 : 3));
+  };
+
+  const goBack = () => {
+    setError(null);
+    setFormStep((s) => (s === 3 ? 2 : s === 2 ? 1 : 0));
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +328,11 @@ export default function PartenaireLocationVehiculesPage() {
       setError("Veuillez sélectionner Région, Commune et Arrondissement.");
       return;
     }
+    const numericYearValue = year.trim() ? Number(year) : NaN;
+    if (!Number.isFinite(numericYearValue)) {
+      setError("Veuillez sélectionner une année valide.");
+      return;
+    }
     setSubmitting(true);
     try {
       const autoTitle = `${brand} ${model}`.trim();
@@ -260,7 +351,7 @@ export default function PartenaireLocationVehiculesPage() {
         dailyRateFcfa: Number(dailyRate),
         fuelType,
         engineSizeL: engineSize ? Number(engineSize) : null,
-        year: year ? Number(year) : null,
+        year: numericYearValue,
         seats: Number(seats || 4),
         mileageKm: Number(mileage || 0),
         insuranceValidUntil: insuranceDate || null,
@@ -281,7 +372,9 @@ export default function PartenaireLocationVehiculesPage() {
       setDepartmentId("");
       setCommuneId("");
       setLocalityId("");
+      setYear("");
       setSeats("4");
+      setFormStep(0);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de publier le véhicule.");
@@ -339,210 +432,282 @@ export default function PartenaireLocationVehiculesPage() {
       )}
 
       <Card className="mt-6 border border-neutral-200">
-        <h2 className="text-base font-semibold text-neutral-900">Nouveau véhicule</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-neutral-900">Nouveau véhicule</h2>
+          <p className="text-xs text-neutral-500">Étape {formStep + 1}/4</p>
+        </div>
         <form onSubmit={onSubmit} className="mt-4 space-y-3">
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           {success && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Région</label>
-              <select
-                value={regionId}
-                onChange={(e) => setRegionId(e.target.value)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                required
-              >
-                <option value="">Choisir…</option>
-                {geoRegions.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Département</label>
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                required
-                disabled={!regionId}
-              >
-                <option value="">{regionId ? "Choisir…" : "Choisir une région d’abord"}</option>
-                {geoDepartments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Marque</label>
-              <select
-                value={brandSelect}
-                onChange={(e) => {
-                  setBrandSelect(e.target.value);
-                  setModelSelect("");
-                  setModelManual("");
-                }}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                required
-              >
-                <option value="">Choisir…</option>
-                {catalogBrands.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-                <option value={OTHER_BRAND_SENTINEL}>Autre (saisie manuelle)</option>
-              </select>
-            </div>
-            {brandSelect === OTHER_BRAND_SENTINEL ? (
-              <Input
-                label="Précisez la marque"
-                value={brandManual}
-                onChange={(e) => setBrandManual(e.target.value)}
-                required
-              />
-            ) : (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-600">
+            <span className={formStep === 0 ? "font-semibold text-neutral-900" : ""}>Localisation</span>
+            <span>→</span>
+            <span className={formStep === 1 ? "font-semibold text-neutral-900" : ""}>Identité</span>
+            <span>→</span>
+            <span className={formStep === 2 ? "font-semibold text-neutral-900" : ""}>Caractéristiques</span>
+            <span>→</span>
+            <span className={formStep === 3 ? "font-semibold text-neutral-900" : ""}>Tarifs</span>
+          </div>
+
+          {formStep === 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800">Modèle</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Région</label>
                 <select
-                  value={modelSelect}
-                  onChange={(e) => setModelSelect(e.target.value)}
+                  value={regionId}
+                  onChange={(e) => setRegionId(e.target.value)}
                   className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   required
                 >
                   <option value="">Choisir…</option>
-                  {catalogModels.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
+                  {geoRegions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
                     </option>
                   ))}
-                  <option value={OTHER_MODEL_SENTINEL}>Autre modèle…</option>
                 </select>
               </div>
-            )}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Commune</label>
-              <select
-                value={communeId}
-                onChange={(e) => setCommuneId(e.target.value)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                required
-                disabled={!departmentId}
-              >
-                <option value="">{departmentId ? "Choisir…" : "Choisir un département d’abord"}</option>
-                {geoCommunes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Département</label>
+                <select
+                  value={departmentId}
+                  onChange={(e) => setDepartmentId(e.target.value)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                  disabled={!regionId}
+                >
+                  <option value="">{regionId ? "Choisir…" : "Choisir une région d’abord"}</option>
+                  {geoDepartments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Commune</label>
+                <select
+                  value={communeId}
+                  onChange={(e) => setCommuneId(e.target.value)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                  disabled={!departmentId}
+                >
+                  <option value="">{departmentId ? "Choisir…" : "Choisir un département d’abord"}</option>
+                  {geoCommunes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Arrondissement</label>
+                <select
+                  value={localityId}
+                  onChange={(e) => setLocalityId(e.target.value)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                  disabled={!communeId}
+                >
+                  <option value="">{communeId ? "Choisir…" : "Choisir une commune d’abord"}</option>
+                  {geoLocalities.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Arrondissement</label>
-              <select
-                value={localityId}
-                onChange={(e) => setLocalityId(e.target.value)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                required
-                disabled={!communeId}
-              >
-                <option value="">{communeId ? "Choisir…" : "Choisir une commune d’abord"}</option>
-                {geoLocalities.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {brandSelect === OTHER_BRAND_SENTINEL && (
-              <Input
-                label="Modèle du véhicule"
-                value={modelManual}
-                onChange={(e) => setModelManual(e.target.value)}
-                required
-              />
-            )}
-            {brandSelect !== "" &&
-              brandSelect !== OTHER_BRAND_SENTINEL &&
-              modelSelect === OTHER_MODEL_SENTINEL && (
+          )}
+
+          {formStep === 1 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Marque</label>
+                <select
+                  value={brandSelect}
+                  onChange={(e) => {
+                    setBrandSelect(e.target.value);
+                    setModelSelect("");
+                    setModelManual("");
+                    setYear("");
+                  }}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                >
+                  <option value="">Choisir…</option>
+                  {catalogBrands.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                  <option value={OTHER_BRAND_SENTINEL}>Autre (saisie manuelle)</option>
+                </select>
+              </div>
+              {brandSelect === OTHER_BRAND_SENTINEL ? (
                 <Input
-                  label="Précisez le modèle"
+                  label="Précisez la marque"
+                  value={brandManual}
+                  onChange={(e) => {
+                    setBrandManual(e.target.value);
+                    setYear("");
+                  }}
+                  required
+                />
+              ) : (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800">Modèle</label>
+                  <select
+                    value={modelSelect}
+                    onChange={(e) => {
+                      setModelSelect(e.target.value);
+                      setYear("");
+                    }}
+                    className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    required
+                    disabled={!brandSelect || brandSelect === OTHER_BRAND_SENTINEL}
+                  >
+                    <option value="">{brandSelect ? "Choisir…" : "Choisir une marque d’abord"}</option>
+                    {catalogModels.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                    <option value={OTHER_MODEL_SENTINEL}>Autre modèle…</option>
+                  </select>
+                </div>
+              )}
+              {brandSelect === OTHER_BRAND_SENTINEL && (
+                <Input
+                  label="Modèle du véhicule"
                   value={modelManual}
-                  onChange={(e) => setModelManual(e.target.value)}
+                  onChange={(e) => {
+                    setModelManual(e.target.value);
+                    setYear("");
+                  }}
                   required
                 />
               )}
-            <Input label="Plaque" value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} required />
-            <Input
-              id="daily-rate-fcfa"
-              label="Tarif/jour (FCFA)"
-              type="number"
-              min={1}
-              value={dailyRate}
-              onChange={(e) => setDailyRate(e.target.value)}
-              required
-            />
-            <Input
-              label="Places passagers"
-              type="number"
-              min={1}
-              max={60}
-              value={seats}
-              onChange={(e) => setSeats(e.target.value)}
-              required
-            />
-            <Input label="Carburant" value={fuelType} onChange={(e) => setFuelType(e.target.value)} />
-            <Input label="Moteur (L)" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} />
-            <Input label="Année" type="number" value={year} onChange={(e) => setYear(e.target.value)} required />
-            <Input label="Kilométrage" type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} />
-            <Input label="Assurance valide jusqu’au" type="date" value={insuranceDate} onChange={(e) => setInsuranceDate(e.target.value)} />
-            <Input label="Visite technique valide jusqu’au" type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Catégorie véhicule</label>
-              <select
-                value={transportCategory}
-                onChange={(e) => setTransportCategory(e.target.value as TransportVehicleCategory)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="citadine">Citadine</option>
-                <option value="suv_berline">SUV/Berline</option>
-                <option value="familiale">Familiale</option>
-                <option value="minivan">Minivan</option>
-                <option value="minibus">Minibus</option>
-                <option value="bus">Bus</option>
-              </select>
+              {brandSelect !== "" &&
+                brandSelect !== OTHER_BRAND_SENTINEL &&
+                modelSelect === OTHER_MODEL_SENTINEL && (
+                  <Input
+                    label="Précisez le modèle"
+                    value={modelManual}
+                    onChange={(e) => {
+                      setModelManual(e.target.value);
+                      setYear("");
+                    }}
+                    required
+                  />
+                )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Année</label>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                >
+                  <option value="">Choisir…</option>
+                  {catalogYears.map((y) => (
+                    <option key={y} value={String(y)}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Input label="Plaque" value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} required />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Classe de service</label>
-              <select
-                value={serviceClass}
-                onChange={(e) => setServiceClass(e.target.value as ServiceClassLevel)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="eco">Eco</option>
-                <option value="confort">Confort</option>
-                <option value="confort_plus">Confort+</option>
-                <option value="premium">Premium</option>
-                <option value="premium_plus">Premium+</option>
-              </select>
+          )}
+
+          {formStep === 2 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                label="Places passagers"
+                type="number"
+                min={1}
+                max={60}
+                value={seats}
+                onChange={(e) => setSeats(e.target.value)}
+                required
+              />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Carburant</label>
+                <select
+                  value={fuelType}
+                  onChange={(e) => setFuelType(e.target.value)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="essence">Essence</option>
+                  <option value="diesel">Diesel</option>
+                  <option value="hybride">Hybride</option>
+                  <option value="electrique">Électrique</option>
+                  <option value="gpl">GPL</option>
+                </select>
+              </div>
+              <Input label="Moteur (L)" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} />
+              <Input label="Kilométrage" type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} />
+              <Input label="Assurance valide jusqu’au" type="date" value={insuranceDate} onChange={(e) => setInsuranceDate(e.target.value)} />
+              <Input label="Visite technique valide jusqu’au" type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-800">Mode location client</label>
-              <select
-                value={rentalMode}
-                onChange={(e) => setRentalMode(e.target.value as RentalMode)}
-                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="with_driver">Avec chauffeur</option>
-                <option value="without_driver">Sans chauffeur</option>
-              </select>
+          )}
+
+          {formStep === 3 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                id="daily-rate-fcfa"
+                label="Tarif/jour (FCFA)"
+                type="number"
+                min={1}
+                value={dailyRate}
+                onChange={(e) => setDailyRate(e.target.value)}
+                required
+              />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Catégorie véhicule</label>
+                <select
+                  value={transportCategory}
+                  onChange={(e) => setTransportCategory(e.target.value as TransportVehicleCategory)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="citadine">Citadine</option>
+                  <option value="suv_berline">SUV/Berline</option>
+                  <option value="familiale">Familiale</option>
+                  <option value="minivan">Minivan</option>
+                  <option value="minibus">Minibus</option>
+                  <option value="bus">Bus</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Classe de service</label>
+                <select
+                  value={serviceClass}
+                  onChange={(e) => setServiceClass(e.target.value as ServiceClassLevel)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="eco">Eco</option>
+                  <option value="confort">Confort</option>
+                  <option value="confort_plus">Confort+</option>
+                  <option value="premium">Premium</option>
+                  <option value="premium_plus">Premium+</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Mode location client</label>
+                <select
+                  value={rentalMode}
+                  onChange={(e) => setRentalMode(e.target.value as RentalMode)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="with_driver">Avec chauffeur</option>
+                  <option value="without_driver">Sans chauffeur</option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid gap-2 sm:grid-cols-2">
             <ToggleField label="Mode plateforme gérée" checked={mode === "platform_managed"} onChange={(v) => setMode(v ? "platform_managed" : "marketplace_partner")} />
@@ -563,9 +728,23 @@ export default function PartenaireLocationVehiculesPage() {
             </p>
           )}
 
-          <Button type="submit" isLoading={submitting} disabled={!eligibilityCheck.eligible}>
-            Publier le véhicule
-          </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={goBack} disabled={formStep === 0 || submitting}>
+                Retour
+              </Button>
+              {formStep < 3 ? (
+                <Button type="button" onClick={goNext} disabled={submitting}>
+                  Suivant
+                </Button>
+              ) : (
+                <Button type="submit" isLoading={submitting} disabled={!eligibilityCheck.eligible}>
+                  Publier le véhicule
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-neutral-500">Étape {formStep + 1}/4</p>
+          </div>
         </form>
       </Card>
 
