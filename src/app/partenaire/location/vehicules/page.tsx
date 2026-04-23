@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
 import { getPartnerByUserId } from "@/lib/partners";
+import { supabase } from "@/lib/supabase";
 import {
   createRentalListing,
   checkServiceClassEligibility,
@@ -19,6 +20,7 @@ import {
   type TransportVehicleCategory,
 } from "@/lib/rentals";
 import { Car, CalendarClock, Wallet, CheckCircle2, Circle } from "lucide-react";
+import { OTHER_BRAND_SENTINEL, OTHER_MODEL_SENTINEL } from "@/lib/vehicleFormTaxonomy";
 
 const RENTAL_SETUP_AVAILABILITY_KEY = "sentrajet_rental_setup_availability_seen";
 
@@ -31,11 +33,21 @@ export default function PartenaireLocationVehiculesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
+  const [catalogBrands, setCatalogBrands] = useState<string[]>([]);
+  const [catalogModels, setCatalogModels] = useState<string[]>([]);
+  const [brandSelect, setBrandSelect] = useState("");
+  const [brandManual, setBrandManual] = useState("");
+  const [modelSelect, setModelSelect] = useState("");
+  const [modelManual, setModelManual] = useState("");
   const [plateNumber, setPlateNumber] = useState("");
-  const [city, setCity] = useState("");
+  const [geoRegions, setGeoRegions] = useState<{ id: string; name: string }[]>([]);
+  const [geoDepartments, setGeoDepartments] = useState<{ id: string; name: string; region_id: string }[]>([]);
+  const [geoCommunes, setGeoCommunes] = useState<{ id: string; name: string; department_id: string }[]>([]);
+  const [geoLocalities, setGeoLocalities] = useState<{ id: string; name: string; commune_id: string }[]>([]);
+  const [regionId, setRegionId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [communeId, setCommuneId] = useState("");
+  const [localityId, setLocalityId] = useState("");
   const [dailyRate, setDailyRate] = useState("30000");
   const [mode, setMode] = useState<RentalOperatingMode>("marketplace_partner");
   const [rentalMode, setRentalMode] = useState<RentalMode>("with_driver");
@@ -108,6 +120,95 @@ export default function PartenaireLocationVehiculesPage() {
     setHasSeenAvailability(window.localStorage.getItem(RENTAL_SETUP_AVAILABILITY_KEY) === "1");
   }, []);
 
+  useEffect(() => {
+    supabase
+      .from("geo_regions")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .then(({ data }) => setGeoRegions((data ?? []) as { id: string; name: string }[]))
+      .catch(() => setGeoRegions([]));
+  }, []);
+
+  useEffect(() => {
+    if (!regionId) {
+      setGeoDepartments([]);
+      setDepartmentId("");
+      setCommuneId("");
+      setLocalityId("");
+      return;
+    }
+    supabase
+      .from("geo_departments")
+      .select("id, name, region_id")
+      .eq("is_active", true)
+      .eq("region_id", regionId)
+      .order("name", { ascending: true })
+      .then(({ data }) => setGeoDepartments((data ?? []) as { id: string; name: string; region_id: string }[]))
+      .catch(() => setGeoDepartments([]));
+  }, [regionId]);
+
+  useEffect(() => {
+    if (!departmentId) {
+      setGeoCommunes([]);
+      setCommuneId("");
+      setLocalityId("");
+      return;
+    }
+    supabase
+      .from("geo_communes")
+      .select("id, name, department_id")
+      .eq("is_active", true)
+      .eq("department_id", departmentId)
+      .order("name", { ascending: true })
+      .then(({ data }) => setGeoCommunes((data ?? []) as { id: string; name: string; department_id: string }[]))
+      .catch(() => setGeoCommunes([]));
+  }, [departmentId]);
+
+  useEffect(() => {
+    if (!communeId) {
+      setGeoLocalities([]);
+      setLocalityId("");
+      return;
+    }
+    supabase
+      .from("geo_localities")
+      .select("id, name, commune_id")
+      .eq("commune_id", communeId)
+      .order("name", { ascending: true })
+      .then(({ data }) => setGeoLocalities((data ?? []) as { id: string; name: string; commune_id: string }[]))
+      .catch(() => setGeoLocalities([]));
+  }, [communeId]);
+
+  useEffect(() => {
+    fetch("/api/vehicle-catalog")
+      .then((r) => r.json())
+      .then((j: { brands?: string[] }) => setCatalogBrands(Array.isArray(j.brands) ? j.brands : []))
+      .catch(() => setCatalogBrands([]));
+  }, []);
+
+  useEffect(() => {
+    if (!brandSelect || brandSelect === OTHER_BRAND_SENTINEL) {
+      setCatalogModels([]);
+      return;
+    }
+    fetch(`/api/vehicle-catalog?brand=${encodeURIComponent(brandSelect)}`)
+      .then((r) => r.json())
+      .then((j: { models?: string[] }) => setCatalogModels(Array.isArray(j.models) ? j.models : []))
+      .catch(() => setCatalogModels([]));
+  }, [brandSelect]);
+
+  const resolveBrandModel = () => {
+    const brand = brandSelect === OTHER_BRAND_SENTINEL ? brandManual.trim() : brandSelect.trim();
+    const model =
+      brandSelect === OTHER_BRAND_SENTINEL
+        ? modelManual.trim()
+        : modelSelect === OTHER_MODEL_SENTINEL
+          ? modelManual.trim()
+          : modelSelect.trim();
+    return { brand, model };
+  };
+
   const hasCatalog = rows.length > 0;
   const hasPricing = rows.some((row) => Number(row.daily_rate_fcfa) > 0);
   const setupSteps = [
@@ -127,13 +228,28 @@ export default function PartenaireLocationVehiculesPage() {
       setError("Aucun partenaire actif pour ce compte.");
       return;
     }
+    const { brand, model } = resolveBrandModel();
+    if (!brand || !model) {
+      setError("Veuillez choisir une marque et un modèle (ou renseigner 'Autre').");
+      return;
+    }
+    const regionName = geoRegions.find((r) => r.id === regionId)?.name?.trim();
+    const departmentName = geoDepartments.find((d) => d.id === departmentId)?.name?.trim();
+    const communeName = geoCommunes.find((c) => c.id === communeId)?.name?.trim();
+    const localityName = geoLocalities.find((l) => l.id === localityId)?.name?.trim();
+    const city = [localityName, communeName, departmentName, regionName].filter(Boolean).join(", ");
+    if (!city) {
+      setError("Veuillez sélectionner Région, Commune et Arrondissement.");
+      return;
+    }
     setSubmitting(true);
     try {
+      const autoTitle = `${brand} ${model}`.trim();
       await createRentalListing({
         ownerProfileId: user.id,
         partnerId: partner.id,
         operatingMode: mode,
-        title,
+        title: autoTitle,
         brand,
         model,
         plateNumber,
@@ -156,11 +272,15 @@ export default function PartenaireLocationVehiculesPage() {
         hasSpareTire,
       });
       setSuccess("Véhicule soumis pour validation admin.");
-      setTitle("");
-      setBrand("");
-      setModel("");
+      setBrandSelect("");
+      setBrandManual("");
+      setModelSelect("");
+      setModelManual("");
       setPlateNumber("");
-      setCity("");
+      setRegionId("");
+      setDepartmentId("");
+      setCommuneId("");
+      setLocalityId("");
       setSeats("4");
       await refresh();
     } catch (err) {
@@ -225,10 +345,138 @@ export default function PartenaireLocationVehiculesPage() {
           {success && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input label="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <Input label="Ville" value={city} onChange={(e) => setCity(e.target.value)} required />
-            <Input label="Marque" value={brand} onChange={(e) => setBrand(e.target.value)} required />
-            <Input label="Modèle" value={model} onChange={(e) => setModel(e.target.value)} required />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Région</label>
+              <select
+                value={regionId}
+                onChange={(e) => setRegionId(e.target.value)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                required
+              >
+                <option value="">Choisir…</option>
+                {geoRegions.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Département</label>
+              <select
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                required
+                disabled={!regionId}
+              >
+                <option value="">{regionId ? "Choisir…" : "Choisir une région d’abord"}</option>
+                {geoDepartments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Marque</label>
+              <select
+                value={brandSelect}
+                onChange={(e) => {
+                  setBrandSelect(e.target.value);
+                  setModelSelect("");
+                  setModelManual("");
+                }}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                required
+              >
+                <option value="">Choisir…</option>
+                {catalogBrands.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+                <option value={OTHER_BRAND_SENTINEL}>Autre (saisie manuelle)</option>
+              </select>
+            </div>
+            {brandSelect === OTHER_BRAND_SENTINEL ? (
+              <Input
+                label="Précisez la marque"
+                value={brandManual}
+                onChange={(e) => setBrandManual(e.target.value)}
+                required
+              />
+            ) : (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Modèle</label>
+                <select
+                  value={modelSelect}
+                  onChange={(e) => setModelSelect(e.target.value)}
+                  className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                >
+                  <option value="">Choisir…</option>
+                  {catalogModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                  <option value={OTHER_MODEL_SENTINEL}>Autre modèle…</option>
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Commune</label>
+              <select
+                value={communeId}
+                onChange={(e) => setCommuneId(e.target.value)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                required
+                disabled={!departmentId}
+              >
+                <option value="">{departmentId ? "Choisir…" : "Choisir un département d’abord"}</option>
+                {geoCommunes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-800">Arrondissement</label>
+              <select
+                value={localityId}
+                onChange={(e) => setLocalityId(e.target.value)}
+                className="w-full min-h-[40px] rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                required
+                disabled={!communeId}
+              >
+                <option value="">{communeId ? "Choisir…" : "Choisir une commune d’abord"}</option>
+                {geoLocalities.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {brandSelect === OTHER_BRAND_SENTINEL && (
+              <Input
+                label="Modèle du véhicule"
+                value={modelManual}
+                onChange={(e) => setModelManual(e.target.value)}
+                required
+              />
+            )}
+            {brandSelect !== "" &&
+              brandSelect !== OTHER_BRAND_SENTINEL &&
+              modelSelect === OTHER_MODEL_SENTINEL && (
+                <Input
+                  label="Précisez le modèle"
+                  value={modelManual}
+                  onChange={(e) => setModelManual(e.target.value)}
+                  required
+                />
+              )}
             <Input label="Plaque" value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} required />
             <Input
               id="daily-rate-fcfa"
