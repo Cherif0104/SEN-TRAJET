@@ -9,6 +9,11 @@ export type Partner = {
   email: string | null;
   invite_code: string;
   is_active: boolean;
+  wave_aggregated_merchant_id?: string | null;
+  wave_payout_mobile?: string | null;
+  wave_payout_name?: string | null;
+  wave_payout_enabled?: boolean;
+  wave_redirect_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -153,7 +158,17 @@ export async function createPartner(row: PartnerInsert): Promise<Partner> {
 /** Met à jour les infos du partenaire (raison sociale, contact, téléphone, email). */
 export async function updatePartner(
   partnerId: string,
-  updates: { company_name?: string; contact_name?: string | null; phone?: string | null; email?: string | null }
+  updates: {
+    company_name?: string;
+    contact_name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    wave_aggregated_merchant_id?: string | null;
+    wave_payout_mobile?: string | null;
+    wave_payout_name?: string | null;
+    wave_payout_enabled?: boolean;
+    wave_redirect_url?: string | null;
+  }
 ): Promise<Partner> {
   const { data, error } = await supabase
     .from("partners")

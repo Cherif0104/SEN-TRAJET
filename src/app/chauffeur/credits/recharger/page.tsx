@@ -13,6 +13,7 @@ import {
   confirmWaveSimulation,
   type CreditPackage,
 } from "@/lib/wallet";
+import Image from "next/image";
 import { Smartphone, Gift, TestTube } from "lucide-react";
 
 const PROVIDERS = [
@@ -260,7 +261,17 @@ function RechargerContent() {
                 <div
                   className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full ${p.color}`}
                 >
-                  <Smartphone className="h-5 w-5 text-white" />
+                  {p.id === "wave" ? (
+                    <Image
+                      src="/wave-sn-logo.png"
+                      alt="Wave Sénégal"
+                      width={22}
+                      height={22}
+                      className="h-[22px] w-[22px]"
+                    />
+                  ) : (
+                    <Smartphone className="h-5 w-5 text-white" />
+                  )}
                 </div>
                 <p className="text-xs font-medium text-neutral-700">
                   {p.name}

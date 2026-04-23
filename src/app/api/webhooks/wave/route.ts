@@ -1,5 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { computeCreditPurchaseCommission, createPartnerCommission } from "@/lib/commissions";
+import { getWaveApiKey, getWaveWebhookSecret, timingSafeEqual } from "@/lib/wave";
+
+async function verifyWaveSignature(request: NextRequest, rawBody: string): Promise<boolean> {
+  const secret = getWaveWebhookSecret();
+  if (!secret) return true; // allow in dev until configured
+  const signature = request.headers.get("Wave-Signature") ?? request.headers.get("wave-signature") ?? "";
+  if (!signature) return false;
+  const crypto = await import("node:crypto");
+  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  return timingSafeEqual(signature, expected);
+}
+
+async function tryWavePayout(params: {
+  partnerId: string;
+  amountFcfa: number;
+  reference: string;
+}): Promise<{ ok: true; payoutId?: string } | { ok: false; error: string }> {
+  const apiKey = getWaveApiKey();
+  if (!apiKey) return { ok: false, error: "wave_api_key_missing" };
+
+  const { data: partner, error: partnerErr } = await supabaseAdmin
+    .from("partners")
+    .select("wave_payout_enabled, wave_payout_mobile, wave_payout_name, wave_aggregated_merchant_id")
+    .eq("id", params.partnerId)
+    .maybeSingle();
+  if (partnerErr || !partner) return { ok: false, error: "partner_not_found" };
+  if (!partner.wave_payout_enabled) return { ok: false, error: "payout_disabled" };
+  if (!partner.wave_payout_mobile) return { ok: false, error: "missing_mobile" };
+
+  const idempotencyKey = `partner_commission_${params.reference}`;
+  const body: Record<string, unknown> = {
+    currency: "XOF",
+    receive_amount: String(Math.max(0, Math.round(params.amountFcfa))),
+    mobile: partner.wave_payout_mobile,
+    name: partner.wave_payout_name ?? undefined,
+    client_reference: params.reference,
+    aggregated_merchant_id: partner.wave_aggregated_merchant_id ?? undefined,
+    payment_reason: "Commission partenaire (SEN TRAJET)",
+  };
+
+  const waveRes = await fetch("https://api.wave.com/v1/payout", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await waveRes.json().catch(() => ({}));
+  if (!waveRes.ok) {
+    return { ok: false, error: typeof data?.message === "string" ? data.message : "wave_payout_failed" };
+  }
+  return { ok: true, payoutId: typeof data?.id === "string" ? data.id : undefined };
+}
 
 /**
  * Webhook Wave : appelé par Wave quand un paiement est complété (ou échoué).
@@ -8,6 +64,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
  * un statut (checkout_status ou payment_status).
  */
 export async function POST(request: NextRequest) {
+  const rawBody = await request.text().catch(() => "");
+  if (!(await verifyWaveSignature(request, rawBody))) {
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
   let body: {
     client_reference?: string;
     checkout_status?: string;
@@ -15,7 +75,7 @@ export async function POST(request: NextRequest) {
     id?: string;
   };
   try {
-    body = await request.json();
+    body = rawBody ? (JSON.parse(rawBody) as typeof body) : {};
   } catch {
     return NextResponse.json({ received: true }, { status: 200 });
   }
@@ -63,6 +123,36 @@ export async function POST(request: NextRequest) {
         completed_at: new Date().toISOString(),
       })
       .eq("id", ref);
+
+    // Partner commission (best-effort). Never block webhook response.
+    try {
+      const computed = await computeCreditPurchaseCommission({
+        driverId: intent.driver_id,
+        amountFcfa: intent.amount_fcfa ?? 0,
+        reference: ref,
+      });
+      if (computed.eligible) {
+        const row = await createPartnerCommission({
+          partnerId: computed.partnerId,
+          driverId: intent.driver_id,
+          amountFcfa: computed.amountFcfa,
+          reference: ref,
+        });
+        const payout = await tryWavePayout({
+          partnerId: computed.partnerId,
+          amountFcfa: computed.amountFcfa,
+          reference: row.id,
+        });
+        if (payout.ok) {
+          await supabaseAdmin
+            .from("partner_commissions")
+            .update({ status: "paid", paid_at: new Date().toISOString() })
+            .eq("id", row.id);
+        }
+      }
+    } catch {
+      // ignore commission errors
+    }
   } else {
     await supabaseAdmin
       .from("payment_intents")

@@ -19,6 +19,11 @@ export default function PartenaireProfilPage() {
   const [contactName, setContactName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [wavePayoutEnabled, setWavePayoutEnabled] = useState(false);
+  const [waveAggregatedMerchantId, setWaveAggregatedMerchantId] = useState("");
+  const [wavePayoutMobile, setWavePayoutMobile] = useState("");
+  const [wavePayoutName, setWavePayoutName] = useState("");
+  const [waveRedirectUrl, setWaveRedirectUrl] = useState("");
 
   useEffect(() => {
     if (!user?.id) return;
@@ -30,6 +35,11 @@ export default function PartenaireProfilPage() {
           setContactName(p.contact_name ?? "");
           setPhone(p.phone ?? "");
           setEmail(p.email ?? "");
+          setWavePayoutEnabled(Boolean(p.wave_payout_enabled));
+          setWaveAggregatedMerchantId(p.wave_aggregated_merchant_id ?? "");
+          setWavePayoutMobile(p.wave_payout_mobile ?? "");
+          setWavePayoutName(p.wave_payout_name ?? "");
+          setWaveRedirectUrl(p.wave_redirect_url ?? "");
         }
       })
       .catch(() => setPartner(null))
@@ -47,6 +57,11 @@ export default function PartenaireProfilPage() {
         contact_name: contactName.trim() || null,
         phone: phone.trim() || null,
         email: email.trim() || null,
+        wave_payout_enabled: wavePayoutEnabled,
+        wave_aggregated_merchant_id: waveAggregatedMerchantId.trim() || null,
+        wave_payout_mobile: wavePayoutMobile.trim() || null,
+        wave_payout_name: wavePayoutName.trim() || null,
+        wave_redirect_url: waveRedirectUrl.trim() || null,
       });
       setMessage({ type: "success", text: "Profil mis à jour." });
     } catch {
@@ -131,6 +146,47 @@ export default function PartenaireProfilPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="contact@exemple.com"
           />
+          <Card className="border border-neutral-200 bg-neutral-50">
+            <h2 className="text-sm font-semibold text-neutral-900">Paiements Wave (commissions)</h2>
+            <p className="mt-1 text-xs text-neutral-600">
+              Renseignez les informations de versement pour recevoir automatiquement vos commissions.
+            </p>
+            <label className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-3 py-2">
+              <span className="text-sm text-neutral-800">Activer les versements Wave</span>
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-primary"
+                checked={wavePayoutEnabled}
+                onChange={(e) => setWavePayoutEnabled(e.target.checked)}
+              />
+            </label>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Input
+                label="Numéro Wave (E.164)"
+                value={wavePayoutMobile}
+                onChange={(e) => setWavePayoutMobile(e.target.value)}
+                placeholder="+221771234567"
+              />
+              <Input
+                label="Nom bénéficiaire"
+                value={wavePayoutName}
+                onChange={(e) => setWavePayoutName(e.target.value)}
+                placeholder="Nom du bénéficiaire"
+              />
+              <Input
+                label="Aggregated merchant id"
+                value={waveAggregatedMerchantId}
+                onChange={(e) => setWaveAggregatedMerchantId(e.target.value)}
+                placeholder="am-xxxxxxxxxxxx"
+              />
+              <Input
+                label="URL redirection Wave (optionnel)"
+                value={waveRedirectUrl}
+                onChange={(e) => setWaveRedirectUrl(e.target.value)}
+                placeholder="https://pay.wave.com/..."
+              />
+            </div>
+          </Card>
           <Button type="submit" isLoading={saving}>
             Enregistrer
           </Button>
