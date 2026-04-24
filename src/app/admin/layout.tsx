@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
+import { supabase } from "@/lib/supabase";
 
 const nav = [
   { href: "/admin", label: "Accueil", icon: LayoutDashboard },
@@ -34,10 +35,20 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (loading) return;
-    if (profile && !canAccessAdminZone(profile.role)) {
-      router.replace("/");
-    }
-  }, [loading, profile, router]);
+    // Force login pour la zone admin, comme chauffeur/partenaire.
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/connexion?next=" + encodeURIComponent(pathname));
+        return;
+      }
+      if (profile && !canAccessAdminZone(profile.role)) {
+        router.replace("/dashboard?forbidden=1");
+      }
+    })();
+  }, [loading, profile, router, pathname]);
 
   if (!loading && profile && !canAccessAdminZone(profile.role)) {
     return null;

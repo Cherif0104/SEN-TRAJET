@@ -134,6 +134,8 @@ export type BookingWithTrip = {
 /** Ligne brute renvoyée par Supabase (relation trip imbriquée). */
 type BookingRow = Omit<BookingWithTrip, "other_party_name"> & {
   trip?: BookingWithTrip["trip"];
+  driver_profile?: { full_name: string | null } | null;
+  client_profile?: { full_name: string | null } | null;
 };
 
 export async function getBookingsForClient(clientId: string): Promise<BookingWithTrip[]> {
@@ -141,19 +143,16 @@ export async function getBookingsForClient(clientId: string): Promise<BookingWit
     .from("bookings")
     .select(`
       id, trip_id, client_id, driver_id, passengers, total_fcfa, status, meeting_point, created_at,
-      trip:trips(id, from_city, to_city, departure_time, driver_name, price_fcfa)
+      trip:trips(id, from_city, to_city, departure_time, driver_name, price_fcfa),
+      driver_profile:profiles!driver_id(full_name)
     `)
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   const list = (data ?? []) as unknown as BookingRow[];
-  const driverIds = [...new Set(list.map((b) => b.driver_id))];
-  const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", driverIds);
-  const nameById: Record<string, string> = {};
-  for (const p of profiles ?? []) nameById[p.id] = p.full_name || "Chauffeur";
   return list.map((b) => ({
     ...b,
-    other_party_name: nameById[b.driver_id],
+    other_party_name: b.driver_profile?.full_name || "Chauffeur",
   })) as BookingWithTrip[];
 }
 
@@ -162,18 +161,15 @@ export async function getBookingsForDriver(driverId: string): Promise<BookingWit
     .from("bookings")
     .select(`
       id, trip_id, client_id, driver_id, passengers, total_fcfa, status, meeting_point, created_at,
-      trip:trips(id, from_city, to_city, departure_time, driver_name, price_fcfa)
+      trip:trips(id, from_city, to_city, departure_time, driver_name, price_fcfa),
+      client_profile:profiles!client_id(full_name)
     `)
     .eq("driver_id", driverId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   const list = (data ?? []) as unknown as BookingRow[];
-  const clientIds = [...new Set(list.map((b) => b.client_id))];
-  const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", clientIds);
-  const nameById: Record<string, string> = {};
-  for (const p of profiles ?? []) nameById[p.id] = p.full_name || "Client";
   return list.map((b) => ({
     ...b,
-    other_party_name: nameById[b.client_id],
+    other_party_name: b.client_profile?.full_name || "Client",
   })) as BookingWithTrip[];
 }

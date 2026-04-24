@@ -56,15 +56,7 @@ export default function PartenaireLayout({
         .eq("id", user.id)
         .single();
       if (!canAccessPartnerZone(profile?.role)) {
-        router.replace(
-          profile?.role === "client"
-            ? "/compte"
-            : profile?.role === "driver"
-              ? "/chauffeur"
-              : profile?.role
-                ? "/admin"
-                : "/"
-        );
+        router.replace("/dashboard?forbidden=1");
         return;
       }
 

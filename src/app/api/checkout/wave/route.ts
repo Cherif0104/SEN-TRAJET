@@ -14,6 +14,16 @@ const freeCreditsPeriod =
 const freeCreditsUntil = process.env.FREE_CREDITS_UNTIL;
 const simulationMode = !waveApiKey || process.env.WAVE_SIMULATION === "true";
 
+function getAppBaseUrl(request: NextRequest): string {
+  const fromEnv =
+    process.env.APP_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "";
+  const candidate = (fromEnv || request.nextUrl.origin || "http://localhost:3000").trim();
+  return candidate.replace(/\/$/, "");
+}
+
 function isFreePeriod(): boolean {
   if (!freeCreditsPeriod && !freeCreditsUntil) return false;
   if (freeCreditsPeriod) return true;
@@ -67,11 +77,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Pack introuvable" }, { status: 404 });
   }
 
-  const origin =
-    request.headers.get("origin") ??
-    request.nextUrl.origin ??
-    "https://localhost:3000";
-  const base = origin.replace(/\/$/, "");
+  const base = getAppBaseUrl(request);
   const successUrl = `${base}/chauffeur/credits/recharger?wave=success`;
 
   if (isFreePeriod()) {

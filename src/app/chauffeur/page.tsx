@@ -297,7 +297,7 @@ export default function ChauffeurDashboardPage() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    href={`/chauffeur/demandes`}
+                    href={`/chauffeur/demandes?requestId=${encodeURIComponent(req.id)}&from=${encodeURIComponent(req.from_city)}&to=${encodeURIComponent(req.to_city)}&type=${encodeURIComponent(req.trip_type)}`}
                   >
                     <MapPin className="mr-1 h-3.5 w-3.5" /> Répondre
                   </Button>

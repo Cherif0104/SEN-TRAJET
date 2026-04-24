@@ -87,6 +87,14 @@ export async function POST(request: NextRequest) {
   const freeTripsRemaining = Math.max(0, FREE_TRIP_PUBLICATIONS - publishedTrips);
   const requiresWalletDebit = freeTripsRemaining === 0;
 
+  let walletDebit: null | {
+    walletId: string;
+    previousBalance: number;
+    nextBalance: number;
+    transactionRef: string;
+    description: string;
+  } = null;
+
   if (requiresWalletDebit) {
     let { data: wallet } = await supabaseAdmin
       .from("wallets")
@@ -118,6 +126,11 @@ export async function POST(request: NextRequest) {
     }
 
     const nextBalance = currentBalance - TRIP_PUBLICATION_COST_CREDITS;
+    const transactionRef = `trip_publish_${Date.now()}`;
+    const description =
+      currentBalance > 0
+        ? `Publication trajet (-${TRIP_PUBLICATION_COST_FCFA} FCFA)`
+        : `Publication trajet en découvert (-${TRIP_PUBLICATION_COST_FCFA} FCFA)`;
     const { error: walletError } = await supabaseAdmin
       .from("wallets")
       .update({ balance_credits: nextBalance })
@@ -126,16 +139,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Impossible de débiter le wallet publication." }, { status: 500 });
     }
 
-    await supabaseAdmin.from("transactions").insert({
+    const { error: trxErr } = await supabaseAdmin.from("transactions").insert({
       wallet_id: wallet.id,
       type: "debit",
       credits: -TRIP_PUBLICATION_COST_CREDITS,
-      reference: `trip_publish_${Date.now()}`,
-      description:
-        currentBalance > 0
-          ? `Publication trajet (-${TRIP_PUBLICATION_COST_FCFA} FCFA)`
-          : `Publication trajet en découvert (-${TRIP_PUBLICATION_COST_FCFA} FCFA)`,
+      reference: transactionRef,
+      description,
     });
+    if (trxErr) {
+      // Best-effort rollback si l’écriture de transaction échoue.
+      await supabaseAdmin.from("wallets").update({ balance_credits: currentBalance }).eq("id", wallet.id);
+      return NextResponse.json({ error: "Impossible d'enregistrer la transaction de publication." }, { status: 500 });
+    }
+
+    walletDebit = {
+      walletId: wallet.id,
+      previousBalance: currentBalance,
+      nextBalance,
+      transactionRef,
+      description,
+    };
   }
 
   const pickupMode = payload.pickupMode ?? "driver_point";
@@ -172,13 +195,27 @@ export async function POST(request: NextRequest) {
     trip_type: payload.tripType || "interurbain_covoiturage",
   };
 
-  const { data: trip, error: tripError } = await supabaseAdmin
-    .from("trips")
-    .insert(tripInsertPayload)
-    .select("*")
-    .single();
+  const { data: trip, error: tripError } = await supabaseAdmin.from("trips").insert(tripInsertPayload).select("*").single();
 
   if (tripError) {
+    // Compensation: si on a débité le wallet mais que l’insertion du trajet échoue.
+    if (walletDebit) {
+      try {
+        await supabaseAdmin
+          .from("wallets")
+          .update({ balance_credits: walletDebit.previousBalance })
+          .eq("id", walletDebit.walletId);
+        await supabaseAdmin.from("transactions").insert({
+          wallet_id: walletDebit.walletId,
+          type: "credit",
+          credits: TRIP_PUBLICATION_COST_CREDITS,
+          reference: `refund_${walletDebit.transactionRef}`,
+          description: `Remboursement publication (échec insertion trajet)`,
+        });
+      } catch {
+        // Ne pas masquer l’erreur principale: on signale l’échec d’insertion.
+      }
+    }
     return NextResponse.json({ error: tripError.message }, { status: 500 });
   }
 

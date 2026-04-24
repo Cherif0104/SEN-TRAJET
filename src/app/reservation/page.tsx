@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { TripLiveMap } from "@/components/map/TripLiveMap";
 import { fetchTripById } from "@/lib/fetchTrip";
 import { createBooking } from "@/lib/bookings";
 import { useAuth } from "@/hooks/useAuth";
@@ -132,6 +133,7 @@ function ReservationContent() {
   const departureLabel = trip ? (trip.fromPlace || trip.fromCity) : "";
   const arrivalLabel = trip ? (trip.toPlace || trip.toCity) : "";
   const selectedPaymentLabel = PAYMENT_OPTIONS.find((p) => p.value === paymentMode)?.label ?? "Mode inconnu";
+  const trackingEnabled = Boolean(confirmed && user?.id);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,6 +256,16 @@ function ReservationContent() {
             ? "Finaliser la réservation"
             : "Confirmer la réservation"}
         </h1>
+
+        <TripLiveMap
+          tripId={trajetId}
+          fromCity={trip.fromCity}
+          toCity={trip.toCity}
+          userRole="client"
+          trackingEnabled={trackingEnabled}
+          className="mt-3 sm:mt-4"
+        />
+
         <section className="mt-3 rounded-3xl border border-neutral-200 bg-white p-4 shadow-card sm:mt-4">
           <p className="text-sm font-semibold text-neutral-900">Progression de votre réservation</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-4">

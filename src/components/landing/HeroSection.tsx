@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { senegalCities } from "@/data/senegalLocations";
 import { reverseGeocode } from "@/lib/geocode";
 import type { PickupMode } from "@/lib/pricing";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 export function HeroSection() {
   const [depart, setDepart] = useState("");
@@ -18,6 +19,7 @@ export function HeroSection() {
   const [geolocating, setGeolocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const cityOptions = useMemo(() => senegalCities, []);
+  const geo = useGeolocation({ enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,31 +32,19 @@ export function HeroSection() {
     window.location.href = `/recherche?${params.toString()}`;
   };
 
-  const applyMyLocation = (field: "depart" | "destination") => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeoError("La géolocalisation n’est pas disponible sur cet appareil.");
-      return;
-    }
+  const applyMyLocation = async (field: "depart" | "destination") => {
     setGeoError(null);
     setGeolocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const label = (await reverseGeocode(latitude, longitude)) ?? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        if (field === "depart") setDepart(label);
-        else setDestination(label);
-        setGeolocating(false);
-      },
-      (err) => {
-        setGeolocating(false);
-        setGeoError(
-          err.code === 1
-            ? "Position refusée : autorisez la localisation pour le site dans les paramètres du navigateur."
-            : "Impossible d’obtenir votre position. Réessayez ou saisissez une ville."
-        );
-      },
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
+    const res = await geo.getPosition();
+    if (!res.ok) {
+      setGeolocating(false);
+      setGeoError(res.error);
+      return;
+    }
+    const label = (await reverseGeocode(res.position.lat, res.position.lng)) ?? `${res.position.lat.toFixed(4)}, ${res.position.lng.toFixed(4)}`;
+    if (field === "depart") setDepart(label);
+    else setDestination(label);
+    setGeolocating(false);
   };
 
   return (

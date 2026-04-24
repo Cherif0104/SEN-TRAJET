@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapPin, Calendar, Users, Send, Search } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -22,6 +23,7 @@ type Vehicle = {
 
 export default function DemandesOuvertesPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [requests, setRequests] = useState<TripRequest[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,16 @@ export default function DemandesOuvertesPage() {
   const [fromFilter, setFromFilter] = useState("");
   const [toFilter, setToFilter] = useState("");
   const [requestTypeFilter, setRequestTypeFilter] = useState("");
+
+  // Pré-remplit les filtres depuis l’URL (CTA deep-link depuis dashboard).
+  useEffect(() => {
+    const from = (searchParams.get("from") ?? "").trim();
+    const to = (searchParams.get("to") ?? "").trim();
+    const type = (searchParams.get("type") ?? "").trim();
+    if (from) setFromFilter(from);
+    if (to) setToFilter(to);
+    if (type) setRequestTypeFilter(type);
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) {
@@ -54,6 +66,13 @@ export default function DemandesOuvertesPage() {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    const requestId = (searchParams.get("requestId") ?? "").trim();
+    if (!requestId) return;
+    const exists = requests.some((r) => r.id === requestId);
+    if (exists) setActiveId(requestId);
+  }, [requests, searchParams]);
 
   const filteredRequests = requests.filter((req) => {
     const fromOk = fromFilter ? req.from_city.toLowerCase().includes(fromFilter.toLowerCase()) : true;

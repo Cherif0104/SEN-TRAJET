@@ -5,7 +5,8 @@ import { getWaveApiKey, getWaveWebhookSecret, timingSafeEqual } from "@/lib/wave
 
 async function verifyWaveSignature(request: NextRequest, rawBody: string): Promise<boolean> {
   const secret = getWaveWebhookSecret();
-  if (!secret) return true; // allow in dev until configured
+  // En production, la signature doit être configurée et valide.
+  if (!secret) return process.env.NODE_ENV !== "production";
   const signature = request.headers.get("Wave-Signature") ?? request.headers.get("wave-signature") ?? "";
   if (!signature) return false;
   const crypto = await import("node:crypto");
@@ -65,8 +66,14 @@ async function tryWavePayout(params: {
  */
 export async function POST(request: NextRequest) {
   const rawBody = await request.text().catch(() => "");
-  if (!(await verifyWaveSignature(request, rawBody))) {
-    return NextResponse.json({ received: true }, { status: 200 });
+  const signatureOk = await verifyWaveSignature(request, rawBody);
+  if (!signatureOk) {
+    // Ne pas accuser réception si la signature est invalide : protège des injections de crédits.
+    return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
+  }
+  if (process.env.NODE_ENV === "production" && !getWaveWebhookSecret()) {
+    // Garde-fou : en prod, secret obligatoire.
+    return NextResponse.json({ error: "webhook_secret_missing" }, { status: 500 });
   }
   let body: {
     client_reference?: string;

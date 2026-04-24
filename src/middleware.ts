@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
         (isPartenaire && !canAccessPartnerZone(role));
 
       if (forbidden) {
-        const redirectUrl = new URL("/", request.url);
+        const redirectUrl = new URL("/dashboard", request.url);
         redirectUrl.searchParams.set("forbidden", "1");
         return NextResponse.redirect(redirectUrl);
       }

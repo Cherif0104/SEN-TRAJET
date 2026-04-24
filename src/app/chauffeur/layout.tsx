@@ -50,15 +50,7 @@ export default function ChauffeurLayout({
         .eq("id", user.id)
         .single();
       if (!canAccessDriverZone(profile?.role)) {
-        const target =
-          profile?.role === "partner" || profile?.role === "partner_manager" || profile?.role === "partner_operator"
-            ? "/partenaire"
-            : profile?.role === "client"
-              ? "/compte"
-              : profile?.role && profile.role !== "driver"
-                ? "/admin"
-                : "/";
-        router.replace(target);
+        router.replace("/dashboard?forbidden=1");
         return;
       }
       const inviteCode = user.user_metadata?.invite_code;

@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { LocationSmartInput } from "@/components/map/LocationSmartInput";
+import { UserLiveMap } from "@/components/map/UserLiveMap";
 import { TripTypeBadge } from "@/components/ui/TripTypeBadge";
 import { VehicleBadge } from "@/components/ui/VehicleBadge";
 import { searchTrips, type Trip } from "@/lib/trips";
@@ -608,6 +609,14 @@ function RechercheContent() {
               Rechercher les trajets
             </Button>
           </form>
+        </Card>
+
+        <Card className="mt-4 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-200/30 sm:mt-6 sm:p-6">
+          <h2 className="text-base font-bold text-slate-900">Carte vivante (ma position)</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            La carte se met à jour automatiquement quand vous bougez (GPS/Wi‑Fi/cellulaire selon l’appareil).
+          </p>
+          <UserLiveMap className="mt-3" />
         </Card>
 
         {/* Résultats — uniquement après une recherche */}
