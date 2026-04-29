@@ -14,6 +14,24 @@ import { toE164Senegal } from "@/lib/phone";
 type AuthMode = "email" | "phone";
 type PhoneStep = "send" | "verify";
 
+function formatAuthErrorMessage(message: string | null | undefined): string {
+  const msg = (message ?? "").toLowerCase();
+  if (!msg) return "Impossible de se connecter. Réessayez.";
+  if (msg.includes("invalid login credentials")) {
+    return "Email ou mot de passe incorrect.";
+  }
+  if (msg.includes("email not confirmed") || msg.includes("email not confirmed")) {
+    return "Email non confirmé. Vérifiez votre boîte mail puis réessayez.";
+  }
+  if (msg.includes("too many requests") || msg.includes("rate limit")) {
+    return "Trop de tentatives. Patientez un instant puis réessayez.";
+  }
+  if (msg.includes("network") || msg.includes("failed to fetch")) {
+    return "Connexion réseau impossible. Vérifiez votre internet puis réessayez.";
+  }
+  return message ?? "Impossible de se connecter. Réessayez.";
+}
+
 /** URLs internes autorisées après connexion (évite open redirect). */
 function isAllowedNext(path: string): boolean {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return false;
@@ -89,8 +107,7 @@ function ConnexionPageContent() {
         password,
       });
       if (err) {
-        setError(err.message ?? "Erreur de connexion.");
-        setLoading(false);
+        setError(formatAuthErrorMessage(err.message));
         return;
       }
       const target = await resolvePostLoginRedirect(searchParams.get("next"));
@@ -117,8 +134,7 @@ function ConnexionPageContent() {
         phone: e164,
       });
       if (err) {
-        setError(err.message ?? "Impossible d'envoyer le code.");
-        setLoading(false);
+        setError(formatAuthErrorMessage(err.message) || "Impossible d'envoyer le code.");
         return;
       }
       setPhoneStep("verify");
@@ -145,8 +161,7 @@ function ConnexionPageContent() {
         type: "sms",
       });
       if (err) {
-        setError(err.message ?? "Code invalide ou expiré.");
-        setLoading(false);
+        setError(formatAuthErrorMessage(err.message) || "Code invalide ou expiré.");
         return;
       }
       const target = await resolvePostLoginRedirect(searchParams.get("next"));

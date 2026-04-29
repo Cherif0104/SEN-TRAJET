@@ -141,8 +141,14 @@ function ReservationContent() {
   };
 
   const handleConfirm = async () => {
-    if (!user || !trip || !trip.driverId) {
-      setSubmitError("Vous devez être connecté pour réserver.");
+    if (!trip || !trip.driverId) {
+      setSubmitError("Trajet indisponible. Réessayez.");
+      return;
+    }
+
+    if (!user) {
+      const next = `/reservation?trajet=${encodeURIComponent(trajetId)}`;
+      router.push(`/connexion?next=${encodeURIComponent(next)}`);
       return;
     }
     setSubmitError(null);
@@ -393,7 +399,7 @@ function ReservationContent() {
                 Vous serez redirigé vers la connexion pour réserver.
               </p>
             )}
-            <Button type="submit" fullWidth size="lg" disabled={!user}>
+            <Button type="submit" fullWidth size="lg">
               Continuer vers la confirmation
             </Button>
             {!user && (
@@ -440,7 +446,6 @@ function ReservationContent() {
               size="lg"
               onClick={handleConfirm}
               isLoading={submitting}
-              disabled={!user}
             >
               Confirmer la réservation
             </Button>
