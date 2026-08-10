@@ -13,6 +13,8 @@ import {
   Contact,
   BadgeDollarSign,
   BarChart3,
+  SlidersHorizontal,
+  Landmark,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -25,9 +27,11 @@ const nav = [
   { href: "/admin/dispatch", label: "Dispatch", icon: ArrowLeftRight },
   { href: "/admin/chauffeurs", label: "Chauffeurs", icon: Users },
   { href: "/admin/partenaires", label: "Partenaires", icon: Building2 },
+  { href: "/admin/proprietaires", label: "Propriétaires", icon: Landmark },
   { href: "/admin/clients", label: "Clients", icon: Contact },
   { href: "/admin/vehicules", label: "Flotte", icon: Car },
   { href: "/admin/tarification", label: "Tarification", icon: BadgeDollarSign },
+  { href: "/admin/regles", label: "Règles métier", icon: SlidersHorizontal },
   { href: "/admin/rapports", label: "Rapports", icon: BarChart3 },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
 ];

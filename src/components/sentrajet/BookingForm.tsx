@@ -10,7 +10,8 @@ import {
   type SentrajetTariff,
   type ServiceType,
 } from "@/lib/sentrajetPricing";
-import { createPlatformBooking } from "@/lib/platformOps";
+import { createPaymentForBooking, createPlatformBooking } from "@/lib/platformOps";
+import { listBusinessRules, ruleString } from "@/lib/engines/businessRules";
 
 type BookingFormProps = {
   segment: PricingSegment;
@@ -23,6 +24,7 @@ const SERVICES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][];
 
 export function BookingForm({ segment, clientId, partnerContractId, onCreated }: BookingFormProps) {
   const [tariffs, setTariffs] = useState<SentrajetTariff[]>([]);
+  const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
   const [date, setDate] = useState("");
@@ -30,13 +32,23 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
   const [passengers, setPassengers] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("transfert_aibd");
   const [distanceKm, setDistanceKm] = useState<number | "">("");
+  const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [flightNumber, setFlightNumber] = useState("");
+  const [passengerName, setPassengerName] = useState("");
+  const [luggageCount, setLuggageCount] = useState<number | "">("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [payLink, setPayLink] = useState<string | null>(null);
 
   useEffect(() => {
     void getSentrajetTariffs(segment).then(setTariffs);
+    void listBusinessRules().then((rules) => {
+      setWaveUrl(ruleString(rules, "payment", "wave_checkout_url", waveUrl));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segment]);
 
   const quote = useMemo(
@@ -46,17 +58,19 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         serviceType,
         passengers,
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
+        isRoundTrip,
         tariffs,
       }),
-    [segment, serviceType, passengers, distanceKm, tariffs]
+    [segment, serviceType, passengers, distanceKm, isRoundTrip, tariffs]
   );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setMessage(null);
-    if (!pickup.trim() || !dropoff.trim() || !date || !time) {
-      setError("Renseignez départ, destination, date et heure.");
+    setPayLink(null);
+    if (!pickup.trim() || !dropoff.trim() || !date || !time || !phone.trim()) {
+      setError("Renseignez départ, destination, date, heure et téléphone.");
       return;
     }
     setSaving(true);
@@ -74,11 +88,27 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         pricingSegment: segment,
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
         notes: notes.trim() || null,
+        vehiclesNeeded: quote.vehiclesNeeded,
+        isRoundTrip,
+        phone: phone.trim(),
+        flightNumber: flightNumber.trim() || null,
+        passengerName: passengerName.trim() || null,
+        luggageCount: luggageCount === "" ? null : Number(luggageCount),
       });
-      setMessage(`Demande ${booking.reference ?? booking.id.slice(0, 8)} créée — en attente d’affectation.`);
-      setPickup("");
-      setDropoff("");
-      setNotes("");
+
+      if (!quote.surDevis && quote.amountFcfa > 0) {
+        await createPaymentForBooking({
+          bookingId: booking.id,
+          amountFcfa: quote.amountFcfa,
+          bookingRef: booking.reference,
+          status: "pending",
+        });
+      }
+
+      setMessage(
+        `Demande ${booking.reference ?? booking.id.slice(0, 8)} créée — statut : en attente de paiement.`
+      );
+      setPayLink(waveUrl);
       onCreated?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de créer la réservation.");
@@ -86,6 +116,9 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
       setSaving(false);
     }
   }
+
+  const needsDistance = ["interurbain", "groupe", "mise_a_disposition"].includes(serviceType);
+  const isAirport = serviceType === "transfert_aibd" || serviceType === "aibd_retour";
 
   return (
     <form className="sj-form" onSubmit={submit}>
@@ -111,10 +144,14 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
           <input
             type="number"
             min={1}
-            max={11}
+            max={60}
             value={passengers}
             onChange={(e) => setPassengers(Number(e.target.value) || 1)}
           />
+        </div>
+        <div className="sj-field">
+          <label>Téléphone</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+221 …" required />
         </div>
         <div className="sj-field">
           <label>Type de prestation</label>
@@ -126,9 +163,9 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
             ))}
           </select>
         </div>
-        {(serviceType === "interurbain" || serviceType === "mise_a_disposition") && (
+        {needsDistance ? (
           <div className="sj-field">
-            <label>Distance (km)</label>
+            <label>Distance aller (km)</label>
             <input
               type="number"
               min={0}
@@ -138,7 +175,37 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
               placeholder="Ex. 95"
             />
           </div>
-        )}
+        ) : null}
+        {needsDistance ? (
+          <div className="sj-field">
+            <label>Aller-retour</label>
+            <select value={isRoundTrip ? "yes" : "no"} onChange={(e) => setIsRoundTrip(e.target.value === "yes")}>
+              <option value="no">Aller simple</option>
+              <option value="yes">Aller-retour (×2)</option>
+            </select>
+          </div>
+        ) : null}
+        {isAirport ? (
+          <>
+            <div className="sj-field">
+              <label>N° de vol</label>
+              <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="Ex. AT555" />
+            </div>
+            <div className="sj-field">
+              <label>Nom du passager</label>
+              <input value={passengerName} onChange={(e) => setPassengerName(e.target.value)} />
+            </div>
+            <div className="sj-field">
+              <label>Bagages</label>
+              <input
+                type="number"
+                min={0}
+                value={luggageCount}
+                onChange={(e) => setLuggageCount(e.target.value === "" ? "" : Number(e.target.value))}
+              />
+            </div>
+          </>
+        ) : null}
       </div>
       <div className="sj-field">
         <label>Notes</label>
@@ -156,10 +223,18 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
           {quote.surDevis && !quote.amountFcfa ? "Sur devis" : formatFcfa(quote.amountFcfa)}
         </div>
         <div className="sj-metric-sub">{quote.label}</div>
+        {quote.vehiclesNeeded > 1 ? (
+          <div className="sj-metric-sub">{quote.vehiclesNeeded} véhicules nécessaires</div>
+        ) : null}
       </div>
 
       {error ? <p style={{ color: "#ff9ea5", margin: 0 }}>{error}</p> : null}
       {message ? <p style={{ color: "#6de0b0", margin: 0 }}>{message}</p> : null}
+      {payLink ? (
+        <a className="sj-btn sj-btn-primary" href={payLink} target="_blank" rel="noreferrer">
+          Payer maintenant via Wave
+        </a>
+      ) : null}
 
       <button type="submit" className="sj-btn sj-btn-primary" disabled={saving}>
         {saving ? "Envoi…" : "Calculer & envoyer la demande"}

@@ -1,15 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import type { PricingSegment, ServiceType } from "@/lib/sentrajetPricing";
+import { bookingStatusLabel, normalizeBookingStatus } from "@/lib/engines/bookingStatuses";
 
-export type PlatformBookingStatus =
-  | "pending_confirmation"
-  | "a_assigner"
-  | "en_attente"
-  | "confirmee"
-  | "en_cours"
-  | "terminee"
-  | "annulee"
-  | string;
+export type PlatformBookingStatus = string;
 
 export type PlatformDriver = {
   id: string;
@@ -83,22 +76,33 @@ export type PlatformBooking = {
   } | null;
 };
 
-export const BOOKING_STATUS_LABEL: Record<string, string> = {
-  pending_confirmation: "En attente",
-  a_assigner: "À assigner",
-  en_attente: "En attente",
-  confirmee: "Confirmée",
-  en_cours: "En cours",
-  terminee: "Terminée",
-  annulee: "Annulée",
-  planned: "Planifiée",
-  assigned: "Assignée",
-};
+export const BOOKING_STATUS_LABEL: Record<string, string> = new Proxy(
+  {} as Record<string, string>,
+  {
+    get: (_t, prop: string) => bookingStatusLabel(prop),
+  }
+);
 
 export function bookingStatusTone(status: string): "success" | "warning" | "info" | "danger" {
-  if (["confirmee", "terminee", "available", "active", "Disponible"].includes(status)) return "success";
-  if (["en_cours", "en_attente", "pending_confirmation", "planned", "on_trip"].includes(status)) return "warning";
-  if (["a_assigner"].includes(status)) return "info";
+  const s = normalizeBookingStatus(status);
+  if (["confirmee", "terminee", "payee", "remboursee", "available", "active", "Disponible"].includes(s)) {
+    return "success";
+  }
+  if (
+    [
+      "en_cours",
+      "en_attente_de_confirmation",
+      "en_attente_de_paiement",
+      "chauffeur_en_route",
+      "chauffeur_arrive",
+      "client_pris_en_charge",
+      "demande",
+      "on_trip",
+    ].includes(s)
+  ) {
+    return "warning";
+  }
+  if (["chauffeur_a_assigner", "chauffeur_assigne", "brouillon"].includes(s)) return "info";
   return "danger";
 }
 
@@ -259,6 +263,12 @@ export async function createPlatformBooking(input: {
   pricingSegment: PricingSegment;
   distanceKm?: number | null;
   notes?: string | null;
+  vehiclesNeeded?: number;
+  isRoundTrip?: boolean;
+  phone?: string | null;
+  flightNumber?: string | null;
+  passengerName?: string | null;
+  luggageCount?: number | null;
 }): Promise<PlatformBooking> {
   const reference = makeReference();
   const { data, error } = await supabase
@@ -276,7 +286,13 @@ export async function createPlatformBooking(input: {
       pricing_segment: input.pricingSegment,
       distance_km: input.distanceKm ?? null,
       notes: input.notes ?? null,
-      status: "a_assigner",
+      status: "en_attente_de_paiement",
+      vehicles_needed: input.vehiclesNeeded ?? 1,
+      is_round_trip: input.isRoundTrip ?? false,
+      phone: input.phone ?? null,
+      flight_number: input.flightNumber ?? null,
+      passenger_name: input.passengerName ?? null,
+      luggage_count: input.luggageCount ?? null,
     })
     .select("*")
     .single();
@@ -288,6 +304,13 @@ export async function createPlatformBooking(input: {
     booking_id: booking.id,
     order_number: makeOrderNumber(),
     status: "planned",
+  });
+
+  await supabase.from("booking_status_history").insert({
+    booking_id: booking.id,
+    from_status: null,
+    to_status: "en_attente_de_paiement",
+    note: "Demande créée — en attente de paiement",
   });
 
   return booking;
@@ -347,9 +370,61 @@ export async function assignDispatch(params: {
     if (error) throw error;
   }
 
-  await supabase.from("bookings").update({ status: "confirmee" }).eq("id", params.bookingId);
+  const { data: previous } = await supabase
+    .from("bookings")
+    .select("status")
+    .eq("id", params.bookingId)
+    .maybeSingle();
+
+  await supabase.from("bookings").update({ status: "chauffeur_assigne" }).eq("id", params.bookingId);
+  await supabase.from("booking_status_history").insert({
+    booking_id: params.bookingId,
+    from_status: previous?.status ?? null,
+    to_status: "chauffeur_assigne",
+    note: "Dispatch: chauffeur et véhicule affectés",
+  });
   await supabase.from("drivers").update({ status: "on_trip" }).eq("id", params.driverId);
   await supabase.from("vehicles").update({ status: "in_service" }).eq("id", params.vehicleId);
+}
+
+export async function createPaymentForBooking(input: {
+  bookingId: string;
+  amountFcfa: number;
+  bookingRef?: string | null;
+  providerRef?: string | null;
+  status?: string;
+}) {
+  const { data, error } = await supabase
+    .from("payments")
+    .insert({
+      booking_id: input.bookingId,
+      amount_fcfa: input.amountFcfa,
+      booking_ref: input.bookingRef ?? null,
+      provider_ref: input.providerRef ?? null,
+      provider: "wave",
+      status: input.status ?? "pending",
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function markBookingPaid(bookingId: string, providerRef?: string) {
+  const { data: previous } = await supabase.from("bookings").select("status").eq("id", bookingId).maybeSingle();
+  await supabase.from("bookings").update({ status: "chauffeur_a_assigner" }).eq("id", bookingId);
+  await supabase.from("booking_status_history").insert({
+    booking_id: bookingId,
+    from_status: previous?.status ?? null,
+    to_status: "chauffeur_a_assigner",
+    note: "Paiement confirmé — en attente de dispatch",
+  });
+  if (providerRef) {
+    await supabase
+      .from("payments")
+      .update({ status: "paid", provider_ref: providerRef, paid_at: new Date().toISOString() })
+      .eq("booking_id", bookingId);
+  }
 }
 
 export async function listMissionsForDriverUser(userId: string): Promise<PlatformBooking[]> {

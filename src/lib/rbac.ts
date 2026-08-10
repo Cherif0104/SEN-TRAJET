@@ -16,7 +16,9 @@ export type AppRole =
   | "finance"
   | "rh"
   | "fleet_manager"
-  | "provider";
+  | "provider"
+  | "vehicle_owner"
+  | "owner";
 
 export const PLATFORM_ROLES: AppRole[] = [
   "super_admin",
@@ -77,4 +79,9 @@ export function canAccessPartnerZone(role: string | null | undefined): boolean {
 export function canAccessAdminZone(role: string | null | undefined): boolean {
   const r = normalizeRole(role) ?? role;
   return Boolean(r && PLATFORM_ROLES.includes(r as AppRole));
+}
+
+export function canAccessOwnerZone(role: string | null | undefined): boolean {
+  const r = normalizeRole(role) ?? role;
+  return r === "vehicle_owner" || r === "owner" || r === "admin" || r === "super_admin";
 }

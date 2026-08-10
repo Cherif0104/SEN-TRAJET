@@ -39,6 +39,7 @@ function isAllowedNext(path: string): boolean {
     "/compte",
     "/chauffeur",
     "/partenaire",
+    "/proprietaire",
     "/admin",
     "/dashboard",
     "/location",
@@ -56,8 +57,29 @@ function isAllowedNext(path: string): boolean {
 function hubPathForRole(role: string | undefined): string {
   if (role === "client") return "/compte";
   if (role === "driver") return "/chauffeur";
-  if (role === "partner" || role === "partner_manager" || role === "partner_operator" || role === "rental_owner") return "/partenaire";
-  if (role === "admin" || role === "super_admin" || role === "commercial" || role === "regional_manager" || role === "trainer") return "/admin";
+  if (
+    role === "partner" ||
+    role === "partner_manager" ||
+    role === "partner_operator" ||
+    role === "rental_owner" ||
+    role === "provider"
+  ) {
+    return "/partenaire";
+  }
+  if (role === "vehicle_owner" || role === "owner") return "/proprietaire";
+  if (
+    role === "admin" ||
+    role === "super_admin" ||
+    role === "commercial" ||
+    role === "regional_manager" ||
+    role === "trainer" ||
+    role === "manager" ||
+    role === "ops" ||
+    role === "finance" ||
+    role === "fleet_manager"
+  ) {
+    return "/admin";
+  }
   return "/";
 }
 

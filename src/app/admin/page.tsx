@@ -30,7 +30,10 @@ export default function AdminPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Erreur de chargement"));
   }, []);
 
-  const toAssign = bookings.filter((b) => b.status === "a_assigner" || !b.service_order?.dispatch);
+  const toAssign = bookings.filter(
+    (b) =>
+      ["a_assigner", "chauffeur_a_assigner", "payee"].includes(b.status) || !b.service_order?.dispatch
+  );
   const availableDrivers = drivers.filter((d) => d.status === "active" || d.status === "available" || d.status === "Disponible");
   const ca = bookings.reduce((sum, b) => sum + Number(b.estimated_price ?? 0), 0);
 

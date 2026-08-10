@@ -240,17 +240,26 @@ Prototype front officiel (source de vérité UX pour la reprise) :
 
 ---
 
-## 9. Implémentation reprise (août 2026)
+## 9. Cadre opérationnel & moteurs (août 2026)
 
-Livré dans l’app Next.js :
+### Documents officiels
+- [`docs/operations/CGV_REGLES_RESERVATION.md`](./operations/CGV_REGLES_RESERVATION.md) — CGV / règles (brouillon juridique)
+- [`docs/operations/ARCHITECTURE_5_MOTEURS.md`](./operations/ARCHITECTURE_5_MOTEURS.md) — Booking · Pricing · Dispatch · Payment · Contract
+- [`docs/operations/OPEN_DECISIONS.md`](./operations/OPEN_DECISIONS.md) — décisions ouvertes (ex. annulation 2h–4h)
 
-1. **Shell multi-espaces** SentraJet Premium (`PremiumShell`, thème noir/or, fonts DM Sans + Manrope)  
-2. **Tarification** AIBD / interurbain (`sentrajet_tariffs` + `src/lib/sentrajetPricing.ts`)  
-3. **Réservation** client `/compte/reserver` et partenaire `/partenaire/reserver`  
-4. **Dispatch admin** `/admin/dispatch` (affectation chauffeur + véhicule → `service_orders` / `dispatch_assignments`)  
-5. **Missions chauffeur** `/chauffeur/missions`  
-6. Projet Supabase ops : `ootvzknyhkhxroadnclh` (tables `bookings`, `drivers`, `vehicles`, `clients`, `partner_contracts`)
+### Livré applicatif
+1. Shell multi-espaces + Control Center  
+2. Pricing Engine (AIBD, AIBD+retour, interurbain min, groupes, B2B)  
+3. Business rules paramétrables (`business_rules` + `/admin/regles`)  
+4. Annulation / attente calculées depuis la base (pas inventées pour 2h–4h)  
+5. Booking + Wave (lien Impulcia) + historique de statuts  
+6. Dispatch + missions chauffeur  
+7. Espace **Propriétaire / Vehicle Partner** (`/proprietaire`)  
+8. Projet Supabase ops `ootvzknyhkhxroadnclh`
 
-Suite utile : landing publique alignée branding, comptes de test ops, paiement Wave sur réservations plateforme, retrait progressif des écrans marketplace legacy.
+### Principe
+> Aucune règle importante ne doit rester codée en dur.
+
+Suite : landing, comptes test ops, webhook Wave → statut `payee`, module réclamations, contrats propriétaires complets.
 
 Ce fichier est le point d’entrée pour toute reprise de développement SentraJet Premium.

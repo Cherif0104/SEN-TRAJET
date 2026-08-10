@@ -38,7 +38,11 @@ export default function AdminDispatchPage() {
     void reload().catch((e) => setError(e instanceof Error ? e.message : "Erreur"));
   }, [reload]);
 
-  const pending = bookings.filter((b) => b.status === "a_assigner" || !b.service_order?.dispatch);
+  const pending = bookings.filter(
+    (b) =>
+      ["a_assigner", "chauffeur_a_assigner", "payee", "confirmee", "en_attente_de_paiement"].includes(b.status) ||
+      !b.service_order?.dispatch
+  );
   const availableDrivers = drivers.filter((d) => !["on_trip", "offline", "Hors ligne"].includes(d.status));
   const availableVehicles = vehicles.filter((v) => ["available", "Disponible"].includes(v.status) || v.status === "available");
 
