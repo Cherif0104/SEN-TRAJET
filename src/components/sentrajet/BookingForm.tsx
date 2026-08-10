@@ -60,8 +60,10 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
         isRoundTrip,
         tariffs,
+        // Remise compte uniquement côté client direct (jamais grille partenaire)
+        applyAccountDiscount: segment === "client" && Boolean(clientId),
       }),
-    [segment, serviceType, passengers, distanceKm, isRoundTrip, tariffs]
+    [segment, serviceType, passengers, distanceKm, isRoundTrip, tariffs, clientId]
   );
 
   async function submit(e: React.FormEvent) {
@@ -106,7 +108,7 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
       }
 
       setMessage(
-        `Demande ${booking.reference ?? booking.id.slice(0, 8)} créée — statut : en attente de paiement.`
+        `Demande ${booking.reference ?? booking.id.slice(0, 8)} bien prise en compte. SentraJet confirme le devis puis assigne un véhicule de la flotte.`
       );
       setPayLink(waveUrl);
       onCreated?.();
@@ -117,7 +119,7 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
     }
   }
 
-  const needsDistance = ["interurbain", "groupe", "mise_a_disposition"].includes(serviceType);
+  const needsDistance = serviceType === "interurbain" || serviceType === "mise_a_disposition";
   const isAirport = serviceType === "transfert_aibd" || serviceType === "aibd_retour";
 
   return (

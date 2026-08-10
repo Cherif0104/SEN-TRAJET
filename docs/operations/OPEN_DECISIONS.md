@@ -12,5 +12,8 @@ Points à trancher avant figement juridique / paramétrage production.
 | D-06 | Contrat propriétaire | Répartition assurance, carburant, pneus, réparations, taxes, immobilisation. | Ouvert |
 | D-07 | Présentation 500 000 FCFA/mois | Toujours « à partir de / modalités contractuelles », jamais « rendement garanti ». | Validé (rédaction) |
 | D-08 | Relève juridique CGV/CGP | Avocat / conseil avant publication site. | Ouvert |
+| D-09 | Buffer anti-conflit dispatch | Défaut **90 min** (`conflict_buffer_minutes`). Affiner selon distance / type de mission. | Provisoire |
+| D-10 | Remise compte client | **−10 %** sur tarifs client uniquement (pas partenaire). | Validé |
+| D-11 | MAD matinée | **50 000 F ≤ 100 km**, puis au km (850 client / 700 partenaire). | Validé |
 
 Mettre à jour ce fichier dès qu’une décision est prise, puis synchroniser `business_rules` en base.

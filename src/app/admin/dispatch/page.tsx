@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import {
   BOOKING_STATUS_LABEL,
@@ -13,6 +13,7 @@ import {
   type PlatformDriver,
   type PlatformVehicle,
 } from "@/lib/platformOps";
+import { checkVehicleConflict, type ConflictCheck } from "@/lib/engines/dispatchConflict";
 
 export default function AdminDispatchPage() {
   const [bookings, setBookings] = useState<PlatformBooking[]>([]);
@@ -21,6 +22,8 @@ export default function AdminDispatchPage() {
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
+  const [conflict, setConflict] = useState<ConflictCheck | null>(null);
+  const [checkingConflict, setCheckingConflict] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -38,6 +41,34 @@ export default function AdminDispatchPage() {
     void reload().catch((e) => setError(e instanceof Error ? e.message : "Erreur"));
   }, [reload]);
 
+  const selected = useMemo(
+    () => bookings.find((b) => b.id === selectedBooking) ?? null,
+    [bookings, selectedBooking]
+  );
+
+  useEffect(() => {
+    if (!selected || !vehicleId) {
+      setConflict(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingConflict(true);
+    void checkVehicleConflict({
+      vehicleId,
+      pickupAt: new Date(selected.pickup_time),
+      excludeBookingId: selected.id,
+    })
+      .then((c) => {
+        if (!cancelled) setConflict(c);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingConflict(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, vehicleId]);
+
   const pending = bookings.filter(
     (b) =>
       ["a_assigner", "chauffeur_a_assigner", "payee", "confirmee", "en_attente_de_paiement"].includes(b.status) ||
@@ -48,11 +79,15 @@ export default function AdminDispatchPage() {
 
   async function confirmAssign() {
     if (!selectedBooking || !driverId || !vehicleId) return;
+    if (conflict?.hasConflict) {
+      setError(`Impossible d’affecter : conflit dans ±${conflict.bufferMinutes} min.`);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await assignDispatch({ bookingId: selectedBooking, driverId, vehicleId });
-      setMessage("Chauffeur et véhicule affectés.");
+      setMessage("Chauffeur et véhicule affectés par SentraJet (flotte entreprise).");
       setSelectedBooking(null);
       await reload();
     } catch (e) {
@@ -73,6 +108,10 @@ export default function AdminDispatchPage() {
           </button>
         }
       />
+      <p className="sj-muted" style={{ marginTop: -8, marginBottom: 16 }}>
+        Affectation manuelle par l’entreprise — pas de matching chauffeur côté client. Anti-conflit
+        actif (~90 min autour du créneau).
+      </p>
 
       {error ? <p style={{ color: "#ff9ea5" }}>{error}</p> : null}
       {message ? <p style={{ color: "#6de0b0" }}>{message}</p> : null}
@@ -101,7 +140,7 @@ export default function AdminDispatchPage() {
         </SjCard>
 
         <SjCard>
-          <h3>Chauffeurs disponibles</h3>
+          <h3>Chauffeurs flotte</h3>
           <div className="sj-list">
             {availableDrivers.map((d) => (
               <div key={d.id} className="sj-row">
@@ -117,9 +156,13 @@ export default function AdminDispatchPage() {
         </SjCard>
       </div>
 
-      {selectedBooking ? (
+      {selectedBooking && selected ? (
         <SjCard style={{ marginTop: 16 }}>
           <h3>Confirmer l’affectation</h3>
+          <p className="sj-muted">
+            {selected.reference || selected.id.slice(0, 8)} ·{" "}
+            {new Date(selected.pickup_time).toLocaleString("fr-FR")}
+          </p>
           <div className="sj-form-grid" style={{ marginTop: 12 }}>
             <div className="sj-field">
               <label>Chauffeur</label>
@@ -142,8 +185,28 @@ export default function AdminDispatchPage() {
               </select>
             </div>
           </div>
+          {checkingConflict ? (
+            <p className="sj-muted" style={{ marginTop: 10 }}>
+              Vérification des conflits…
+            </p>
+          ) : null}
+          {conflict?.hasConflict ? (
+            <p style={{ color: "#ff9ea5", marginTop: 10 }}>
+              Conflit : ce véhicule a déjà une mission dans ±{conflict.bufferMinutes} min (
+              {conflict.conflictingBookingIds.map((id) => id.slice(0, 8)).join(", ")}).
+            </p>
+          ) : conflict ? (
+            <p style={{ color: "#6de0b0", marginTop: 10 }}>
+              Créneau libre (±{conflict.bufferMinutes} min).
+            </p>
+          ) : null}
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <button type="button" className="sj-btn sj-btn-primary" disabled={saving} onClick={() => void confirmAssign()}>
+            <button
+              type="button"
+              className="sj-btn sj-btn-primary"
+              disabled={saving || Boolean(conflict?.hasConflict)}
+              onClick={() => void confirmAssign()}
+            >
               {saving ? "Affectation…" : "Confirmer l’affectation"}
             </button>
             <button type="button" className="sj-btn" onClick={() => setSelectedBooking(null)}>

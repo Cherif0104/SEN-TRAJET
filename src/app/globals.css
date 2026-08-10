@@ -76,7 +76,7 @@
   }
 
   .input-base {
-    @apply w-full min-h-[42px] px-3 py-2.5 rounded-button border-2 border-neutral-300 bg-white placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply w-full min-h-[42px] px-3 py-2.5 rounded-button border-2 border-neutral-300 bg-white placeholder:text-neutral-400 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20;
   }
 }
 

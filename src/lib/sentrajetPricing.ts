@@ -14,21 +14,18 @@ export type SentrajetTariff = {
   is_active?: boolean;
 };
 
+/** Services exposés au client (plus de marketplace). */
 export type ServiceType =
   | "transfert_aibd"
   | "aibd_retour"
   | "interurbain"
-  | "mise_a_disposition"
-  | "groupe"
-  | "professionnel";
+  | "mise_a_disposition";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   transfert_aibd: "Transfert aéroport (AIBD)",
   aibd_retour: "Récupération AIBD + retour",
-  interurbain: "Trajet interurbain",
+  interurbain: "Voyage interurbain",
   mise_a_disposition: "Mise à disposition",
-  groupe: "Groupes & événements",
-  professionnel: "Service professionnel",
 };
 
 const FALLBACK_TARIFFS: SentrajetTariff[] = [
@@ -40,15 +37,16 @@ const FALLBACK_TARIFFS: SentrajetTariff[] = [
   { segment: "client", rule_key: "aibd_retour_4_5", label: "AIBD + retour 4–5", amount_fcfa: 40000, unit: "forfait" },
   { segment: "client", rule_key: "aibd_retour_6_8", label: "AIBD + retour 6–8", amount_fcfa: 50000, unit: "forfait" },
   { segment: "client", rule_key: "aibd_retour_9_11", label: "AIBD + retour 9–11", amount_fcfa: 60000, unit: "forfait" },
-  { segment: "client", rule_key: "interurbain_km", label: "Interurbain > 50 km", amount_fcfa: 850, unit: "per_km" },
+  { segment: "client", rule_key: "interurbain_km", label: "Interurbain / km", amount_fcfa: 850, unit: "per_km" },
   { segment: "client", rule_key: "interurbain_min", label: "Minimum interurbain", amount_fcfa: 30000, unit: "forfait" },
+  { segment: "client", rule_key: "mad_morning", label: "MAD matinée ≤100 km", amount_fcfa: 50000, unit: "forfait" },
   { segment: "partner", rule_key: "aibd_1_2", label: "AIBD 1–2 passagers", amount_fcfa: 20000, unit: "forfait" },
   { segment: "partner", rule_key: "aibd_3_5", label: "AIBD 3–5 passagers", amount_fcfa: 25000, unit: "forfait" },
   { segment: "partner", rule_key: "aibd_6_8", label: "AIBD 6–8 passagers", amount_fcfa: 30000, unit: "forfait" },
   { segment: "partner", rule_key: "aibd_9_11", label: "AIBD 9–11 passagers", amount_fcfa: 40000, unit: "forfait" },
-  { segment: "partner", rule_key: "interurbain_km", label: "Interurbain > 50 km", amount_fcfa: 700, unit: "per_km" },
+  { segment: "partner", rule_key: "interurbain_km", label: "Interurbain / km", amount_fcfa: 700, unit: "per_km" },
   { segment: "partner", rule_key: "interurbain_min", label: "Minimum interurbain", amount_fcfa: 30000, unit: "forfait" },
-  { segment: "partner", rule_key: "mise_disposition_base", label: "Mise à disposition (base)", amount_fcfa: 25000, unit: "forfait" },
+  { segment: "partner", rule_key: "mad_morning", label: "MAD matinée ≤100 km", amount_fcfa: 50000, unit: "forfait" },
 ];
 
 function aibdKey(passengers: number): string {
@@ -83,6 +81,17 @@ export async function getSentrajetTariffs(segment?: PricingSegment): Promise<Sen
   }
 }
 
+export type PriceQuote = {
+  amountFcfa: number;
+  amountBeforeDiscountFcfa: number;
+  discountPercent: number;
+  discountFcfa: number;
+  label: string;
+  ruleKey: string;
+  surDevis: boolean;
+  vehiclesNeeded: number;
+};
+
 export function computeSentrajetPrice(params: {
   segment: PricingSegment;
   serviceType: ServiceType;
@@ -92,101 +101,103 @@ export function computeSentrajetPrice(params: {
   seatsPerVehicle?: number;
   tariffs?: SentrajetTariff[];
   interurbainMinFcfa?: number;
-}): {
-  amountFcfa: number;
-  label: string;
-  ruleKey: string;
-  surDevis: boolean;
-  vehiclesNeeded: number;
-} {
+  madMorningFcfa?: number;
+  madIncludedKm?: number;
+  /** Remise compte : uniquement segment client + utilisateur connecté */
+  applyAccountDiscount?: boolean;
+  accountDiscountPercent?: number;
+}): PriceQuote {
   const tariffs = (params.tariffs ?? FALLBACK_TARIFFS).filter((t) => t.segment === params.segment);
   const byKey = (key: string) => tariffs.find((t) => t.rule_key === key);
-  const vehiclesNeeded =
-    params.serviceType === "groupe"
-      ? vehiclesNeededForGroup(params.passengers, params.seatsPerVehicle ?? 11)
-      : 1;
+  const vehiclesNeeded = vehiclesNeededForGroup(params.passengers, params.seatsPerVehicle ?? 11);
+  const kmRateDefault = params.segment === "partner" ? 700 : 850;
+
+  let amountBeforeDiscountFcfa = 0;
+  let label = "Sur devis";
+  let ruleKey = "devis";
+  let surDevis = true;
 
   if (params.serviceType === "transfert_aibd") {
     const key = aibdKey(Math.max(1, params.passengers));
     const rule = byKey(key);
-    return {
-      amountFcfa: rule?.amount_fcfa ?? 25000,
-      label: rule?.label ?? "Transfert AIBD",
-      ruleKey: key,
-      surDevis: false,
-      vehiclesNeeded,
-    };
-  }
-
-  if (params.serviceType === "aibd_retour") {
+    amountBeforeDiscountFcfa = rule?.amount_fcfa ?? 25000;
+    label = rule?.label ?? "Transfert AIBD";
+    ruleKey = key;
+    surDevis = false;
+  } else if (params.serviceType === "aibd_retour") {
     const key = aibdRetourKey(Math.max(1, params.passengers));
     const rule = byKey(key);
-    return {
-      amountFcfa: rule?.amount_fcfa ?? 35000,
-      label: rule?.label ?? "AIBD + retour",
-      ruleKey: key,
-      surDevis: false,
-      vehiclesNeeded,
-    };
-  }
-
-  if (params.serviceType === "interurbain" || params.serviceType === "groupe") {
+    amountBeforeDiscountFcfa = rule?.amount_fcfa ?? 35000;
+    label = rule?.label ?? "AIBD + retour";
+    ruleKey = key;
+    surDevis = false;
+  } else if (params.serviceType === "interurbain") {
     const oneWayKm = Number(params.distanceKm ?? 0);
     const km = params.isRoundTrip ? oneWayKm * 2 : oneWayKm;
-    const rule = byKey("interurbain_km");
-    const minRule = byKey("interurbain_min");
-    const rate = rule?.amount_fcfa ?? (params.segment === "partner" ? 700 : 850);
-    const minFcfa = params.interurbainMinFcfa ?? minRule?.amount_fcfa ?? 30000;
+    const rate = byKey("interurbain_km")?.amount_fcfa ?? kmRateDefault;
+    const minFcfa = params.interurbainMinFcfa ?? byKey("interurbain_min")?.amount_fcfa ?? 30000;
     if (!oneWayKm || oneWayKm <= 0) {
       return {
         amountFcfa: 0,
-        label: "Interurbain (distance requise)",
+        amountBeforeDiscountFcfa: 0,
+        discountPercent: 0,
+        discountFcfa: 0,
+        label: "Indiquez la distance pour estimer le prix",
         ruleKey: "interurbain_km",
         surDevis: true,
         vehiclesNeeded,
       };
     }
-    const raw = roundFcfa(rate * km) * vehiclesNeeded;
-    const amountFcfa = Math.max(minFcfa * vehiclesNeeded, raw);
-    return {
-      amountFcfa,
-      label: `${rate.toLocaleString("fr-FR")} F/km × ${km} km${params.isRoundTrip ? " (AR)" : ""}${
-        vehiclesNeeded > 1 ? ` · ${vehiclesNeeded} véhicules` : ""
-      }${amountFcfa > raw ? " · min. appliqué" : ""}`,
-      ruleKey: "interurbain_km",
-      surDevis: false,
-      vehiclesNeeded,
-    };
+    const raw = roundFcfa(rate * km);
+    amountBeforeDiscountFcfa = Math.max(minFcfa, raw);
+    label = `${rate.toLocaleString("fr-FR")} F/km × ${km} km${params.isRoundTrip ? " (AR)" : ""}${
+      amountBeforeDiscountFcfa > raw ? " · minimum appliqué" : ""
+    }`;
+    ruleKey = "interurbain_km";
+    surDevis = false;
+  } else if (params.serviceType === "mise_a_disposition") {
+    const madBase = params.madMorningFcfa ?? byKey("mad_morning")?.amount_fcfa ?? 50000;
+    const includedKm = params.madIncludedKm ?? 100;
+    const rate = byKey("interurbain_km")?.amount_fcfa ?? kmRateDefault;
+    const km = Number(params.distanceKm ?? 0);
+    if (!km || km <= 0) {
+      amountBeforeDiscountFcfa = madBase;
+      label = `Matinée ${madBase.toLocaleString("fr-FR")} F (jusqu’à ${includedKm} km)`;
+      ruleKey = "mad_morning";
+      surDevis = true;
+    } else if (km <= includedKm) {
+      amountBeforeDiscountFcfa = madBase;
+      label = `Matinée ${madBase.toLocaleString("fr-FR")} F · ${km} km inclus (≤ ${includedKm} km)`;
+      ruleKey = "mad_morning";
+      surDevis = false;
+    } else {
+      const extra = km - includedKm;
+      amountBeforeDiscountFcfa = roundFcfa(madBase + extra * rate);
+      label = `Matinée ${madBase.toLocaleString("fr-FR")} F + ${extra} km × ${rate.toLocaleString("fr-FR")} F`;
+      ruleKey = "mad_morning";
+      surDevis = false;
+    }
   }
 
-  if (params.serviceType === "mise_a_disposition" && params.segment === "partner") {
-    const base = byKey("mise_disposition_base")?.amount_fcfa ?? 25000;
-    const rate = byKey("interurbain_km")?.amount_fcfa ?? 700;
-    const km = Number(params.distanceKm ?? 0);
-    if (km > 0) {
-      return {
-        amountFcfa: roundFcfa(base + rate * km),
-        label: `Base ${base.toLocaleString("fr-FR")} + ${rate}/km`,
-        ruleKey: "mise_disposition_base",
-        surDevis: false,
-        vehiclesNeeded,
-      };
-    }
-    return {
-      amountFcfa: base,
-      label: "Mise à disposition (base, km en sus)",
-      ruleKey: "mise_disposition_base",
-      surDevis: true,
-      vehiclesNeeded,
-    };
-  }
+  const discountPercent =
+    params.segment === "client" && params.applyAccountDiscount
+      ? Math.max(0, params.accountDiscountPercent ?? 10)
+      : 0;
+  const discountFcfa = roundFcfa((amountBeforeDiscountFcfa * discountPercent) / 100);
+  const amountFcfa = Math.max(0, amountBeforeDiscountFcfa - discountFcfa);
 
   return {
-    amountFcfa: 0,
-    label: "Sur devis",
-    ruleKey: "devis",
-    surDevis: true,
-    vehiclesNeeded,
+    amountFcfa,
+    amountBeforeDiscountFcfa,
+    discountPercent,
+    discountFcfa,
+    label:
+      discountPercent > 0
+        ? `${label} · −${discountPercent}% compte`
+        : label,
+    ruleKey,
+    surDevis,
+    vehiclesNeeded: params.serviceType === "interurbain" && params.passengers > 11 ? vehiclesNeeded : 1,
   };
 }
 
@@ -196,8 +207,8 @@ export async function computeSentrajetPriceAsync(params: {
   passengers: number;
   distanceKm?: number | null;
   isRoundTrip?: boolean;
-  seatsPerVehicle?: number;
-}): Promise<ReturnType<typeof computeSentrajetPrice>> {
+  applyAccountDiscount?: boolean;
+}): Promise<PriceQuote> {
   const [tariffs, rules] = await Promise.all([
     getSentrajetTariffs(params.segment),
     listBusinessRules("pricing"),
@@ -206,6 +217,9 @@ export async function computeSentrajetPriceAsync(params: {
     ...params,
     tariffs,
     interurbainMinFcfa: ruleNumber(rules, "pricing", "interurbain_min_fcfa", 30000),
+    madMorningFcfa: ruleNumber(rules, "pricing", "mad_morning_fcfa", 50000),
+    madIncludedKm: ruleNumber(rules, "pricing", "mad_included_km", 100),
+    accountDiscountPercent: ruleNumber(rules, "pricing", "account_discount_percent", 10),
   });
 }
 

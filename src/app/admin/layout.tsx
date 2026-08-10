@@ -15,6 +15,7 @@ import {
   BarChart3,
   SlidersHorizontal,
   Landmark,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -28,6 +29,7 @@ const nav = [
   { href: "/admin/chauffeurs", label: "Chauffeurs", icon: Users },
   { href: "/admin/partenaires", label: "Partenaires", icon: Building2 },
   { href: "/admin/proprietaires", label: "Propriétaires", icon: Landmark },
+  { href: "/admin/crm", label: "CRM / pipeline", icon: Inbox },
   { href: "/admin/clients", label: "Clients", icon: Contact },
   { href: "/admin/vehicules", label: "Flotte", icon: Car },
   { href: "/admin/tarification", label: "Tarification", icon: BadgeDollarSign },

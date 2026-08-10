@@ -38,11 +38,11 @@ Pas de « choisir parmi plusieurs chauffeurs qui enchérissent ». L’expérien
 
 ### 3.1 Espace Client (`/compte`, parcours public de réservation)
 
-- Inscription / connexion client  
-- Réservation de trajet (départ, arrivée, date/heure, catégorie véhicule, options)  
-- Suivi des réservations et du trajet  
-- Historique, factures / reçus, messages support  
-- Paiement selon les moyens activés (Wave, etc.)
+- Inscription / connexion client (−10 % sur tarifs client)  
+- Simulation + demande de réservation (`/reserver`) : AIBD, interurbain, mise à disposition  
+- Confirmation + suivi WhatsApp / espace compte  
+- Historique, factures / reçus  
+- Paiement Wave après validation / devis SentraJet
 
 **Rôle métier** : acheteur B2C.
 

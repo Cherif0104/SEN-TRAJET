@@ -316,11 +316,46 @@ export async function createPlatformBooking(input: {
   return booking;
 }
 
+export async function listIncompleteBookings(): Promise<PlatformBooking[]> {
+  const all = await listPlatformBookings();
+  return all
+    .filter((b) =>
+      ["en_attente_de_paiement", "demande", "nouvelle", "brouillon", "annulee_client"].includes(b.status)
+    )
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
 export async function assignDispatch(params: {
   bookingId: string;
   driverId: string;
   vehicleId: string;
+  /** Si true, refuse l’affectation en cas de conflit véhicule (défaut true). */
+  enforceConflictCheck?: boolean;
 }): Promise<void> {
+  const enforce = params.enforceConflictCheck !== false;
+  if (enforce) {
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("pickup_time")
+      .eq("id", params.bookingId)
+      .maybeSingle();
+    if (booking?.pickup_time) {
+      const { checkVehicleConflict } = await import("@/lib/engines/dispatchConflict");
+      const conflict = await checkVehicleConflict({
+        vehicleId: params.vehicleId,
+        pickupAt: new Date(String(booking.pickup_time)),
+        excludeBookingId: params.bookingId,
+      });
+      if (conflict.hasConflict) {
+        throw new Error(
+          `Conflit véhicule : déjà une mission dans ±${conflict.bufferMinutes} min (résa ${conflict.conflictingBookingIds
+            .map((id) => id.slice(0, 8))
+            .join(", ")}).`
+        );
+      }
+    }
+  }
+
   const { data: order, error: orderErr } = await supabase
     .from("service_orders")
     .select("id")
