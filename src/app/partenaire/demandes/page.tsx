@@ -7,37 +7,37 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   BOOKING_STATUS_LABEL,
   bookingStatusTone,
-  ensureClientForUser,
+  listPartnerContracts,
   listPlatformBookings,
   type PlatformBooking,
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 
-export default function CompteReservationsPage() {
-  const { user, profile } = useAuth();
+export default function PartenaireDemandesPage() {
+  const { user } = useAuth();
   const [rows, setRows] = useState<PlatformBooking[]>([]);
 
   useEffect(() => {
     void (async () => {
       if (!user) return;
-      const clientId = await ensureClientForUser({
-        userId: user.id,
-        fullName: profile?.full_name,
-        phone: profile?.phone,
-        email: user.email,
-      });
-      const all = await listPlatformBookings();
-      setRows(all.filter((b) => b.client_id === clientId));
+      const contracts = await listPartnerContracts().catch(() => []);
+      const mine = contracts.find((c) => c.partner_user_id === user.id);
+      const all = await listPlatformBookings().catch(() => []);
+      setRows(
+        mine
+          ? all.filter((b) => b.partner_contract_id === mine.id || b.pricing_segment === "partner")
+          : all.filter((b) => b.pricing_segment === "partner")
+      );
     })();
-  }, [user, profile]);
+  }, [user]);
 
   return (
     <>
       <SjSectionHead
-        title="Mes réservations"
+        title="Demandes"
         action={
-          <Link href="/compte/reserver" className="sj-btn sj-btn-primary">
-            + Réserver
+          <Link href="/partenaire/reserver" className="sj-btn sj-btn-primary">
+            + Nouvelle demande
           </Link>
         }
       />
@@ -51,9 +51,6 @@ export default function CompteReservationsPage() {
                   {b.pickup} → {b.dropoff}
                 </div>
                 <div className="sj-muted">{new Date(b.pickup_time).toLocaleString("fr-FR")}</div>
-                <div style={{ marginTop: 8 }}>
-                  Chauffeur : {b.service_order?.dispatch?.driver?.full_name || "En cours d’affectation"}
-                </div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <SjBadge tone={bookingStatusTone(b.status)}>
@@ -66,7 +63,7 @@ export default function CompteReservationsPage() {
             </div>
           </SjCard>
         ))}
-        {!rows.length ? <SjCard><p className="sj-muted">Aucune réservation pour le moment.</p></SjCard> : null}
+        {!rows.length ? <SjCard><p className="sj-muted">Aucune demande.</p></SjCard> : null}
       </div>
     </>
   );

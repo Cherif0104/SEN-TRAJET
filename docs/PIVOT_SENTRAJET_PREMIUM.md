@@ -240,12 +240,17 @@ Prototype front officiel (source de vérité UX pour la reprise) :
 
 ---
 
-## 9. Prochaine action concrète
+## 9. Implémentation reprise (août 2026)
 
-1. Porter le **shell multi-espaces** du prototype dans l’app Next existante (layout SentraJet Premium)  
-2. Brancher **réservation + tarification** (client / partenaire) sur Supabase  
-3. Implémenter le **dispatch admin** (affectation chauffeur + véhicule)  
-4. Brancher l’espace chauffeur sur les **missions assignées**  
-5. Remplacer progressivement le branding « SEN TRAJET » marketplace  
+Livré dans l’app Next.js :
+
+1. **Shell multi-espaces** SentraJet Premium (`PremiumShell`, thème noir/or, fonts DM Sans + Manrope)  
+2. **Tarification** AIBD / interurbain (`sentrajet_tariffs` + `src/lib/sentrajetPricing.ts`)  
+3. **Réservation** client `/compte/reserver` et partenaire `/partenaire/reserver`  
+4. **Dispatch admin** `/admin/dispatch` (affectation chauffeur + véhicule → `service_orders` / `dispatch_assignments`)  
+5. **Missions chauffeur** `/chauffeur/missions`  
+6. Projet Supabase ops : `ootvzknyhkhxroadnclh` (tables `bookings`, `drivers`, `vehicles`, `clients`, `partner_contracts`)
+
+Suite utile : landing publique alignée branding, comptes de test ops, paiement Wave sur réservations plateforme, retrait progressif des écrans marketplace legacy.
 
 Ce fichier est le point d’entrée pour toute reprise de développement SentraJet Premium.

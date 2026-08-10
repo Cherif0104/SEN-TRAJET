@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { MapPin } from "lucide-react";
 
 interface LogoProps {
   className?: string;
@@ -11,42 +8,32 @@ interface LogoProps {
 }
 
 export function Logo({ className = "", showIcon = true }: LogoProps) {
-  const [imgError, setImgError] = useState(false);
-
   return (
     <Link
       href="/"
       className={`inline-flex items-center no-underline ${className}`}
-      aria-label="SEN TRAJET - Accueil"
+      aria-label="SentraJet Premium - Accueil"
     >
-      {showIcon &&
-        (imgError ? (
-          <>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
-              <MapPin className="h-5 w-5" strokeWidth={2.5} />
-            </span>
-            <span className="ml-2 font-bold tracking-tight text-neutral-900 text-lg">
-              <span className="text-primary-dark">SEN</span>{" "}
-              <span className="text-secondary">TRAJET</span>
-            </span>
-          </>
-        ) : (
-          <span className="relative block h-10 w-[140px] shrink-0 sm:w-[200px]">
-            <Image
-              src="/logo-sen-trajet.png"
-              alt="SEN TRAJET"
-              fill
-              className="object-contain object-left"
-              sizes="(max-width: 640px) 140px, 200px"
-              priority
-              onError={() => setImgError(true)}
-            />
+      {showIcon ? (
+        <span className="inline-flex items-center gap-2">
+          <span
+            className="grid h-10 w-10 place-items-center rounded-[13px] text-sm font-black text-neutral-900"
+            style={{ background: "linear-gradient(145deg,#f0c86b,#9b681b)" }}
+          >
+            SJ
           </span>
-        ))}
-      {!showIcon && (
-        <span className="font-bold text-neutral-900 text-lg tracking-tight">
-          <span className="text-primary-dark">SEN</span>{" "}
-          <span className="text-secondary">TRAJET</span>
+          <span className="leading-tight">
+            <span className="block text-lg font-extrabold tracking-tight text-neutral-900">
+              SENTRA<span style={{ color: "#d5a64a" }}>JET</span>
+            </span>
+            <span className="block text-[10px] font-semibold tracking-[0.28em]" style={{ color: "#b77c24" }}>
+              PREMIUM
+            </span>
+          </span>
+        </span>
+      ) : (
+        <span className="text-lg font-extrabold tracking-tight text-neutral-900">
+          SENTRA<span style={{ color: "#d5a64a" }}>JET</span>
         </span>
       )}
     </Link>

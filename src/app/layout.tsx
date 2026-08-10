@@ -1,17 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { DM_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["600", "700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "SEN TRAJET — Trajets interurbains au Sénégal",
+  title: "SentraJet Premium — Transport avec chauffeur",
   description:
-    "Recherchez, réservez et payez vos trajets entre villes. Chauffeurs identifiés, mobile money, suivi en direct.",
+    "Plateforme propriétaire SentraJet Premium : réservation, dispatch, flotte, partenaires B2B et suivi de courses au Sénégal.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -23,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "SEN TRAJET",
+    title: "SentraJet Premium",
   },
   formatDetection: {
     telephone: true,
@@ -35,7 +42,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#0f172a",
+  themeColor: "#07111f",
 };
 
 export default function RootLayout({
@@ -44,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={plusJakarta.variable}>
+    <html lang="fr" className={`${dmSans.variable} ${manrope.variable}`}>
       <head>
         <link rel="icon" href="/icons/app-icon-192.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
