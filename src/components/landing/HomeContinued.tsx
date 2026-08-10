@@ -48,8 +48,10 @@ const steps = [
 const routes = [
   { from: "Dakar", to: "AIBD", service: "transfert_aibd" },
   { from: "Dakar", to: "Thiès", service: "interurbain" },
+  { from: "Dakar", to: "Mbour", service: "interurbain" },
   { from: "Dakar", to: "Saly", service: "interurbain" },
   { from: "Dakar", to: "Saint-Louis", service: "interurbain" },
+  { from: "Dakar", to: "Kaolack", service: "interurbain" },
 ];
 
 export function HomeContinued() {

@@ -1,17 +1,21 @@
-import type { ServiceType } from "@/lib/sentrajetPricing";
+import type { ServiceType, TripMode } from "@/lib/sentrajetPricing";
 
-export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v1";
+export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v2";
 
 export type SimulationDraft = {
   step: "service" | "trajet" | "prix" | "compte" | "confirm" | "done";
   serviceType: ServiceType;
+  tripMode: TripMode;
   pickup: string;
   dropoff: string;
   date: string;
   time: string;
+  returnTime: string;
   passengers: number;
+  luggage: number;
+  waitingMinutes: number;
   distanceKm: number | null;
-  isRoundTrip: boolean;
+  distanceSource: string | null;
   phone: string;
   flightNumber: string;
   notes: string;
@@ -23,13 +27,17 @@ export function emptyDraft(partial?: Partial<SimulationDraft>): SimulationDraft 
   return {
     step: "service",
     serviceType: "transfert_aibd",
-    pickup: "",
+    tripMode: "aller_simple",
+    pickup: "Dakar",
     dropoff: "",
     date: "",
     time: "",
+    returnTime: "",
     passengers: 2,
+    luggage: 1,
+    waitingMinutes: 0,
     distanceKm: null,
-    isRoundTrip: false,
+    distanceSource: null,
     phone: "",
     flightNumber: "",
     notes: "",
@@ -46,7 +54,7 @@ export function loadSimulationDraft(): SimulationDraft | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SimulationDraft;
     if (!parsed?.serviceType) return null;
-    return parsed;
+    return { ...emptyDraft(), ...parsed };
   } catch {
     return null;
   }
@@ -60,7 +68,7 @@ export function saveSimulationDraft(draft: SimulationDraft): void {
       JSON.stringify({ ...draft, updatedAt: new Date().toISOString() })
     );
   } catch {
-    /* ignore quota */
+    /* ignore */
   }
 }
 

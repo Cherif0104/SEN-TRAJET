@@ -9,18 +9,27 @@ export const SENEGAL_DEFAULT_ZOOM = 7;
 export const CITIES: Record<string, { lat: number; lng: number }> = {
   Dakar: { lat: 14.7167, lng: -17.4677 },
   Thiès: { lat: 14.7833, lng: -16.9667 },
+  Thies: { lat: 14.7833, lng: -16.9667 },
   "Saint-Louis": { lat: 16.0333, lng: -16.5 },
   Kaolack: { lat: 14.15, lng: -16.0833 },
   Ziguinchor: { lat: 12.5833, lng: -16.2667 },
   Mbour: { lat: 14.4167, lng: -16.9667 },
+  Saly: { lat: 14.4333, lng: -17.0167 },
+  Diourbel: { lat: 14.6625, lng: -16.2333 },
+  Louga: { lat: 15.6167, lng: -16.25 },
+  Tambacounda: { lat: 13.7708, lng: -13.6672 },
   Touba: { lat: 14.8667, lng: -15.8833 },
   Rufisque: { lat: 14.7167, lng: -17.2667 },
   Pikine: { lat: 14.75, lng: -17.4 },
+  AIBD: { lat: 14.6711, lng: -17.0669 },
 };
 
 export function getCityCoords(cityName: string): { lat: number; lng: number } | null {
   const normalized = cityName.trim();
-  return CITIES[normalized] ?? null;
+  if (CITIES[normalized]) return CITIES[normalized];
+  const lower = normalized.toLowerCase();
+  const entry = Object.entries(CITIES).find(([k]) => k.toLowerCase() === lower || lower.includes(k.toLowerCase()));
+  return entry?.[1] ?? null;
 }
 
 export function getBoundsFromPoints(

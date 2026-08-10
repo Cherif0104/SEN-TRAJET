@@ -5,9 +5,7 @@ import {
   SERVICE_TYPE_LABELS,
   computeSentrajetPrice,
   formatFcfa,
-  getSentrajetTariffs,
   type PricingSegment,
-  type SentrajetTariff,
   type ServiceType,
 } from "@/lib/sentrajetPricing";
 import { createPaymentForBooking, createPlatformBooking } from "@/lib/platformOps";
@@ -23,9 +21,8 @@ type BookingFormProps = {
 const SERVICES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][];
 
 export function BookingForm({ segment, clientId, partnerContractId, onCreated }: BookingFormProps) {
-  const [tariffs, setTariffs] = useState<SentrajetTariff[]>([]);
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
-  const [pickup, setPickup] = useState("");
+  const [pickup, setPickup] = useState(segment === "partner" ? "Dakar" : "");
   const [dropoff, setDropoff] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -36,7 +33,7 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
   const [phone, setPhone] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
   const [passengerName, setPassengerName] = useState("");
-  const [luggageCount, setLuggageCount] = useState<number | "">("");
+  const [luggageCount, setLuggageCount] = useState<number | "">(0);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -44,12 +41,36 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
   const [payLink, setPayLink] = useState<string | null>(null);
 
   useEffect(() => {
-    void getSentrajetTariffs(segment).then(setTariffs);
     void listBusinessRules().then((rules) => {
       setWaveUrl(ruleString(rules, "payment", "wave_checkout_url", waveUrl));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segment]);
+
+  useEffect(() => {
+    if (!pickup.trim() || !dropoff.trim()) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/distance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fromPlace: pickup.trim(), toPlace: dropoff.trim() }),
+          });
+          if (!res.ok) return;
+          const data = (await res.json()) as { distanceKm?: number };
+          if (!cancelled && typeof data.distanceKm === "number") setDistanceKm(data.distanceKm);
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [pickup, dropoff]);
 
   const quote = useMemo(
     () =>
@@ -57,13 +78,12 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         segment,
         serviceType,
         passengers,
+        luggage: luggageCount === "" ? 0 : Number(luggageCount),
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
-        isRoundTrip,
-        tariffs,
-        // Remise compte uniquement côté client direct (jamais grille partenaire)
+        tripMode: isRoundTrip ? "aller_retour" : "aller_simple",
         applyAccountDiscount: segment === "client" && Boolean(clientId),
       }),
-    [segment, serviceType, passengers, distanceKm, isRoundTrip, tariffs, clientId]
+    [segment, serviceType, passengers, luggageCount, distanceKm, isRoundTrip, clientId]
   );
 
   async function submit(e: React.FormEvent) {
@@ -119,7 +139,11 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
     }
   }
 
-  const needsDistance = serviceType === "interurbain" || serviceType === "mise_a_disposition";
+  const needsDistance =
+    serviceType === "interurbain" ||
+    serviceType === "mise_a_disposition" ||
+    serviceType === "longue_distance" ||
+    serviceType === "ceremonie";
   const isAirport = serviceType === "transfert_aibd" || serviceType === "aibd_retour";
 
   return (
@@ -224,7 +248,9 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         <div className="sj-metric" style={{ marginTop: 6 }}>
           {quote.surDevis && !quote.amountFcfa ? "Sur devis" : formatFcfa(quote.amountFcfa)}
         </div>
+        <div className="sj-metric-sub">{quote.formulaApplied}</div>
         <div className="sj-metric-sub">{quote.label}</div>
+        {quote.distanceKm > 0 ? <div className="sj-metric-sub">{quote.distanceKm} km routiers</div> : null}
         {quote.vehiclesNeeded > 1 ? (
           <div className="sj-metric-sub">{quote.vehiclesNeeded} véhicules nécessaires</div>
         ) : null}
