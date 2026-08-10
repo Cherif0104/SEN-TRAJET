@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
+/** Typologie SentraJet Premium: b2b_client = cible; autres = legacy marketplace */
+export type PartnerAccountType = "b2b_client" | "fleet_recruiter" | "rental_operator";
+
 export type Partner = {
   id: string;
   user_id: string;
@@ -9,6 +12,7 @@ export type Partner = {
   email: string | null;
   invite_code: string;
   is_active: boolean;
+  account_type?: PartnerAccountType | null;
   wave_aggregated_merchant_id?: string | null;
   wave_payout_mobile?: string | null;
   wave_payout_name?: string | null;

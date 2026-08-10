@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { listProfilesByRole, type AdminProfileRow } from "@/lib/adminOps";
 
-export default function AdminChauffeursPage() {
+export default function AdminClientsPage() {
   const [rows, setRows] = useState<AdminProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listProfilesByRole("driver")
+    listProfilesByRole("client")
       .then(setRows)
       .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
       .finally(() => setLoading(false));
@@ -18,16 +18,18 @@ export default function AdminChauffeursPage() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-neutral-900">Chauffeurs flotte</h1>
+      <h1 className="text-xl font-bold text-neutral-900">Clients</h1>
       <p className="mt-1 text-neutral-600">
-        Conducteurs rattachés à SentraJet Premium — missions assignées via le dispatch.
+        Voyageurs et expéditeurs inscrits sur la plateforme.
       </p>
-      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-4 text-sm text-red-600">{error}</p>
+      )}
       {loading ? (
         <p className="mt-4 text-sm text-neutral-500">Chargement…</p>
       ) : rows.length === 0 ? (
         <Card className="mt-4">
-          <p className="text-sm text-neutral-500">Aucun chauffeur.</p>
+          <p className="text-sm text-neutral-500">Aucun client pour l’instant.</p>
         </Card>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white">
@@ -37,7 +39,7 @@ export default function AdminChauffeursPage() {
                 <th className="px-4 py-3 font-medium">Nom</th>
                 <th className="px-4 py-3 font-medium">Téléphone</th>
                 <th className="px-4 py-3 font-medium">Ville</th>
-                <th className="px-4 py-3 font-medium">Rattachement</th>
+                <th className="px-4 py-3 font-medium">Inscrit le</th>
               </tr>
             </thead>
             <tbody>
@@ -49,11 +51,7 @@ export default function AdminChauffeursPage() {
                   <td className="px-4 py-3 text-neutral-600">{row.phone || "—"}</td>
                   <td className="px-4 py-3 text-neutral-600">{row.city || "—"}</td>
                   <td className="px-4 py-3 text-neutral-600">
-                    {row.employment_type === "platform_fleet"
-                      ? "Flotte SentraJet"
-                      : row.employment_type === "independent"
-                        ? "Indépendant (legacy)"
-                        : "À classer"}
+                    {new Date(row.created_at).toLocaleDateString("fr-FR")}
                   </td>
                 </tr>
               ))}

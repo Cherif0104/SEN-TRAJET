@@ -97,21 +97,25 @@ export default function ChauffeurDashboardPage() {
                 Bonjour, {firstName}
               </h1>
               <p className="mt-0.5 text-sm text-neutral-600">
-                Publiez un trajet ou répondez aux demandes des voyageurs.
+                Consultez vos missions SentraJet et suivez vos courses assignées.
               </p>
             </div>
           </div>
           <Button
             variant="primary"
             size="lg"
-            href={readiness?.ready ? "/chauffeur/trajet/nouveau" : "/chauffeur/profil"}
+            href="/chauffeur/missions"
             className="shrink-0"
           >
-            <Car className="mr-2 h-5 w-5" />
-            {readiness?.ready ? "Publier un trajet" : "Compléter mon profil"}
+            <ClipboardList className="mr-2 h-5 w-5" />
+            Mes missions
           </Button>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" href={readiness?.ready ? "/chauffeur/trajet/nouveau" : "/chauffeur/profil"}>
+            <Car className="mr-2 h-4 w-4" />
+            {readiness?.ready ? "Publier un trajet" : "Compléter mon profil"}
+          </Button>
           <Button variant="ghost" size="sm" href="/chauffeur/demandes">
             Voir les demandes ouvertes
           </Button>

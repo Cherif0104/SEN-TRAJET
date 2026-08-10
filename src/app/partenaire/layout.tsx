@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Users, Coins, UserCircle, HelpCircle, Car, CalendarCheck } from "lucide-react";
+import { LayoutDashboard, UserCircle, HelpCircle, CalendarCheck, Search, BadgePercent } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { supabase } from "@/lib/supabase";
 import { getPartnerByUserId } from "@/lib/partners";
@@ -11,19 +11,18 @@ import { canAccessPartnerZone } from "@/lib/rbac";
 
 const nav = [
   { href: "/partenaire", label: "Tableau de bord", icon: LayoutDashboard },
-  { href: "/partenaire/location/vehicules", label: "Flotte location", icon: Car },
-  { href: "/partenaire/location/reservations", label: "Loc. réservations", icon: CalendarCheck },
-  { href: "/partenaire/chauffeurs", label: "Mes chauffeurs", icon: Users },
-  { href: "/partenaire/commissions", label: "Commissions", icon: Coins },
+  { href: "/recherche", label: "Réserver", icon: Search },
+  { href: "/partenaire/reservations", label: "Mes réservations", icon: CalendarCheck },
+  { href: "/partenaire/tarifs", label: "Mes tarifs", icon: BadgePercent },
   { href: "/partenaire/profil", label: "Mon profil", icon: UserCircle },
   { href: "/contact", label: "Aide / Réclamation", icon: HelpCircle },
 ];
 
 const mobileNav = [
   { href: "/partenaire", label: "Accueil", icon: LayoutDashboard },
-  { href: "/partenaire/location/vehicules", label: "Flotte", icon: Car },
-  { href: "/partenaire/location/reservations", label: "Locations", icon: CalendarCheck },
-  { href: "/partenaire/commissions", label: "Commissions", icon: Coins },
+  { href: "/recherche", label: "Réserver", icon: Search },
+  { href: "/partenaire/reservations", label: "Résa", icon: CalendarCheck },
+  { href: "/partenaire/tarifs", label: "Tarifs", icon: BadgePercent },
   { href: "/partenaire/profil", label: "Profil", icon: UserCircle },
 ];
 

@@ -10,6 +10,9 @@ import {
   Car,
   Calendar,
   Settings,
+  Building2,
+  UserRound,
+  RadioTower,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -17,6 +20,9 @@ import { supabase } from "@/lib/supabase";
 
 const nav = [
   { href: "/admin", label: "Accueil", icon: LayoutDashboard },
+  { href: "/admin/dispatch", label: "Dispatch", icon: RadioTower },
+  { href: "/admin/clients", label: "Clients", icon: UserRound },
+  { href: "/admin/partenaires", label: "Partenaires", icon: Building2 },
   { href: "/admin/chauffeurs", label: "Chauffeurs", icon: Users },
   { href: "/admin/trajets", label: "Trajets", icon: MapPin },
   { href: "/admin/vehicules", label: "Véhicules", icon: Car },
@@ -59,7 +65,7 @@ export default function AdminLayout({
       <aside className="hidden w-64 shrink-0 border-r border-neutral-200 bg-white lg:block">
         <div className="sticky top-0 flex h-screen flex-col py-6">
           <div className="px-6 font-bold text-primary">
-            SEN TRAJET · Admin
+            SentraJet · Société
           </div>
           <nav className="mt-6 flex-1 space-y-1 px-3">
             {nav.map(({ href, label, icon: Icon }) => (

@@ -1,3 +1,10 @@
+/**
+ * Rôles SentraJet Premium (plateforme propriétaire):
+ * - client: voyageur / expéditeur
+ * - partner*: clients B2B (tarifs négociés) — plus recruteurs de chauffeurs
+ * - driver: chauffeurs de flotte (missions assignées)
+ * - admin / super_admin / …: espace société (dispatch, flotte, contrats)
+ */
 export type AppRole =
   | "client"
   | "driver"

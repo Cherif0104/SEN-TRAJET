@@ -1,6 +1,10 @@
-# Vision et conception — SEN TRAJET
+# Vision et conception — SEN TRAJET / SentraJet Premium
 
 Document de référence pour finaliser la plateforme : logique métier, parcours utilisateurs, rôles (dont Partenaires), carte interactive, alignement landing / produit. À utiliser comme socle pour les développements et la suppression des données mock.
+
+> **Pivot produit (août 2026)** : SentraJet Premium est une **plateforme propriétaire** (flotte et dispatch SentraJet), et non plus une application de réservation type Yango / marketplace de chauffeurs indépendants.  
+> Voir le document de référence : [`SENTRAJET_PREMIUM_PLATEFORME_PROPRIETAIRE.md`](./SENTRAJET_PREMIUM_PLATEFORME_PROPRIETAIRE.md).  
+> Les sections ci-dessous décrivent encore en partie l’historique marketplace ; en cas de conflit, **le document pivot prime**.
 
 ---
 
@@ -39,11 +43,13 @@ La plateforme vise la **digitalisation** d’un secteur dans un pays où l’ado
 
 ## 1. Vision et objectifs
 
-**SEN TRAJET** est une plateforme de **transport interurbain et de colis** au Sénégal. Elle met en relation :
-- les **clients** (voyageurs) qui publient une demande de trajet ou cherchent un trajet ;
-- les **chauffeurs** qui proposent un prix pour une demande (un prix par chauffeur, pas de négociation) ;
-- les **partenaires** (gestionnaires de parc / de chauffeurs) qui recrutent et administrent des chauffeurs et perçoivent des commissions ;
-- l’**admin** plateforme pour la modération et la configuration.
+**SentraJet Premium** est une plateforme propriétaire de **transport interurbain et de colis** au Sénégal. Elle opère quatre espaces :
+- les **clients** (voyageurs) qui réservent un trajet ou un envoi sur la plateforme ;
+- les **partenaires B2B** qui réservent avec des **tarifs négociés** (entreprises / structures) ;
+- les **chauffeurs de flotte** SentraJet, à qui la société **assigne** les missions ;
+- l’**espace société (admin)** pour clients, partenaires, flotte, tarifs et dispatch.
+
+*(Historique marketplace — à déprécier : chauffeurs indépendants publiant librement ; partenaires recruteurs à commission.)*
 
 **Principes directeurs**
 - Tarif : le chauffeur propose **un** prix ; le client **choisit** une proposition parmi plusieurs (pas de contre-offre ni de négociation en 3 tours).

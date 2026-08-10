@@ -1,6 +1,9 @@
 # Conception des profils et interfaces par rôle
 
-Document de conception pour une expérience **individuelle**, **moderne** et **optimale** pour chaque type d’utilisateur (Client, Chauffeur, Partenaire). À aligner avec l’existant et les bonnes pratiques (InDrive, BlaBlaCar, marketplaces locales).
+Document de conception pour une expérience **individuelle**, **moderne** et **optimale** pour chaque type d’utilisateur (Client, Chauffeur, Partenaire, Société).
+
+> **Pivot SentraJet Premium** : plateforme propriétaire — voir [`SENTRAJET_PREMIUM_PLATEFORME_PROPRIETAIRE.md`](./SENTRAJET_PREMIUM_PLATEFORME_PROPRIETAIRE.md).  
+> Partenaire = client B2B (réservation + tarifs). Chauffeur = flotte (missions assignées). Admin = espace société (dispatch).
 
 ---
 
