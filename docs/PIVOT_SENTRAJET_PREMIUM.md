@@ -178,13 +178,74 @@ Variante V1 possible : auto-affectation selon règles (véhicule libre, zone, cl
 
 ---
 
-## 8. Prochaine action concrète
+## 8. Référence UI / produit livrée
 
-Dès validation de ce pivot :
+Prototype front officiel (source de vérité UX pour la reprise) :
 
-1. Spécifier le **parcours de réservation client V1** (champs, tarification, statuts)  
-2. Spécifier le **écran dispatch admin V1** (affectation)  
-3. Adapter l’espace partenaire : retirer invite/commissions chauffeur ; ajouter réservation + grille tarifaire  
-4. Adapter l’espace chauffeur : file des courses assignées  
+- Dossier : [`prototypes/sentrajet-premium-front/`](../prototypes/sentrajet-premium-front/)
+- Asset marque : [`public/brand/sentrajet-hero.png`](../public/brand/sentrajet-hero.png)
+- Identité visuelle : noir / or (`#07111f`, `#d5a64a`), fonts **DM Sans** + **Manrope**
+- Contact démo : WhatsApp `78 832 40 69`, `contact@sentrajet.com`, Dakar
+
+### 8.1 Modules du prototype (à porter dans Next.js)
+
+| Espace | Pages |
+|--------|--------|
+| **Direction / Admin** | Dashboard, Réservations, Dispatch, Chauffeurs, Clients, Partenaires, Flotte, Tarification, Rapports, Paramètres |
+| **Client** | Accueil, Réserver, Mes réservations, Profil |
+| **Chauffeur** | Aujourd’hui, Mes missions, Historique, Profil |
+| **Partenaire B2B** | Accueil, Nouvelle demande, Demandes, Ma tarification, Mon compte |
+
+### 8.2 Types de prestation
+
+1. Transfert aéroport (AIBD)  
+2. Trajet interurbain  
+3. Mise à disposition  
+4. Groupes & événements  
+5. Service professionnel (chauffeurs qualifiés)
+
+### 8.3 Tarification de démonstration (à migrer vers Supabase)
+
+**Client direct**
+
+| Règle | Prix |
+|-------|------|
+| AIBD 1–2 passagers | 25 000 FCFA |
+| AIBD 3–5 | 30 000 FCFA |
+| AIBD 6–8 | 40 000 FCFA |
+| AIBD 9–11 | 50 000 FCFA |
+| Interurbain > 50 km | 850 FCFA/km |
+
+**Partenaire B2B validé**
+
+| Règle | Prix |
+|-------|------|
+| AIBD 1–2 | 20 000 FCFA |
+| AIBD 3–5 | 25 000 FCFA |
+| AIBD 6–8 | 30 000 FCFA |
+| AIBD 9–11 | 40 000 FCFA |
+| Interurbain > 50 km | 700 FCFA/km |
+
+**Règles ops**
+
+- Attente : 30 min gratuites, puis 2 500 FCFA / 30 min  
+- Mise à disposition B2B : 25 000 FCFA + 700 FCFA/km  
+- Annulation : 30 % / 50 % selon délai  
+
+### 8.4 Statuts métier (prototype)
+
+- Réservation : `À assigner` → `En attente` → `Confirmée` (+ courses en cours / terminées)  
+- Chauffeur : `Disponible` / `En course` / `Hors ligne`  
+- Partenaire : `Prospect` / `En validation` / `Actif` (tier B2B validé)
+
+---
+
+## 9. Prochaine action concrète
+
+1. Porter le **shell multi-espaces** du prototype dans l’app Next existante (layout SentraJet Premium)  
+2. Brancher **réservation + tarification** (client / partenaire) sur Supabase  
+3. Implémenter le **dispatch admin** (affectation chauffeur + véhicule)  
+4. Brancher l’espace chauffeur sur les **missions assignées**  
+5. Remplacer progressivement le branding « SEN TRAJET » marketplace  
 
 Ce fichier est le point d’entrée pour toute reprise de développement SentraJet Premium.
