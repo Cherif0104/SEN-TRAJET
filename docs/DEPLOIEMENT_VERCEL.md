@@ -13,14 +13,19 @@ Dans **Settings > Secrets and variables > Actions**, ajouter:
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 
-## 3) Workflow active
+## 3) Deux chemins de deploiement
 
-Le workflow `.github/workflows/vercel-deploy.yml`:
+### A) Integration GitHub native Vercel (recommande)
 
-- fait `lint`
-- cree un build Vercel
-- deploie en `preview` sur Pull Request
-- deploie en `production` sur push de `main`
+Deja activee sur le projet `sen-trajet` : chaque push / PR cree automatiquement une Preview.
+C'est ce chemin qui doit etre utilise en priorite.
+
+### B) Workflow Actions `.github/workflows/vercel-deploy.yml`
+
+- Job `quality` : `lint` + `build` (toujours)
+- Job `deploy-cli` : deploy via CLI **uniquement** si `VERCEL_TOKEN` est defini
+
+Sans `VERCEL_TOKEN`, le job CLI est ignore (plus d'emails d'echec "missing token").
 
 ## 4) Variables d'environnement Vercel
 
