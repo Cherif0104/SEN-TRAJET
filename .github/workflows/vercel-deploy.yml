@@ -1,4 +1,4 @@
-name: Vercel Deploy
+name: CI
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   quality:
-    name: Lint & build check
+    name: Lint & build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,44 +31,7 @@ jobs:
       - name: Run production build
         run: npm run build
         env:
-          # Placeholders CI : le déploiement réel est assuré par l'intégration GitHub native de Vercel.
+          # Placeholders CI — le déploiement réel est fait par l'intégration GitHub native de Vercel.
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-key
-
-  deploy-cli:
-    name: Deploy via Vercel CLI (optional)
-    runs-on: ubuntu-latest
-    needs: quality
-    # Ne tourne que si le token est configuré. Sinon l'intégration Vercel GitHub suffit.
-    if: ${{ secrets.VERCEL_TOKEN != '' }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Pull Vercel environment information
-        run: npx vercel pull --yes --environment=${{ github.event_name == 'pull_request' && 'preview' || 'production' }} --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build project artifacts
-        run: npx vercel build ${{ github.event_name == 'pull_request' && '' || '--prod' }} --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Deploy to Vercel
-        run: npx vercel deploy --prebuilt ${{ github.event_name == 'pull_request' && '' || '--prod' }} --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

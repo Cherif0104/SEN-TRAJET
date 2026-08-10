@@ -1,45 +1,38 @@
-# Deploiement continu Vercel
+# Déploiement Vercel — SentraJet Premium
 
-## 1) Depot GitHub
+## 1) Dépôt GitHub
 
-- Repository cible: `Cherif0104/SEN-TRAJET`
-- Branche de production: `main`
+- Repository : `Cherif0104/SEN-TRAJET`
+- Branche de production : `main`
 
-## 2) Secrets GitHub Actions a configurer
+## 2) Déploiement (chemin officiel)
 
-Dans **Settings > Secrets and variables > Actions**, ajouter:
+**Intégration GitHub native Vercel** sur le projet `sen-trajet` :
 
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+- chaque push / PR crée une Preview automatiquement ;
+- le merge sur `main` déploie en production.
 
-## 3) Deux chemins de deploiement
+Plus besoin du workflow Actions CLI (qui provoquait des emails d’échec quand `VERCEL_TOKEN` était absent).
 
-### A) Integration GitHub native Vercel (recommande)
+## 3) CI GitHub Actions
 
-Deja activee sur le projet `sen-trajet` : chaque push / PR cree automatiquement une Preview.
-C'est ce chemin qui doit etre utilise en priorite.
+Le workflow `.github/workflows/vercel-deploy.yml` (renommé logiquement « CI ») fait uniquement :
 
-### B) Workflow Actions `.github/workflows/vercel-deploy.yml`
+- `npm ci`
+- `npm run lint`
+- `npm run build`
 
-- Job `quality` : `lint` + `build` (toujours)
-- Job `deploy-cli` : deploy via CLI **uniquement** si `VERCEL_TOKEN` est defini
+Il ne déploie plus. Cela évite les faux échecs / emails « missing token ».
 
-Sans `VERCEL_TOKEN`, le job CLI est ignore (plus d'emails d'echec "missing token").
+## 4) Variables d’environnement Vercel
 
-## 4) Variables d'environnement Vercel
+Dans le dashboard Vercel du projet, configurer au minimum :
 
-Dans le dashboard Vercel du projet, configurer au minimum:
+- `NEXT_PUBLIC_SUPABASE_URL` → `https://ootvzknyhkhxroadnclh.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (serveur uniquement, si besoin)
+- clés Wave / autres API métier selon les routes actives
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (si necessaire cote server/API)
-- autres cles API metier selon les routes actives
+## 5) Preview actuelle (branche pivot)
 
-## 5) Recommandation
-
-Brancher egalement l'integration GitHub native de Vercel pour avoir:
-
-- preview URLs automatiques par PR
-- historique des deploiements dans Vercel
-- rollback simplifie
+Voir le commentaire Vercel sur la PR #1 pour l’URL Preview à jour.
