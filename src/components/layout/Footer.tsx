@@ -8,6 +8,7 @@ const footerLinks = [
   { label: "CGU", href: "/cgu" },
   { label: "Confidentialité", href: "/confidentialite" },
   { label: "Nous contacter", href: "/contact" },
+  { label: "Comptes démo", href: "/comptes-test" },
 ];
 
 export function Footer() {

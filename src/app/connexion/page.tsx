@@ -329,9 +329,14 @@ function ConnexionPageContent() {
           Pas encore de compte ?{" "}
           <Link
             href="/inscription"
-            className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="font-semibold text-amber-800 hover:text-amber-900 hover:underline"
           >
             S&apos;inscrire
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm text-slate-500">
+          <Link href="/comptes-test" className="font-semibold text-amber-800 hover:underline">
+            Tester avec un compte démo (1 clic)
           </Link>
         </p>
     </AuthPageScaffold>
