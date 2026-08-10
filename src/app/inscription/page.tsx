@@ -51,6 +51,11 @@ function formatAuthErrorMessage(rawMessage: string | null | undefined, mode: Aut
   return rawMessage ?? "Une erreur est survenue. Réessayez dans quelques instants.";
 }
 
+function safeNext(path: string | null): string | null {
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return null;
+  return path;
+}
+
 function InscriptionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,6 +66,7 @@ function InscriptionPageContent() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<RoleType>("client");
+  const nextAfterAuth = safeNext(searchParams.get("next"));
 
   useEffect(() => {
     const roleParam = searchParams.get("role");
@@ -70,6 +76,10 @@ function InscriptionPageContent() {
     }
     if (roleParam === "loueur" || roleParam === "proprietaire") {
       setRole("rental_owner");
+      setStep("form");
+    }
+    if (roleParam === "client") {
+      setRole("client");
       setStep("form");
     }
     if (roleParam === "chauffeur") {
@@ -116,6 +126,14 @@ function InscriptionPageContent() {
         return;
       }
       setSuccess(true);
+      if (role === "client" && nextAfterAuth) {
+        window.location.replace(nextAfterAuth);
+        return;
+      }
+      if (isPartnerLikeRole) {
+        window.location.replace(role === "rental_owner" ? "/proprietaire" : "/partenaire/onboarding");
+        return;
+      }
       router.refresh();
     } catch {
       setError("Une erreur inattendue s'est produite.");
@@ -176,16 +194,16 @@ function InscriptionPageContent() {
         setLoading(false);
         return;
       }
-      const {
-        data: { user: _user },
-      } = await supabase.auth.getUser();
-      if (isPartnerLikeRole) {
-        router.push(role === "rental_owner" ? "/proprietaire" : "/partenaire/onboarding");
-        router.refresh();
+      await supabase.auth.getUser();
+      if (role === "client" && nextAfterAuth) {
+        window.location.replace(nextAfterAuth);
         return;
       }
-      router.push("/compte");
-      router.refresh();
+      if (isPartnerLikeRole) {
+        window.location.replace(role === "rental_owner" ? "/proprietaire" : "/partenaire/onboarding");
+        return;
+      }
+      window.location.replace("/compte");
     } catch {
       setError("Une erreur inattendue s'est produite.");
     } finally {

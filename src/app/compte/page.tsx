@@ -43,7 +43,7 @@ export default function ComptePage() {
       <SjSectionHead
         title={`Bonjour${profile?.full_name ? ` ${profile.full_name.split(" ")[0]}` : ""}`}
         action={
-          <Link href="/compte/reserver" className="sj-btn sj-btn-primary">
+          <Link href="/reserver" className="sj-btn sj-btn-primary">
             + Réserver un trajet
           </Link>
         }
@@ -55,7 +55,7 @@ export default function ComptePage() {
             <div className="sj-eyebrow">SentraJet Premium</div>
             <h1>Réservez votre trajet en toute sérénité.</h1>
             <p>Transfert AIBD, trajet interurbain ou mise à disposition avec chauffeur professionnel.</p>
-            <Link href="/compte/reserver" className="sj-btn sj-btn-primary">
+            <Link href="/reserver" className="sj-btn sj-btn-primary">
               Nouvelle réservation
             </Link>
           </div>

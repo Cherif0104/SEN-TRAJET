@@ -35,6 +35,7 @@ function formatAuthErrorMessage(message: string | null | undefined): string {
 /** URLs internes autorisées après connexion (évite open redirect). */
 function isAllowedNext(path: string): boolean {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return false;
+  const pathname = path.split("?")[0] || path;
   const allowed = [
     "/compte",
     "/chauffeur",
@@ -47,7 +48,7 @@ function isAllowedNext(path: string): boolean {
     "/avis",
     "/",
   ];
-  return allowed.some((prefix) => path === prefix || path.startsWith(prefix + "/"));
+  return allowed.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
 function hubPathForRole(role: string | undefined): string {

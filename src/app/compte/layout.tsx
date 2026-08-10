@@ -8,7 +8,7 @@ import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 
 const nav = [
   { href: "/compte", label: "Accueil", icon: LayoutDashboard },
-  { href: "/compte/reserver", label: "Réserver", icon: PlusCircle },
+  { href: "/reserver", label: "Simuler", icon: PlusCircle },
   { href: "/compte/reservations", label: "Mes réservations", icon: CalendarCheck },
   { href: "/compte/profil", label: "Mon profil", icon: User },
 ];

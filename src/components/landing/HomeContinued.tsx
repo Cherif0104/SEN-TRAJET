@@ -46,10 +46,10 @@ const steps = [
 ];
 
 const routes = [
-  { from: "Dakar", to: "AIBD" },
-  { from: "Dakar", to: "Thiès" },
-  { from: "Dakar", to: "Saly" },
-  { from: "Dakar", to: "Saint-Louis" },
+  { from: "Dakar", to: "AIBD", service: "transfert_aibd" },
+  { from: "Dakar", to: "Thiès", service: "interurbain" },
+  { from: "Dakar", to: "Saly", service: "interurbain" },
+  { from: "Dakar", to: "Saint-Louis", service: "interurbain" },
 ];
 
 export function HomeContinued() {
@@ -142,7 +142,7 @@ export function HomeContinued() {
             {routes.map((route) => (
               <Link
                 key={`${route.from}-${route.to}`}
-                href={`/reserver?depart=${encodeURIComponent(route.from)}&destination=${encodeURIComponent(route.to)}`}
+                href={`/reserver?service=${route.service}&depart=${encodeURIComponent(route.from)}&destination=${encodeURIComponent(route.to)}`}
                 className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-800 shadow-sm transition hover:border-amber-500/40 hover:bg-amber-50/50"
               >
                 <MapPin className="h-4 w-4 text-amber-700" />

@@ -36,7 +36,7 @@ export default function CompteReservationsPage() {
       <SjSectionHead
         title="Mes réservations"
         action={
-          <Link href="/compte/reserver" className="sj-btn sj-btn-primary">
+          <Link href="/reserver" className="sj-btn sj-btn-primary">
             + Réserver
           </Link>
         }
