@@ -284,19 +284,40 @@ function ReserverWizard() {
   }
 
   function setPickup(place: SelectedPlace) {
-    patch({ pickupPlace: place, pickup: place.address });
+    patch({ pickupPlace: place, pickup: place.address, distanceKm: null, distanceSource: null });
   }
 
   function setDropoff(place: SelectedPlace) {
-    patch({ dropoffPlace: place, dropoff: place.address });
+    patch({ dropoffPlace: place, dropoff: place.address, distanceKm: null, distanceSource: null });
+  }
+
+  function swapPlaces() {
+    const from = draft.pickupPlace;
+    const to = draft.dropoffPlace;
+    patch({
+      pickupPlace: to,
+      dropoffPlace: from,
+      pickup: to?.address || "",
+      dropoff: from?.address || "",
+      distanceKm: null,
+      distanceSource: null,
+    });
+  }
+
+  function mapEmbedUrl(from: SelectedPlace, to: SelectedPlace): string {
+    const pad = 0.06;
+    const minLng = Math.min(from.lng, to.lng) - pad;
+    const minLat = Math.min(from.lat, to.lat) - pad;
+    const maxLng = Math.max(from.lng, to.lng) + pad;
+    const maxLat = Math.max(from.lat, to.lat) + pad;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}&layer=mapnik&marker=${to.lat}%2C${to.lng}`;
   }
 
   function canSimulate(): boolean {
     if (!draft.pickupPlace || !draft.dropoffPlace) return false;
     if (!draft.date || !draft.time || draft.passengers < 1) return false;
-    // Forfaits AIBD / MAD peuvent avancer même si distance en cours ; sinon km requis
-    const needsKm = ["interurbain", "longue_distance"].includes(draft.serviceType);
-    if (needsKm && (!draft.distanceKm || draft.distanceKm <= 0)) return false;
+    // Prix au km réel dès que les 2 GPS sont posés
+    if (!draft.distanceKm || draft.distanceKm <= 0) return false;
     return true;
   }
 
@@ -309,8 +330,8 @@ function ReserverWizard() {
       setError("Indiquez la date et l’heure.");
       return;
     }
-    if (["interurbain", "longue_distance"].includes(draft.serviceType) && !draft.distanceKm) {
-      setError("Le kilométrage réel n’est pas encore calculé. Vérifiez les adresses sélectionnées.");
+    if (!draft.distanceKm) {
+      setError("Le kilométrage réel n’est pas encore calculé. Choisissez des suggestions d’adresses GPS.");
       return;
     }
     go("prix");
@@ -409,39 +430,46 @@ function ReserverWizard() {
     );
   }
 
+  const livePriceReady = Boolean(draft.pickupPlace && draft.dropoffPlace && draft.distanceKm);
+
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">SentraJet Premium</p>
-      <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-neutral-900">
-        {draft.step === "service" && "Réserver"}
-        {draft.step === "trajet" && "Votre trajet"}
-        {draft.step === "prix" && "Estimation"}
-        {draft.step === "compte" && "Compte"}
-        {draft.step === "confirm" && "Confirmer"}
-        {draft.step === "done" && "Demande reçue"}
-      </h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        {draft.step === "service"
-          ? "Choisissez une prestation — SentraJet s’occupe du reste."
-          : draft.step === "trajet"
-            ? "Sélectionnez départ et arrivée dans les suggestions. Distance routière réelle."
-            : draft.step === "prix"
-              ? quote.surDevis
-                ? "Cotation manuelle SentraJet."
-                : "Tarif estimatif — plus loin = plus cher."
-              : draft.step === "done"
-                ? "Nous revenons vers vous pour valider et encaisser."
-                : "Flotte SentraJet · devis clair · paiement Wave."}
-      </p>
-
-      {draft.step !== "done" ? (
-        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-neutral-200">
-          <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${progress}%` }} />
+    <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10">
+      <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(7,17,31,0.45)]">
+        <div className="bg-[#07111f] px-5 py-6 text-white sm:px-7">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f0c86b]">
+            SentraJet Premium
+          </p>
+          <h1 className="mt-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+            {draft.step === "service" && "Où allez-vous ?"}
+            {draft.step === "trajet" && "Itinéraire réel"}
+            {draft.step === "prix" && "Votre tarif"}
+            {draft.step === "compte" && "Presque prêt"}
+            {draft.step === "confirm" && "Dernière étape"}
+            {draft.step === "done" && "Demande reçue"}
+          </h1>
+          <p className="mt-2 text-sm text-white/70">
+            {draft.step === "service"
+              ? "Choisissez une prestation, puis vos adresses GPS."
+              : draft.step === "trajet"
+                ? "Recherchez départ et arrivée — le prix suit la distance routière réelle."
+                : draft.step === "prix"
+                  ? quote.surDevis
+                    ? "Cotation manuelle SentraJet."
+                    : "Basé sur vos points GPS et l’itinéraire calculé."
+                  : draft.step === "done"
+                    ? "Nous validons puis envoyons le paiement Wave."
+                    : "Flotte SentraJet · devis clair · Wave."}
+          </p>
+          {draft.step !== "done" ? (
+            <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/15">
+              <div className="h-full rounded-full bg-[#d5a64a] transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          ) : null}
         </div>
-      ) : null}
 
+        <div className="px-5 py-6 sm:px-7">
       {draft.step === "service" ? (
-        <div className="mt-6 grid gap-3">
+        <div className="grid gap-3">
           {SERVICE_CARDS.map((s) => (
             <button
               key={s.value}
@@ -459,7 +487,7 @@ function ReserverWizard() {
                 }
                 patch(next);
               }}
-              className="rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-left shadow-sm hover:border-amber-400 hover:bg-amber-50/40"
+              className="rounded-2xl border border-neutral-200 bg-neutral-50/80 px-4 py-4 text-left transition hover:border-amber-400 hover:bg-amber-50/50"
             >
               <p className="font-semibold text-neutral-900">{s.title}</p>
               <p className="mt-1 text-sm text-neutral-500">{s.hint}</p>
@@ -469,48 +497,111 @@ function ReserverWizard() {
       ) : null}
 
       {draft.step === "trajet" ? (
-        <div className="mt-6 space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-amber-800">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
+        <div className="space-y-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-amber-800">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
+            <button type="button" className="text-xs font-semibold text-neutral-500 underline" onClick={() => go("service")}>
+              Changer
+            </button>
+          </div>
 
-          <AddressAutocomplete
-            label="Point de prise en charge"
-            placeholder="Ex. Rue 10, Plateau, Dakar…"
-            value={draft.pickupPlace}
-            textValue={draft.pickup}
-            showMyLocation
-            onSelect={setPickup}
-            onClear={() => patch({ pickupPlace: null, pickup: "", distanceKm: null })}
-          />
+          <div className="relative space-y-3 rounded-3xl border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4">
+            <AddressAutocomplete
+              label="Départ"
+              placeholder="Tapez votre adresse ou quartier…"
+              value={draft.pickupPlace}
+              textValue={draft.pickup}
+              showMyLocation
+              accent="pickup"
+              onSelect={setPickup}
+              onClear={() => patch({ pickupPlace: null, pickup: "", distanceKm: null, distanceSource: null })}
+            />
 
-          <AddressAutocomplete
-            label="Destination"
-            placeholder="Ex. AIBD, Saly, Thiès centre…"
-            value={draft.dropoffPlace}
-            textValue={draft.dropoff}
-            onSelect={setDropoff}
-            onClear={() => patch({ dropoffPlace: null, dropoff: "", distanceKm: null })}
-          />
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={swapPlaces}
+                disabled={!draft.pickupPlace && !draft.dropoffPlace}
+                className="z-10 -my-1 flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-lg font-bold text-neutral-700 shadow-sm hover:border-amber-400 disabled:opacity-40"
+                title="Inverser départ / arrivée"
+                aria-label="Inverser départ et arrivée"
+              >
+                ↕
+              </button>
+            </div>
 
-          <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
-            {distanceLoading
-              ? "Calcul de l’itinéraire routier (Google Maps ou OpenStreetMap)…"
-              : distanceMsg ||
-                "Choisissez départ et arrivée dans les suggestions d’adresse. Le tarif suit le km routier réel — plus loin = plus cher."}
+            <AddressAutocomplete
+              label="Destination"
+              placeholder="Tapez la destination (AIBD, Saly, Thiès…)"
+              value={draft.dropoffPlace}
+              textValue={draft.dropoff}
+              accent="dropoff"
+              onSelect={setDropoff}
+              onClear={() => patch({ dropoffPlace: null, dropoff: "", distanceKm: null, distanceSource: null })}
+            />
+          </div>
+
+          {draft.pickupPlace && draft.dropoffPlace ? (
+            <div className="overflow-hidden rounded-2xl border border-neutral-200">
+              <iframe
+                title="Carte du trajet"
+                className="h-44 w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={mapEmbedUrl(draft.pickupPlace, draft.dropoffPlace)}
+              />
+            </div>
+          ) : null}
+
+          <div
+            className={`rounded-2xl px-4 py-3 text-sm ${
+              livePriceReady
+                ? "border border-amber-200 bg-amber-50 text-neutral-900"
+                : "border border-neutral-200 bg-neutral-50 text-neutral-600"
+            }`}
+          >
+            {distanceLoading ? (
+              <p className="font-medium">Calcul de la distance routière…</p>
+            ) : livePriceReady ? (
+              <>
+                <p className="font-semibold">
+                  {draft.distanceKm} km
+                  {draft.durationMinutes ? ` · ~${draft.durationMinutes} min` : ""}
+                  {" · "}
+                  <span className="text-amber-900">
+                    {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"}
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-neutral-600">
+                  Prix estimé selon la distance réelle
+                  {draft.distanceSource === "google_distance_matrix"
+                    ? " (Google Maps)"
+                    : draft.distanceSource === "osrm"
+                      ? " (OpenStreetMap)"
+                      : ""}
+                </p>
+              </>
+            ) : (
+              <p>
+                Recherchez et sélectionnez le départ puis la destination. Sans suggestion GPS, pas de
+                tarif.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Date</label>
-              <input type="date" className="input-base mt-1" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
+              <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Date</label>
+              <input type="date" className="input-base mt-1.5" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Heure</label>
-              <input type="time" className="input-base mt-1" value={draft.time} onChange={(e) => patch({ time: e.target.value })} />
+              <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Heure</label>
+              <input type="time" className="input-base mt-1.5" value={draft.time} onChange={(e) => patch({ time: e.target.value })} />
             </div>
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Trajet</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Type</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {PRIMARY_TRIP_MODES.map((mode) => (
                 <button
@@ -527,35 +618,35 @@ function ReserverWizard() {
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="mt-2 text-xs font-semibold text-amber-800 underline"
-              onClick={() =>
-                patch({
-                  tripMode: "attente",
-                  waitingMinutes: Math.max(draft.waitingMinutes, 60),
-                })
-              }
-            >
-              Besoin d’une attente sur place ?
-            </button>
+            {draft.tripMode !== "attente" ? (
+              <button
+                type="button"
+                className="mt-2 text-xs font-semibold text-amber-800 underline"
+                onClick={() =>
+                  patch({
+                    tripMode: "attente",
+                    waitingMinutes: Math.max(draft.waitingMinutes, 60),
+                  })
+                }
+              >
+                + Attente sur place
+              </button>
+            ) : (
+              <div className="mt-3">
+                <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                  Attente (minutes)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={30}
+                  className="input-base mt-1.5"
+                  value={draft.waitingMinutes}
+                  onChange={(e) => patch({ waitingMinutes: Number(e.target.value) || 0 })}
+                />
+              </div>
+            )}
           </div>
-
-          {draft.tripMode === "attente" ? (
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Attente (minutes)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={30}
-                className="input-base mt-1"
-                value={draft.waitingMinutes}
-                onChange={(e) => patch({ waitingMinutes: Number(e.target.value) || 0 })}
-              />
-            </div>
-          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Counter label="Passagers" value={draft.passengers} min={1} max={40} onChange={(n) => patch({ passengers: n })} />
@@ -568,34 +659,33 @@ function ReserverWizard() {
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <div className="flex gap-2">
-            <button type="button" className="rounded-xl border px-4 py-3 text-sm font-semibold" onClick={() => go("service")}>
-              Retour
-            </button>
-            <button
-              type="button"
-              disabled={!canSimulate() || distanceLoading}
-              className="flex-1 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-900 hover:bg-amber-400 disabled:opacity-50"
-              onClick={launchSimulation}
-            >
-              Calculer le tarif
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={!canSimulate() || distanceLoading}
+            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b] disabled:opacity-45"
+            onClick={launchSimulation}
+          >
+            {distanceLoading
+              ? "Calcul en cours…"
+              : livePriceReady
+                ? `Voir le détail · ${quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "devis"}`
+                : "Sélectionnez départ et arrivée"}
+          </button>
         </div>
       ) : null}
 
       {draft.step === "prix" ? (
-        <div className="mt-6 space-y-4">
-          <div className="rounded-2xl bg-[#07111f] px-5 py-6 text-white">
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-neutral-900 px-5 py-6 text-white">
             <p className="text-xs uppercase tracking-wide text-amber-300">
-              {quote.surDevis ? "Cotation manuelle requise" : "Prix estimatif"}
+              {quote.surDevis ? "Cotation manuelle" : "Tarif selon distance réelle"}
             </p>
             <p className="mt-2 font-display text-3xl font-extrabold">
               {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"}
             </p>
             <p className="mt-2 text-sm text-neutral-300">{quote.formulaApplied}</p>
           </div>
-          <div className="rounded-2xl border bg-white p-4 text-sm text-neutral-700 shadow-sm">
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
             <p>
               <span className="text-neutral-500">Départ</span> · {draft.pickup}
             </p>
@@ -603,24 +693,12 @@ function ReserverWizard() {
               <span className="text-neutral-500">Arrivée</span> · {draft.dropoff}
             </p>
             <p className="mt-1">
-              <span className="text-neutral-500">Distance réelle</span> ·{" "}
+              <span className="text-neutral-500">Distance</span> ·{" "}
               {draft.distanceKm ? `${draft.distanceKm} km` : "—"}
               {draft.durationMinutes ? ` · ~${draft.durationMinutes} min` : ""}
             </p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Source :{" "}
-              {draft.distanceSource === "google_distance_matrix"
-                ? "Google Maps"
-                : draft.distanceSource === "osrm"
-                  ? "OpenStreetMap / OSRM"
-                  : draft.distanceSource || "—"}
-            </p>
             <p className="mt-1">
               <span className="text-neutral-500">Passagers / valises</span> · {draft.passengers} / {draft.luggage}
-            </p>
-            <p className="mt-1">
-              <span className="text-neutral-500">Prestation</span> · {SERVICE_TYPE_LABELS[draft.serviceType]} ·{" "}
-              {TRIP_MODE_LABELS[draft.tripMode]}
             </p>
             {quote.breakdown.length ? (
               <ul className="mt-3 list-disc space-y-1 pl-4 text-xs text-neutral-500">
@@ -630,21 +708,25 @@ function ReserverWizard() {
               </ul>
             ) : null}
           </div>
-          <button type="button" className="w-full rounded-xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-neutral-900" onClick={validateQuote}>
-            Je valide cette estimation
+          <button
+            type="button"
+            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f]"
+            onClick={validateQuote}
+          >
+            Valider cette estimation
           </button>
           <button type="button" className="w-full rounded-xl border px-4 py-3 text-sm font-semibold" onClick={() => go("trajet")}>
-            Modifier les adresses
+            Modifier l’itinéraire
           </button>
         </div>
       ) : null}
 
       {draft.step === "compte" ? (
-        <div className="mt-6 space-y-3 rounded-2xl border bg-white p-5 shadow-sm">
-          <p className="text-sm text-neutral-600">Simulation sauvegardée — retour automatique après compte.</p>
+        <div className="space-y-3">
+          <p className="text-sm text-neutral-600">Votre simulation est sauvegardée — reprise après compte.</p>
           <Link
             href={`/inscription?role=client&next=${encodeURIComponent(resumeUrl())}`}
-            className="flex w-full items-center justify-center rounded-xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-neutral-900"
+            className="flex w-full items-center justify-center rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f]"
           >
             Créer un compte et continuer
           </Link>
@@ -661,8 +743,8 @@ function ReserverWizard() {
       ) : null}
 
       {draft.step === "confirm" ? (
-        <div className="mt-6 space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
-          <div className="rounded-xl bg-neutral-50 px-4 py-3 text-sm">
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm">
             <p className="font-semibold">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
             <p className="mt-1">{draft.pickup} → {draft.dropoff}</p>
             <p>
@@ -674,15 +756,15 @@ function ReserverWizard() {
             </p>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Téléphone</label>
-            <input className="input-base mt-1" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+221 …" />
+            <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Téléphone</label>
+            <input className="input-base mt-1.5" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+221 …" />
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button
             type="button"
             disabled={saving}
             onClick={() => void submitDemande()}
-            className="w-full rounded-xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-neutral-900 disabled:opacity-60"
+            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] disabled:opacity-60"
           >
             {saving ? "Envoi…" : "Envoyer ma demande"}
           </button>
@@ -690,7 +772,7 @@ function ReserverWizard() {
       ) : null}
 
       {draft.step === "done" && doneRef ? (
-        <div className="mt-6 space-y-4 rounded-2xl border bg-white p-6 shadow-sm">
+        <div className="space-y-4">
           <p className="text-sm text-neutral-600">
             Réf. <strong>{doneRef}</strong> — SentraJet vous recontacte pour valider le devis et le paiement.
           </p>
@@ -698,7 +780,7 @@ function ReserverWizard() {
             href={waHref}
             target="_blank"
             rel="noreferrer"
-            className="flex w-full items-center justify-center rounded-xl bg-[#25D366] px-4 py-3.5 text-sm font-bold text-white"
+            className="flex w-full items-center justify-center rounded-2xl bg-[#25D366] px-4 py-3.5 text-sm font-bold text-white"
           >
             Continuer sur WhatsApp
           </a>
@@ -724,13 +806,15 @@ function ReserverWizard() {
           </button>
         </div>
       ) : null}
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function ReserverPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50">
+    <div className="flex min-h-screen flex-col bg-[radial-gradient(ellipse_at_top,_#e8eef6_0%,_#f4f4f5_50%,_#eceff3_100%)]">
       <Header />
       <main className="flex-1">
         <Suspense fallback={<div className="py-20 text-center text-sm text-neutral-500">Chargement…</div>}>

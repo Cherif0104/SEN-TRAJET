@@ -30,7 +30,10 @@ type NominatimAddress = {
   region?: string;
 };
 
-async function reverseWithNominatim(lat: number, lng: number): Promise<string | null> {
+async function reverseWithNominatim(
+  lat: number,
+  lng: number
+): Promise<{ label: string | null; displayName: string | null }> {
   const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}&format=json&accept-language=fr`;
   const res = await fetch(url, {
     headers: {
@@ -39,14 +42,15 @@ async function reverseWithNominatim(lat: number, lng: number): Promise<string | 
     },
     next: { revalidate: 86400 },
   });
-  if (!res.ok) return null;
+  if (!res.ok) return { label: null, displayName: null };
   const data = (await res.json()) as { address?: NominatimAddress; display_name?: string };
   const a = data.address;
+  const displayName = data.display_name?.trim() || null;
   if (!a) {
-    const parts = data.display_name?.split(",").map((s) => s.trim()) ?? [];
-    return parts.slice(0, 2).join(", ") || null;
+    const parts = displayName?.split(",").map((s) => s.trim()) ?? [];
+    return { label: parts.slice(0, 2).join(", ") || null, displayName };
   }
-  return (
+  const label =
     a.city ||
     a.town ||
     a.village ||
@@ -54,9 +58,9 @@ async function reverseWithNominatim(lat: number, lng: number): Promise<string | 
     a.county ||
     a.state ||
     a.region ||
-    data.display_name?.split(",")[0]?.trim() ||
-    null
-  );
+    displayName?.split(",")[0]?.trim() ||
+    null;
+  return { label, displayName };
 }
 
 /**
@@ -76,16 +80,20 @@ export async function GET(req: NextRequest) {
     "";
 
   let label: string | null = null;
+  let displayName: string | null = null;
   if (googleKey) {
     try {
       label = await reverseWithGoogle(lat, lng, googleKey);
+      displayName = label;
     } catch {
       label = null;
     }
   }
   if (!label) {
     try {
-      label = await reverseWithNominatim(lat, lng);
+      const osm = await reverseWithNominatim(lat, lng);
+      label = osm.label;
+      displayName = osm.displayName || osm.label;
     } catch {
       label = null;
     }
@@ -93,6 +101,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     label,
+    display_name: displayName,
     fallback: label ? null : formatCoordinatesLabel(lat, lng),
   });
 }
