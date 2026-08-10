@@ -31,11 +31,10 @@ jobs:
       - name: Run production build
         run: npm run build
         env:
-          # Placeholders pour le build CI si les secrets projet ne sont pas injectés ici.
-          # Le déploiement réel est assuré par l'intégration GitHub native de Vercel.
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key' }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key' }}
+          # Placeholders CI : le déploiement réel est assuré par l'intégration GitHub native de Vercel.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-key
 
   deploy-cli:
     name: Deploy via Vercel CLI (optional)
