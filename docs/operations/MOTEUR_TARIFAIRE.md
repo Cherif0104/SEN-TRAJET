@@ -1,13 +1,14 @@
 # Moteur tarifaire SentraJet Premium
 
-## Distance
+## Distance (personnalisée, jamais simulée)
 
-1. API Google Distance Matrix (routière) si clé disponible  
-2. Cache `region_distances`  
-3. Seed Dakar → villes (Thiès 67, Mbour 90, …)  
-4. Orthodromie × 1,35  
+1. Le client choisit **prise en charge** et **arrivée** via suggestions d’adresse  
+   (Google Places si clé, sinon OpenStreetMap Photon / Nominatim).  
+2. Calcul d’itinéraire routier réel : Google Distance Matrix **ou** OSRM (coords GPS).  
+3. Cache `region_distances` uniquement après un calcul GPS réussi.  
+4. **Interdit** pour tarifer : seed villes, orthodromie, km « par défaut ».  
 
-Arrondi : **kilomètre supérieur**.
+Arrondi : **kilomètre supérieur**. Un trajet plus long = tarif plus élevé.
 
 ## Public
 
@@ -18,7 +19,7 @@ Arrondi : **kilomètre supérieur**.
 | > 45 km | 450 F/km ≤5 pax · 600 F/km ≤10 |
 | MAD | 50 000 / 10 h Dakar |
 | Cérémonie | dès 45 000 (souvent devis) |
-| Longue distance | devis (+ indication km) |
+| Longue distance | devis (+ indication km réel) |
 | Attente | 30 min offertes puis 2 500 / 30 min (hors MAD) |
 
 ## B2B
@@ -27,4 +28,4 @@ Grille AIBD / AIBD+retour + interurbain 700 F/km min 30 000, AR = ×2.
 
 ## UX simulation
 
-`/reserver` : service → trajet (pax/valises +/−, modes) → détail prix → validation → compte → demande.
+`/reserver` : service → trajet (adresses Maps + pax/valises +/−, modes) → détail prix → validation → compte → demande.

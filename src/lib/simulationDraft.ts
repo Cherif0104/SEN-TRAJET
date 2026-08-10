@@ -1,11 +1,15 @@
 import type { ServiceType, TripMode } from "@/lib/sentrajetPricing";
+import type { SelectedPlace } from "@/components/booking/AddressAutocomplete";
 
-export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v2";
+export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v3";
 
 export type SimulationDraft = {
   step: "service" | "trajet" | "prix" | "compte" | "confirm" | "done";
   serviceType: ServiceType;
   tripMode: TripMode;
+  pickupPlace: SelectedPlace | null;
+  dropoffPlace: SelectedPlace | null;
+  /** Labels texte (copie des places) pour réservation / WhatsApp */
   pickup: string;
   dropoff: string;
   date: string;
@@ -15,6 +19,7 @@ export type SimulationDraft = {
   luggage: number;
   waitingMinutes: number;
   distanceKm: number | null;
+  durationMinutes: number | null;
   distanceSource: string | null;
   phone: string;
   flightNumber: string;
@@ -28,7 +33,9 @@ export function emptyDraft(partial?: Partial<SimulationDraft>): SimulationDraft 
     step: "service",
     serviceType: "transfert_aibd",
     tripMode: "aller_simple",
-    pickup: "Dakar",
+    pickupPlace: null,
+    dropoffPlace: null,
+    pickup: "",
     dropoff: "",
     date: "",
     time: "",
@@ -37,6 +44,7 @@ export function emptyDraft(partial?: Partial<SimulationDraft>): SimulationDraft 
     luggage: 1,
     waitingMinutes: 0,
     distanceKm: null,
+    durationMinutes: null,
     distanceSource: null,
     phone: "",
     flightNumber: "",

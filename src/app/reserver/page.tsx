@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { AddressAutocomplete, type SelectedPlace } from "@/components/booking/AddressAutocomplete";
 import { useAuth } from "@/hooks/useAuth";
 import {
   SERVICE_TYPE_LABELS,
@@ -34,26 +35,26 @@ type Step = SimulationDraft["step"];
 const SERVICE_CARDS: { value: ServiceType; title: string; hint: string }[] = [
   { value: "transfert_aibd", title: "Transfert aéroport", hint: "AIBD — dès 20 000 FCFA" },
   { value: "aibd_retour", title: "Depuis l’aéroport", hint: "Récupération AIBD + retour" },
-  { value: "interurbain", title: "Voyager", hint: "Course & interurbain au km" },
+              { value: "interurbain", title: "Voyager", hint: "Course & interurbain — km GPS réel" },
   { value: "mise_a_disposition", title: "Mise à disposition", hint: "50 000 FCFA / 10 h à Dakar" },
   { value: "ceremonie", title: "Cérémonie & sortie", hint: "Dès 45 000 FCFA" },
-  { value: "longue_distance", title: "Longue distance", hint: "Devis selon distance & durée" },
+  { value: "longue_distance", title: "Longue distance", hint: "Devis sur trajet cartographié" },
   { value: "autre", title: "Autre demande", hint: "Cotation SentraJet" },
 ];
+
+const AIBD_PLACE: SelectedPlace = {
+  id: "seed:aibd",
+  label: "Aéroport AIBD",
+  address: "Aéroport Blaise Diagne (AIBD), Diass, Sénégal",
+  lat: 14.6711,
+  lng: -17.0669,
+  source: "reference",
+};
 
 const STEP_ORDER: Step[] = ["service", "trajet", "prix", "compte", "confirm", "done"];
 
 function stepIndex(step: Step): number {
   return Math.max(0, STEP_ORDER.indexOf(step));
-}
-
-function inferServiceFromPlaces(depart: string, destination: string): ServiceType {
-  const d = `${depart} ${destination}`.toLowerCase();
-  if (d.includes("aibd") || d.includes("aéroport") || d.includes("aeroport")) {
-    if (depart.toLowerCase().includes("aibd")) return "aibd_retour";
-    return "transfert_aibd";
-  }
-  return "interurbain";
 }
 
 function Counter({
@@ -75,17 +76,15 @@ function Counter({
       <div className="mt-1 flex items-center gap-3">
         <button
           type="button"
-          aria-label={`Diminuer ${label}`}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-300 bg-white text-xl font-bold text-neutral-800 hover:bg-neutral-50"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-300 bg-white text-xl font-bold"
           onClick={() => onChange(Math.max(min, value - 1))}
         >
           −
         </button>
-        <span className="min-w-[2rem] text-center text-xl font-extrabold text-neutral-900">{value}</span>
+        <span className="min-w-[2rem] text-center text-xl font-extrabold">{value}</span>
         <button
           type="button"
-          aria-label={`Augmenter ${label}`}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-300 bg-white text-xl font-bold text-neutral-800 hover:bg-neutral-50"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-300 bg-white text-xl font-bold"
           onClick={() => onChange(Math.min(max, value + 1))}
         >
           +
@@ -106,7 +105,7 @@ function ReserverWizard() {
   const [draft, setDraft] = useState<SimulationDraft>(() => emptyDraft());
   const [hydrated, setHydrated] = useState(false);
   const [distanceMsg, setDistanceMsg] = useState<string | null>(null);
-  const [geoMsg, setGeoMsg] = useState<string | null>(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [doneRef, setDoneRef] = useState<string | null>(null);
@@ -114,8 +113,8 @@ function ReserverWizard() {
   useEffect(() => {
     const resume = searchParams.get("resume") === "1";
     const stored = loadSimulationDraft();
-    const depart = searchParams.get("depart") || searchParams.get("from") || "";
     const destination = searchParams.get("destination") || searchParams.get("to") || "";
+    const depart = searchParams.get("depart") || searchParams.get("from") || "";
     const serviceParam = searchParams.get("service") as ServiceType | null;
 
     if (resume && stored) {
@@ -130,19 +129,22 @@ function ReserverWizard() {
                 : "compte"
               : stored.step,
       });
-    } else if (depart || destination || serviceParam) {
+    } else if (serviceParam || destination || depart) {
       const serviceType =
-        serviceParam && SERVICE_TYPE_LABELS[serviceParam]
-          ? serviceParam
-          : inferServiceFromPlaces(depart, destination);
-      setDraft(
-        emptyDraft({
-          step: "trajet",
-          serviceType,
-          pickup: depart || (serviceType === "aibd_retour" ? "AIBD" : "Dakar"),
-          dropoff: destination || (serviceType === "transfert_aibd" ? "AIBD" : ""),
-        })
-      );
+        serviceParam && SERVICE_TYPE_LABELS[serviceParam] ? serviceParam : "interurbain";
+      const next = emptyDraft({ step: "trajet", serviceType });
+      if (serviceType === "transfert_aibd") {
+        next.dropoffPlace = AIBD_PLACE;
+        next.dropoff = AIBD_PLACE.address;
+      }
+      if (serviceType === "aibd_retour") {
+        next.pickupPlace = AIBD_PLACE;
+        next.pickup = AIBD_PLACE.address;
+      }
+      // Les query depart/destination ouvrent juste un indice — l’utilisateur doit confirmer via suggestions
+      if (depart && !next.pickup) next.pickup = depart;
+      if (destination && !next.dropoff) next.dropoff = destination;
+      setDraft(next);
     } else if (stored && stored.step !== "done" && stored.step !== "service") {
       setDraft(stored);
     }
@@ -171,58 +173,81 @@ function ReserverWizard() {
     }
   }, [user, hydrated, draft.step, draft.validatedQuoteFcfa]);
 
+  // Distance routière réelle UNIQUEMENT si les 2 adresses ont des GPS
   useEffect(() => {
-    if (draft.serviceType === "transfert_aibd" && !draft.dropoff) {
-      setDraft((d) => ({ ...d, dropoff: "AIBD" }));
-    }
-    if (draft.serviceType === "aibd_retour" && !draft.pickup) {
-      setDraft((d) => ({ ...d, pickup: "AIBD" }));
-    }
-  }, [draft.serviceType, draft.dropoff, draft.pickup]);
-
-  // Distance routière (API → seed → fallback)
-  useEffect(() => {
-    if (["mise_a_disposition", "autre", "ceremonie"].includes(draft.serviceType) && !draft.dropoff) {
+    const from = draft.pickupPlace;
+    const to = draft.dropoffPlace;
+    if (!from || !to) {
+      setDistanceMsg(
+        from || to
+          ? "Sélectionnez départ et arrivée dans les suggestions pour un kilométrage réel."
+          : null
+      );
+      if (draft.distanceKm != null) {
+        setDraft((d) => ({ ...d, distanceKm: null, durationMinutes: null, distanceSource: null }));
+      }
       return;
     }
-    if (!draft.pickup.trim() || !draft.dropoff.trim()) return;
-    if (draft.serviceType === "transfert_aibd" || draft.serviceType === "aibd_retour") {
-      // AIBD forfait — distance informative
-    }
+
     let cancelled = false;
+    setDistanceLoading(true);
     const t = setTimeout(() => {
       void (async () => {
         try {
           const res = await fetch("/api/distance", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fromPlace: draft.pickup.trim(), toPlace: draft.dropoff.trim() }),
+            body: JSON.stringify({
+              fromPlace: from.address,
+              toPlace: to.address,
+              fromLat: from.lat,
+              fromLng: from.lng,
+              toLat: to.lat,
+              toLng: to.lng,
+            }),
           });
-          if (!res.ok) {
-            if (!cancelled) setDistanceMsg("Distance non trouvée — saisissez le km ou précisez la ville.");
+          const data = (await res.json()) as {
+            distanceKm?: number;
+            durationMinutes?: number;
+            source?: string;
+            error?: string;
+          };
+          if (cancelled) return;
+          if (!res.ok || !data.distanceKm) {
+            setDraft((d) => ({ ...d, distanceKm: null, durationMinutes: null, distanceSource: null }));
+            setDistanceMsg(data.error || "Itinéraire introuvable entre ces deux adresses.");
             return;
           }
-          const data = (await res.json()) as { distanceKm?: number; source?: string };
-          if (!cancelled && typeof data.distanceKm === "number" && data.distanceKm > 0) {
-            setDraft((d) => ({
-              ...d,
-              distanceKm: data.distanceKm!,
-              distanceSource: data.source || null,
-            }));
-            setDistanceMsg(
-              `Distance routière : ${data.distanceKm} km${data.source === "google_distance_matrix" ? "" : " (réf. secours)"}`
-            );
-          }
+          setDraft((d) => ({
+            ...d,
+            distanceKm: data.distanceKm!,
+            durationMinutes: data.durationMinutes ?? null,
+            distanceSource: data.source || null,
+          }));
+          const provider =
+            data.source === "google_distance_matrix"
+              ? "Google Maps"
+              : data.source === "osrm"
+                ? "OpenStreetMap (OSRM)"
+                : data.source;
+          setDistanceMsg(
+            `Distance routière réelle : ${data.distanceKm} km` +
+              (data.durationMinutes ? ` · ~${data.durationMinutes} min` : "") +
+              ` · ${provider}`
+          );
         } catch {
-          /* ignore */
+          if (!cancelled) setDistanceMsg("Erreur de calcul d’itinéraire.");
+        } finally {
+          if (!cancelled) setDistanceLoading(false);
         }
       })();
-    }, 350);
+    }, 250);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [draft.pickup, draft.dropoff, draft.serviceType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.pickupPlace?.id, draft.dropoffPlace?.id, draft.pickupPlace?.lat, draft.dropoffPlace?.lat]);
 
   const quote = useMemo(
     () =>
@@ -258,39 +283,34 @@ function ReserverWizard() {
     patch({ step });
   }
 
-  function useMyLocation() {
-    setGeoMsg(null);
-    if (!navigator.geolocation) {
-      setGeoMsg("Géolocalisation indisponible.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(`/api/geocode/reverse?lat=${latitude}&lng=${longitude}`);
-          if (res.ok) {
-            const data = (await res.json()) as { label?: string; display_name?: string };
-            patch({ pickup: data.label || data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` });
-          } else {
-            patch({ pickup: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` });
-          }
-          setGeoMsg("Position reprise.");
-        } catch {
-          patch({ pickup: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}` });
-        }
-      },
-      () => setGeoMsg("Impossible d’obtenir la position.")
-    );
+  function setPickup(place: SelectedPlace) {
+    patch({ pickupPlace: place, pickup: place.address });
+  }
+
+  function setDropoff(place: SelectedPlace) {
+    patch({ dropoffPlace: place, dropoff: place.address });
   }
 
   function canSimulate(): boolean {
-    return Boolean(draft.pickup.trim() && draft.dropoff.trim() && draft.date && draft.time && draft.passengers >= 1);
+    if (!draft.pickupPlace || !draft.dropoffPlace) return false;
+    if (!draft.date || !draft.time || draft.passengers < 1) return false;
+    // Forfaits AIBD / MAD peuvent avancer même si distance en cours ; sinon km requis
+    const needsKm = ["interurbain", "longue_distance"].includes(draft.serviceType);
+    if (needsKm && (!draft.distanceKm || draft.distanceKm <= 0)) return false;
+    return true;
   }
 
   function launchSimulation() {
-    if (!canSimulate()) {
-      setError("Indiquez départ, destination, date et heure.");
+    if (!draft.pickupPlace || !draft.dropoffPlace) {
+      setError("Choisissez le départ et l’arrivée dans les suggestions d’adresses (Google / OpenStreetMap).");
+      return;
+    }
+    if (!draft.date || !draft.time) {
+      setError("Indiquez la date et l’heure.");
+      return;
+    }
+    if (["interurbain", "longue_distance"].includes(draft.serviceType) && !draft.distanceKm) {
+      setError("Le kilométrage réel n’est pas encore calculé. Vérifiez les adresses sélectionnées.");
       return;
     }
     go("prix");
@@ -323,14 +343,16 @@ function ReserverWizard() {
         draft.notes.trim(),
         `Mode: ${TRIP_MODE_LABELS[draft.tripMode]}`,
         `Valises: ${draft.luggage}`,
-        draft.waitingMinutes ? `Attente: ${draft.waitingMinutes} min` : "",
+        draft.distanceKm ? `Km réel: ${draft.distanceKm} (${draft.distanceSource || "route"})` : "",
+        draft.pickupPlace ? `Pickup GPS: ${draft.pickupPlace.lat},${draft.pickupPlace.lng}` : "",
+        draft.dropoffPlace ? `Dropoff GPS: ${draft.dropoffPlace.lat},${draft.dropoffPlace.lng}` : "",
         quote.formulaApplied,
       ].filter(Boolean);
 
       const booking = await createPlatformBooking({
         clientId,
-        pickup: draft.pickup.trim(),
-        dropoff: draft.dropoff.trim(),
+        pickup: draft.pickup,
+        dropoff: draft.dropoff,
         pickupTime,
         serviceType: draft.serviceType,
         passengers: draft.passengers,
@@ -362,8 +384,7 @@ function ReserverWizard() {
         }).catch(() => null);
       }
 
-      const ref = booking.reference || booking.id.slice(0, 8);
-      setDoneRef(ref);
+      setDoneRef(booking.reference || booking.id.slice(0, 8));
       clearSimulationDraft();
       patch({ step: "done" });
     } catch (err) {
@@ -376,14 +397,14 @@ function ReserverWizard() {
   const progress = Math.min(100, ((stepIndex(draft.step) + 1) / 5) * 100);
   const waHref = doneRef
     ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
-        `Bonjour SentraJet Premium, ma réservation ${doneRef} — ${draft.pickup} → ${draft.dropoff} le ${draft.date} à ${draft.time}.`
+        `Bonjour SentraJet Premium, réservation ${doneRef} — ${draft.pickup} → ${draft.dropoff} le ${draft.date} à ${draft.time}.`
       )}`
     : "#";
 
   if (!hydrated) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-neutral-500">
-        Préparation de la simulation…
+        Préparation…
       </div>
     );
   }
@@ -393,18 +414,20 @@ function ReserverWizard() {
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Simulation SentraJet</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-neutral-900">
         {draft.step === "service" && "Que souhaitez-vous faire ?"}
-        {draft.step === "trajet" && "Votre trajet"}
+        {draft.step === "trajet" && "Adresses & horaires"}
         {draft.step === "prix" && "Votre estimation"}
         {draft.step === "compte" && "Presque terminé"}
         {draft.step === "confirm" && "Confirmez"}
         {draft.step === "done" && "Demande bien reçue"}
       </h1>
       <p className="mt-2 text-sm text-neutral-600">
-        {draft.step === "prix"
-          ? quote.surDevis
-            ? "Cotation manuelle requise — indication ci-dessous."
-            : "Prix estimatif — SentraJet confirme après étude."
-          : "Simple, rapide. SentraJet affecte le véhicule."}
+        {draft.step === "trajet"
+          ? "Choisissez départ et arrivée dans les suggestions (Google Maps / OpenStreetMap). Le km est calculé sur l’itinéraire réel."
+          : draft.step === "prix"
+            ? quote.surDevis
+              ? "Cotation manuelle requise."
+              : "Prix estimatif basé sur la distance routière réelle."
+            : "Simple et précis — comme une app VTC."}
       </p>
 
       {draft.step !== "done" ? (
@@ -420,22 +443,23 @@ function ReserverWizard() {
               key={s.value}
               type="button"
               onClick={() => {
-                const next: Partial<SimulationDraft> = { serviceType: s.value, step: "trajet" };
+                const next: Partial<SimulationDraft> = {
+                  serviceType: s.value,
+                  step: "trajet",
+                  distanceKm: null,
+                  distanceSource: null,
+                };
                 if (s.value === "transfert_aibd") {
-                  next.pickup = draft.pickup || "Dakar";
-                  next.dropoff = "AIBD";
+                  next.dropoffPlace = AIBD_PLACE;
+                  next.dropoff = AIBD_PLACE.address;
                 }
                 if (s.value === "aibd_retour") {
-                  next.pickup = "AIBD";
-                  next.dropoff = draft.dropoff || "Dakar";
-                }
-                if (s.value === "mise_a_disposition") {
-                  next.pickup = draft.pickup || "Dakar";
-                  next.dropoff = draft.dropoff || "Dakar";
+                  next.pickupPlace = AIBD_PLACE;
+                  next.pickup = AIBD_PLACE.address;
                 }
                 patch(next);
               }}
-              className="rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-left shadow-sm transition hover:border-amber-400 hover:bg-amber-50/40"
+              className="rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-left shadow-sm hover:border-amber-400 hover:bg-amber-50/40"
             >
               <p className="font-semibold text-neutral-900">{s.title}</p>
               <p className="mt-1 text-sm text-neutral-500">{s.hint}</p>
@@ -448,29 +472,30 @@ function ReserverWizard() {
         <div className="mt-6 space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-amber-800">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Départ</label>
-              <input
-                className="input-base mt-1"
-                value={draft.pickup}
-                onChange={(e) => patch({ pickup: e.target.value })}
-                placeholder="Dakar"
-              />
-              <button type="button" onClick={useMyLocation} className="mt-1 text-xs font-semibold text-amber-800">
-                Ma position
-              </button>
-              {geoMsg ? <p className="text-xs text-neutral-500">{geoMsg}</p> : null}
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Destination</label>
-              <input
-                className="input-base mt-1"
-                value={draft.dropoff}
-                onChange={(e) => patch({ dropoff: e.target.value })}
-                placeholder="Thiès, Saly, AIBD…"
-              />
-            </div>
+          <AddressAutocomplete
+            label="Point de prise en charge"
+            placeholder="Ex. Rue 10, Plateau, Dakar…"
+            value={draft.pickupPlace}
+            textValue={draft.pickup}
+            showMyLocation
+            onSelect={setPickup}
+            onClear={() => patch({ pickupPlace: null, pickup: "", distanceKm: null })}
+          />
+
+          <AddressAutocomplete
+            label="Destination"
+            placeholder="Ex. AIBD, Saly, Thiès centre…"
+            value={draft.dropoffPlace}
+            textValue={draft.dropoff}
+            onSelect={setDropoff}
+            onClear={() => patch({ dropoffPlace: null, dropoff: "", distanceKm: null })}
+          />
+
+          <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+            {distanceLoading
+              ? "Calcul de l’itinéraire routier (Google Maps ou OpenStreetMap)…"
+              : distanceMsg ||
+                "Choisissez départ et arrivée dans les suggestions d’adresse. Le tarif suit le km routier réel — plus loin = plus cher."}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -479,7 +504,7 @@ function ReserverWizard() {
               <input type="date" className="input-base mt-1" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Heure de départ</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Heure</label>
               <input type="time" className="input-base mt-1" value={draft.time} onChange={(e) => patch({ time: e.target.value })} />
             </div>
           </div>
@@ -509,22 +534,10 @@ function ReserverWizard() {
             </div>
           </div>
 
-          {(draft.tripMode === "aller_retour" || draft.tripMode === "retour_differe") && (
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Heure de retour</label>
-              <input
-                type="time"
-                className="input-base mt-1"
-                value={draft.returnTime}
-                onChange={(e) => patch({ returnTime: e.target.value })}
-              />
-            </div>
-          )}
-
-          {draft.tripMode === "attente" && (
+          {draft.tripMode === "attente" ? (
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Attente sur place (minutes)
+                Attente (minutes)
               </label>
               <input
                 type="number"
@@ -534,53 +547,28 @@ function ReserverWizard() {
                 value={draft.waitingMinutes}
                 onChange={(e) => patch({ waitingMinutes: Number(e.target.value) || 0 })}
               />
-              <p className="mt-1 text-xs text-neutral-500">30 min offertes, puis 2 500 FCFA / 30 min (hors MAD).</p>
             </div>
-          )}
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Counter
-              label="Passagers"
-              value={draft.passengers}
-              min={1}
-              max={40}
-              onChange={(n) => patch({ passengers: n })}
-            />
-            <Counter
-              label="Valises"
-              value={draft.luggage}
-              min={0}
-              max={30}
-              onChange={(n) => patch({ luggage: n })}
-            />
+            <Counter label="Passagers" value={draft.passengers} min={1} max={40} onChange={(n) => patch({ passengers: n })} />
+            <Counter label="Valises" value={draft.luggage} min={0} max={30} onChange={(n) => patch({ luggage: n })} />
           </div>
 
-          {distanceMsg ? <p className="text-xs text-neutral-500">{distanceMsg}</p> : null}
           {quote.vehicleSuggestion.alert ? (
             <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">{quote.vehicleSuggestion.alert}</p>
           ) : null}
 
-          {(draft.serviceType === "transfert_aibd" || draft.serviceType === "aibd_retour") && (
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">N° de vol (optionnel)</label>
-              <input
-                className="input-base mt-1"
-                value={draft.flightNumber}
-                onChange={(e) => patch({ flightNumber: e.target.value })}
-                placeholder="AT555"
-              />
-            </div>
-          )}
-
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <div className="flex gap-2 pt-1">
-            <button type="button" className="rounded-xl border border-neutral-300 px-4 py-3 text-sm font-semibold" onClick={() => go("service")}>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-xl border px-4 py-3 text-sm font-semibold" onClick={() => go("service")}>
               Retour
             </button>
             <button
               type="button"
-              className="flex-1 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-900 hover:bg-amber-400"
+              disabled={!canSimulate() || distanceLoading}
+              className="flex-1 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-900 hover:bg-amber-400 disabled:opacity-50"
               onClick={launchSimulation}
             >
               Calculer le tarif
@@ -599,42 +587,34 @@ function ReserverWizard() {
               {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"}
             </p>
             <p className="mt-2 text-sm text-neutral-300">{quote.formulaApplied}</p>
-            {!user && !quote.surDevis && quote.amountFcfa > 0 ? (
-              <p className="mt-2 text-sm text-amber-200">−{discountPercent}% avec un compte</p>
-            ) : null}
           </div>
-
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700 shadow-sm">
+          <div className="rounded-2xl border bg-white p-4 text-sm text-neutral-700 shadow-sm">
             <p>
               <span className="text-neutral-500">Départ</span> · {draft.pickup}
             </p>
             <p className="mt-1">
-              <span className="text-neutral-500">Destination</span> · {draft.dropoff}
+              <span className="text-neutral-500">Arrivée</span> · {draft.dropoff}
             </p>
             <p className="mt-1">
-              <span className="text-neutral-500">Distance</span> ·{" "}
-              {draft.distanceKm ? `${draft.distanceKm} km` : "—"}{" "}
-              {draft.distanceSource && draft.distanceSource !== "google_distance_matrix"
-                ? "(réf. secours)"
-                : ""}
+              <span className="text-neutral-500">Distance réelle</span> ·{" "}
+              {draft.distanceKm ? `${draft.distanceKm} km` : "—"}
+              {draft.durationMinutes ? ` · ~${draft.durationMinutes} min` : ""}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              Source :{" "}
+              {draft.distanceSource === "google_distance_matrix"
+                ? "Google Maps"
+                : draft.distanceSource === "osrm"
+                  ? "OpenStreetMap / OSRM"
+                  : draft.distanceSource || "—"}
             </p>
             <p className="mt-1">
-              <span className="text-neutral-500">Passagers / valises</span> · {draft.passengers} /{" "}
-              {draft.luggage}
+              <span className="text-neutral-500">Passagers / valises</span> · {draft.passengers} / {draft.luggage}
             </p>
             <p className="mt-1">
               <span className="text-neutral-500">Prestation</span> · {SERVICE_TYPE_LABELS[draft.serviceType]} ·{" "}
               {TRIP_MODE_LABELS[draft.tripMode]}
             </p>
-            <p className="mt-1">
-              <span className="text-neutral-500">Véhicule suggéré</span> · {quote.vehicleSuggestion.label} (
-              {quote.vehicleSuggestion.luggageHint})
-            </p>
-            {quote.waitingFeeFcfa > 0 ? (
-              <p className="mt-1">
-                <span className="text-neutral-500">Attente</span> · {formatFcfa(quote.waitingFeeFcfa)}
-              </p>
-            ) : null}
             {quote.breakdown.length ? (
               <ul className="mt-3 list-disc space-y-1 pl-4 text-xs text-neutral-500">
                 {quote.breakdown.map((line) => (
@@ -643,32 +623,18 @@ function ReserverWizard() {
               </ul>
             ) : null}
           </div>
-
-          <button
-            type="button"
-            className="w-full rounded-xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-neutral-900 hover:bg-amber-400"
-            onClick={validateQuote}
-          >
+          <button type="button" className="w-full rounded-xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-neutral-900" onClick={validateQuote}>
             Je valide cette estimation
           </button>
-          <button
-            type="button"
-            className="w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm font-semibold"
-            onClick={() => go("trajet")}
-          >
-            Modifier
+          <button type="button" className="w-full rounded-xl border px-4 py-3 text-sm font-semibold" onClick={() => go("trajet")}>
+            Modifier les adresses
           </button>
         </div>
       ) : null}
 
       {draft.step === "compte" ? (
-        <div className="mt-6 space-y-3 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-neutral-600">
-            Simulation sauvegardée. Après compte, vous revenez ici automatiquement.
-          </p>
-          <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"} · −{discountPercent}% avec compte
-          </div>
+        <div className="mt-6 space-y-3 rounded-2xl border bg-white p-5 shadow-sm">
+          <p className="text-sm text-neutral-600">Simulation sauvegardée — retour automatique après compte.</p>
           <Link
             href={`/inscription?role=client&next=${encodeURIComponent(resumeUrl())}`}
             className="flex w-full items-center justify-center rounded-xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-neutral-900"
@@ -677,25 +643,24 @@ function ReserverWizard() {
           </Link>
           <Link
             href={`/connexion?next=${encodeURIComponent(resumeUrl())}`}
-            className="flex w-full items-center justify-center rounded-xl border border-neutral-300 px-4 py-3 text-sm font-semibold"
+            className="flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold"
           >
             J’ai déjà un compte
           </Link>
-          <button type="button" className="w-full text-sm font-semibold text-neutral-600 underline" onClick={() => go("confirm")}>
+          <button type="button" className="w-full text-sm font-semibold underline" onClick={() => go("confirm")}>
             Continuer sans compte
           </button>
         </div>
       ) : null}
 
       {draft.step === "confirm" ? (
-        <div className="mt-6 space-y-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="mt-6 space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="rounded-xl bg-neutral-50 px-4 py-3 text-sm">
             <p className="font-semibold">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
-            <p className="mt-1">
-              {draft.pickup} → {draft.dropoff}
-            </p>
+            <p className="mt-1">{draft.pickup} → {draft.dropoff}</p>
             <p>
-              {draft.date} {draft.time} · {draft.passengers} pers. · {draft.luggage} valise(s)
+              {draft.date} {draft.time}
+              {draft.distanceKm ? ` · ${draft.distanceKm} km` : ""}
             </p>
             <p className="mt-2 font-bold text-amber-800">
               {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"}
@@ -703,20 +668,7 @@ function ReserverWizard() {
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Téléphone</label>
-            <input
-              className="input-base mt-1"
-              value={draft.phone}
-              onChange={(e) => patch({ phone: e.target.value })}
-              placeholder="+221 …"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Note</label>
-            <textarea
-              className="input-base mt-1 min-h-[72px]"
-              value={draft.notes}
-              onChange={(e) => patch({ notes: e.target.value })}
-            />
+            <input className="input-base mt-1" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+221 …" />
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button
@@ -731,19 +683,16 @@ function ReserverWizard() {
       ) : null}
 
       {draft.step === "done" && doneRef ? (
-        <div className="mt-6 space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="mt-6 space-y-4 rounded-2xl border bg-white p-6 shadow-sm">
           <p className="text-sm text-neutral-600">
-            Réf. <strong>{doneRef}</strong> — SentraJet étudie et vous envoie le devis.
+            Réf. <strong>{doneRef}</strong>
           </p>
           <a href={waHref} target="_blank" rel="noreferrer" className="flex w-full items-center justify-center rounded-xl bg-[#25D366] px-4 py-3.5 text-sm font-bold text-white">
             WhatsApp
           </a>
           <a href={waveUrl} target="_blank" rel="noreferrer" className="flex w-full items-center justify-center rounded-xl bg-neutral-900 px-4 py-3 text-sm font-bold text-white">
-            Wave (après devis)
+            Wave
           </a>
-          <Link href={user ? "/compte/reservations" : "/inscription?role=client"} className="flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold">
-            {user ? "Mes réservations" : "Créer un compte"}
-          </Link>
           <button
             type="button"
             className="w-full text-sm font-semibold text-amber-800"
@@ -760,10 +709,8 @@ function ReserverWizard() {
       ) : null}
 
       <p className="mt-8 text-center text-xs text-neutral-400">
-        Partenaire B2B ?{" "}
-        <Link href="/partenaire/reserver" className="font-semibold text-amber-800 underline">
-          Tarifs négociés
-        </Link>
+        Astuce : ajoutez <code className="text-neutral-500">GOOGLE_MAPS_API_KEY</code> pour Google Places + Distance
+        Matrix ; sinon OpenStreetMap (Photon + OSRM) est utilisé.
       </p>
     </div>
   );
@@ -774,7 +721,7 @@ export default function ReserverPage() {
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
       <main className="flex-1">
-        <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm text-neutral-500">Chargement…</div>}>
+        <Suspense fallback={<div className="py-20 text-center text-sm text-neutral-500">Chargement…</div>}>
           <ReserverWizard />
         </Suspense>
       </main>
