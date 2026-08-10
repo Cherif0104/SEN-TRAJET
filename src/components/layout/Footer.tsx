@@ -2,13 +2,12 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 
 const footerLinks = [
-  { label: "Comment ça marche", href: "/comment-ca-marche" },
   { label: "Réserver", href: "/reserver" },
-  { label: "FAQ", href: "/faq" },
+  { label: "Aide", href: "/faq" },
   { label: "CGU", href: "/cgu" },
   { label: "Confidentialité", href: "/confidentialite" },
-  { label: "Nous contacter", href: "/contact" },
-  { label: "Comptes démo", href: "/comptes-test" },
+  { label: "Contact", href: "/contact" },
+  { label: "Partenaire", href: "/partenaire" },
 ];
 
 export function Footer() {

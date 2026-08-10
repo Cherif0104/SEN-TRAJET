@@ -32,15 +32,15 @@ import {
 
 type Step = SimulationDraft["step"];
 
+/** Offre publique courte — le reste passe par « Autre / devis ». */
 const SERVICE_CARDS: { value: ServiceType; title: string; hint: string }[] = [
   { value: "transfert_aibd", title: "Transfert aéroport", hint: "AIBD — dès 20 000 FCFA" },
-  { value: "aibd_retour", title: "Depuis l’aéroport", hint: "Récupération AIBD + retour" },
-              { value: "interurbain", title: "Voyager", hint: "Course & interurbain — km GPS réel" },
+  { value: "interurbain", title: "Voyager", hint: "Course & interurbain — km réel" },
   { value: "mise_a_disposition", title: "Mise à disposition", hint: "50 000 FCFA / 10 h à Dakar" },
-  { value: "ceremonie", title: "Cérémonie & sortie", hint: "Dès 45 000 FCFA" },
-  { value: "longue_distance", title: "Longue distance", hint: "Devis sur trajet cartographié" },
-  { value: "autre", title: "Autre demande", hint: "Cotation SentraJet" },
+  { value: "autre", title: "Autre / devis", hint: "Cérémonie, longue distance, besoin spécifique" },
 ];
+
+const PRIMARY_TRIP_MODES: TripMode[] = ["aller_simple", "aller_retour"];
 
 const AIBD_PLACE: SelectedPlace = {
   id: "seed:aibd",
@@ -411,23 +411,27 @@ function ReserverWizard() {
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Simulation SentraJet</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">SentraJet Premium</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-neutral-900">
-        {draft.step === "service" && "Que souhaitez-vous faire ?"}
-        {draft.step === "trajet" && "Adresses & horaires"}
-        {draft.step === "prix" && "Votre estimation"}
-        {draft.step === "compte" && "Presque terminé"}
-        {draft.step === "confirm" && "Confirmez"}
-        {draft.step === "done" && "Demande bien reçue"}
+        {draft.step === "service" && "Réserver"}
+        {draft.step === "trajet" && "Votre trajet"}
+        {draft.step === "prix" && "Estimation"}
+        {draft.step === "compte" && "Compte"}
+        {draft.step === "confirm" && "Confirmer"}
+        {draft.step === "done" && "Demande reçue"}
       </h1>
       <p className="mt-2 text-sm text-neutral-600">
-        {draft.step === "trajet"
-          ? "Choisissez départ et arrivée dans les suggestions (Google Maps / OpenStreetMap). Le km est calculé sur l’itinéraire réel."
-          : draft.step === "prix"
-            ? quote.surDevis
-              ? "Cotation manuelle requise."
-              : "Prix estimatif basé sur la distance routière réelle."
-            : "Simple et précis — comme une app VTC."}
+        {draft.step === "service"
+          ? "Choisissez une prestation — SentraJet s’occupe du reste."
+          : draft.step === "trajet"
+            ? "Sélectionnez départ et arrivée dans les suggestions. Distance routière réelle."
+            : draft.step === "prix"
+              ? quote.surDevis
+                ? "Cotation manuelle SentraJet."
+                : "Tarif estimatif — plus loin = plus cher."
+              : draft.step === "done"
+                ? "Nous revenons vers vous pour valider et encaisser."
+                : "Flotte SentraJet · devis clair · paiement Wave."}
       </p>
 
       {draft.step !== "done" ? (
@@ -452,10 +456,6 @@ function ReserverWizard() {
                 if (s.value === "transfert_aibd") {
                   next.dropoffPlace = AIBD_PLACE;
                   next.dropoff = AIBD_PLACE.address;
-                }
-                if (s.value === "aibd_retour") {
-                  next.pickupPlace = AIBD_PLACE;
-                  next.pickup = AIBD_PLACE.address;
                 }
                 patch(next);
               }}
@@ -510,18 +510,13 @@ function ReserverWizard() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Type de trajet</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Trajet</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {(Object.keys(TRIP_MODE_LABELS) as TripMode[]).map((mode) => (
+              {PRIMARY_TRIP_MODES.map((mode) => (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() =>
-                    patch({
-                      tripMode: mode,
-                      waitingMinutes: mode === "attente" ? Math.max(draft.waitingMinutes, 60) : draft.waitingMinutes,
-                    })
-                  }
+                  onClick={() => patch({ tripMode: mode, waitingMinutes: 0 })}
                   className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold ${
                     draft.tripMode === mode
                       ? "border-amber-500 bg-amber-50 text-neutral-900"
@@ -532,6 +527,18 @@ function ReserverWizard() {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="mt-2 text-xs font-semibold text-amber-800 underline"
+              onClick={() =>
+                patch({
+                  tripMode: "attente",
+                  waitingMinutes: Math.max(draft.waitingMinutes, 60),
+                })
+              }
+            >
+              Besoin d’une attente sur place ?
+            </button>
           </div>
 
           {draft.tripMode === "attente" ? (
@@ -685,13 +692,23 @@ function ReserverWizard() {
       {draft.step === "done" && doneRef ? (
         <div className="mt-6 space-y-4 rounded-2xl border bg-white p-6 shadow-sm">
           <p className="text-sm text-neutral-600">
-            Réf. <strong>{doneRef}</strong>
+            Réf. <strong>{doneRef}</strong> — SentraJet vous recontacte pour valider le devis et le paiement.
           </p>
-          <a href={waHref} target="_blank" rel="noreferrer" className="flex w-full items-center justify-center rounded-xl bg-[#25D366] px-4 py-3.5 text-sm font-bold text-white">
-            WhatsApp
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center rounded-xl bg-[#25D366] px-4 py-3.5 text-sm font-bold text-white"
+          >
+            Continuer sur WhatsApp
           </a>
-          <a href={waveUrl} target="_blank" rel="noreferrer" className="flex w-full items-center justify-center rounded-xl bg-neutral-900 px-4 py-3 text-sm font-bold text-white">
-            Wave
+          <a
+            href={waveUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-center text-sm font-semibold text-neutral-600 underline"
+          >
+            Payer via Wave (si devis déjà validé)
           </a>
           <button
             type="button"
@@ -703,15 +720,10 @@ function ReserverWizard() {
               router.replace("/reserver");
             }}
           >
-            Nouvelle simulation
+            Nouvelle réservation
           </button>
         </div>
       ) : null}
-
-      <p className="mt-8 text-center text-xs text-neutral-400">
-        Astuce : ajoutez <code className="text-neutral-500">GOOGLE_MAPS_API_KEY</code> pour Google Places + Distance
-        Matrix ; sinon OpenStreetMap (Photon + OSRM) est utilisé.
-      </p>
     </div>
   );
 }

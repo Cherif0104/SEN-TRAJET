@@ -34,8 +34,8 @@ export function HeroSection() {
           SentraJet Premium
         </h1>
         <p className="mt-4 max-w-xl text-base text-white/90 drop-shadow sm:text-lg">
-          Vous demandez. Nous organisons. Transfert aéroport, voyage ou mise à disposition — une
-          prestation SentraJet, pas un matching chauffeur.
+          Transfert aéroport, voyage ou mise à disposition — flotte SentraJet, devis clair, véhicule
+          assigné le jour J.
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -43,7 +43,7 @@ export function HeroSection() {
             href="/reserver"
             className="inline-flex items-center justify-center rounded-xl bg-[#d5a64a] px-6 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"
           >
-            Que souhaitez-vous faire ?
+            Réserver
           </Link>
           <a
             href="https://wa.me/221788324069"
@@ -51,7 +51,7 @@ export function HeroSection() {
             rel="noreferrer"
             className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
           >
-            WhatsApp +221 78 832 40 69
+            WhatsApp
           </a>
         </div>
       </div>

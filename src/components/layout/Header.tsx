@@ -64,19 +64,13 @@ export function Header() {
         <Logo />
 
         <nav className="hidden md:flex md:items-center md:gap-8">
-          <Link href="/reserver" className="text-sm font-semibold text-neutral-900 hover:text-amber-700">
-            Réserver
-          </Link>
-          <Link href="/cgu" className="text-sm font-medium text-neutral-600 hover:text-amber-700">
-            Conditions
-          </Link>
           {isLoggedIn ? (
             <Link href={hubHref} className="text-sm font-semibold text-neutral-900 hover:text-amber-700">
               {hubLabel}
             </Link>
           ) : (
-            <Link href="/partenaire" className="text-sm font-medium text-neutral-600 hover:text-amber-700">
-              Espace partenaire
+            <Link href="/faq" className="text-sm font-medium text-neutral-600 hover:text-amber-700">
+              Aide
             </Link>
           )}
         </nav>
@@ -140,8 +134,8 @@ export function Header() {
                 {hubLabel}
               </Link>
             ) : (
-              <Link href="/inscription" className="rounded-lg px-3 py-2 text-neutral-700" onClick={() => setMenuOpen(false)}>
-                Créer un compte (−10%)
+              <Link href="/faq" className="rounded-lg px-3 py-2 text-neutral-700" onClick={() => setMenuOpen(false)}>
+                Aide
               </Link>
             )}
             <div className="mt-3 flex flex-col gap-2 border-t border-neutral-200 pt-3">
