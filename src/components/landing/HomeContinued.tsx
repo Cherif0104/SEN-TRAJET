@@ -23,7 +23,7 @@ const pillars = [
   {
     icon: Clock,
     title: "Mise à disposition",
-    text: "Matinée à 50 000 F jusqu’à 100 km, puis au km. SentraJet assigne le véhicule.",
+    text: "Matinée à 50 000 F jusqu’à 100 km, puis 700 F/km. SentraJet assigne le véhicule.",
   },
 ];
 

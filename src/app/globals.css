@@ -4,13 +4,15 @@
 
 @layer base {
   :root {
-    /* Charte — émeraude (CTA) + bleu ardoise pour le texte fort */
-    --color-primary: #059669;
-    --color-primary-light: #10b981;
-    --color-primary-dark: #047857;
-    --color-success: #10b981;
-    --color-warning: #F59E0B;
-    --color-error: #EF4444;
+    /* Charte SentraJet Premium — noir / or (plus d’émeraude marketplace) */
+    --color-primary: #d5a64a;
+    --color-primary-light: #f0c86b;
+    --color-primary-dark: #b8892f;
+    --color-success: #36c98f;
+    --color-warning: #f2b84b;
+    --color-error: #ef6b73;
+    --color-ink: #07111f;
+    --color-panel: #0d1a2b;
     /* Espacement - 8px grid */
     --space-xs: 4px;
     --space-sm: 8px;
@@ -60,7 +62,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-primary text-white shadow-[0px_2px_4px_rgba(37,99,235,0.2)] hover:opacity-95 active:scale-[0.98];
+    @apply btn bg-primary text-neutral-900 shadow-[0px_2px_8px_rgba(213,166,74,0.35)] hover:opacity-95 active:scale-[0.98];
   }
 
   .btn-secondary {

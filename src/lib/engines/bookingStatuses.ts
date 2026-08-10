@@ -2,7 +2,12 @@
 
 export const BOOKING_STATUSES = [
   "brouillon",
+  "demande_recue",
   "demande",
+  "info_demandee",
+  "devis_envoye",
+  "devis_accepte",
+  "devis_refuse",
   "en_attente_de_confirmation",
   "en_attente_de_paiement",
   "payee",
@@ -26,7 +31,12 @@ export type BookingStatusCode = (typeof BOOKING_STATUSES)[number];
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatusCode, string> = {
   brouillon: "Brouillon",
-  demande: "Demande",
+  demande_recue: "Demande reçue",
+  demande: "Demande reçue",
+  info_demandee: "Informations demandées",
+  devis_envoye: "Devis envoyé",
+  devis_accepte: "Devis accepté",
+  devis_refuse: "Devis refusé",
   en_attente_de_confirmation: "En attente de confirmation",
   en_attente_de_paiement: "En attente de paiement",
   payee: "Payée",
@@ -52,6 +62,7 @@ export function normalizeBookingStatus(status: string): string {
     pending_confirmation: "en_attente_de_confirmation",
     a_assigner: "chauffeur_a_assigner",
     en_attente: "en_attente_de_confirmation",
+    nouvelle: "demande_recue",
     confirmee: "confirmee",
     en_cours: "en_cours",
     terminee: "terminee",

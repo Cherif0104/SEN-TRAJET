@@ -286,7 +286,7 @@ export async function createPlatformBooking(input: {
       pricing_segment: input.pricingSegment,
       distance_km: input.distanceKm ?? null,
       notes: input.notes ?? null,
-      status: "en_attente_de_paiement",
+      status: "demande_recue",
       vehicles_needed: input.vehiclesNeeded ?? 1,
       is_round_trip: input.isRoundTrip ?? false,
       phone: input.phone ?? null,
@@ -309,8 +309,8 @@ export async function createPlatformBooking(input: {
   await supabase.from("booking_status_history").insert({
     booking_id: booking.id,
     from_status: null,
-    to_status: "en_attente_de_paiement",
-    note: "Demande créée — en attente de paiement",
+    to_status: "demande_recue",
+    note: "Demande reçue — en attente de traitement SentraJet",
   });
 
   return booking;
@@ -320,9 +320,47 @@ export async function listIncompleteBookings(): Promise<PlatformBooking[]> {
   const all = await listPlatformBookings();
   return all
     .filter((b) =>
-      ["en_attente_de_paiement", "demande", "nouvelle", "brouillon", "annulee_client"].includes(b.status)
+      [
+        "demande_recue",
+        "demande",
+        "info_demandee",
+        "devis_envoye",
+        "devis_accepte",
+        "en_attente_de_paiement",
+        "nouvelle",
+        "brouillon",
+      ].includes(b.status)
     )
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export async function updateBookingWorkflowStatus(params: {
+  bookingId: string;
+  toStatus: string;
+  note?: string;
+  quoteAmountFcfa?: number | null;
+}): Promise<void> {
+  const { data: previous } = await supabase
+    .from("bookings")
+    .select("status")
+    .eq("id", params.bookingId)
+    .maybeSingle();
+
+  const patch: Record<string, unknown> = { status: params.toStatus };
+  if (params.quoteAmountFcfa != null) {
+    patch.estimated_price = params.quoteAmountFcfa;
+    patch.final_price = params.quoteAmountFcfa;
+  }
+
+  const { error } = await supabase.from("bookings").update(patch).eq("id", params.bookingId);
+  if (error) throw error;
+
+  await supabase.from("booking_status_history").insert({
+    booking_id: params.bookingId,
+    from_status: previous?.status ?? null,
+    to_status: params.toStatus,
+    note: params.note ?? null,
+  });
 }
 
 export async function assignDispatch(params: {

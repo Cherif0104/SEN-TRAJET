@@ -42,11 +42,7 @@ function isAllowedNext(path: string): boolean {
     "/proprietaire",
     "/admin",
     "/dashboard",
-    "/location",
-    "/recherche",
-    "/demande",
-    "/trajet",
-    "/reservation",
+    "/reserver",
     "/messages",
     "/avis",
     "/",
@@ -212,7 +208,7 @@ function ConnexionPageContent() {
   return (
     <AuthPageScaffold
       title="Connexion"
-      subtitle="Réservez, publiez un trajet ou suivez vos courses depuis un seul espace."
+      subtitle="Connectez-vous pour suivre vos réservations SentraJet Premium."
     >
         <div className="mt-8 flex rounded-xl border border-slate-200/90 bg-slate-100/80 p-1">
           <button

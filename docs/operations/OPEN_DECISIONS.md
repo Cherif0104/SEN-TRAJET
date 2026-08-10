@@ -14,6 +14,8 @@ Points à trancher avant figement juridique / paramétrage production.
 | D-08 | Relève juridique CGV/CGP | Avocat / conseil avant publication site. | Ouvert |
 | D-09 | Buffer anti-conflit dispatch | Défaut **90 min** (`conflict_buffer_minutes`). Affiner selon distance / type de mission. | Provisoire |
 | D-10 | Remise compte client | **−10 %** sur tarifs client uniquement (pas partenaire). | Validé |
-| D-11 | MAD matinée | **50 000 F ≤ 100 km**, puis au km (850 client / 700 partenaire). | Validé |
+| D-11 | MAD matinée | **50 000 F ≤ 100 km**, puis **700 F/km** hors forfait. | Validé |
+| D-12 | Client ne choisit pas véhicule/chauffeur | Affectation 100 % SentraJet après paiement. | Validé |
+| D-13 | Inscription chauffeur ouverte | Fermée — flotte entreprise uniquement. | Validé |
 
 Mettre à jour ce fichier dès qu’une décision est prise, puis synchroniser `business_rules` en base.

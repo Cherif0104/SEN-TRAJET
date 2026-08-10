@@ -34,13 +34,16 @@ export default function ChauffeurHomePage() {
     <>
       <SjSectionHead
         eyebrow="Espace chauffeur"
-        title="Votre journée"
+        title="Vos missions assignées"
         action={
           <button type="button" className="sj-btn" onClick={() => void setAvailable()}>
             Je suis disponible
           </button>
         }
       />
+      <p className="sj-muted" style={{ marginTop: -8, marginBottom: 16 }}>
+        Pas de marketplace : SentraJet vous affecte les missions. Vous ne choisissez ni n’acceptez de courses.
+      </p>
       {statusMsg ? <p style={{ color: "#6de0b0" }}>{statusMsg}</p> : null}
 
       <div className="sj-grid sj-grid-3">

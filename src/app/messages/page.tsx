@@ -66,10 +66,10 @@ export default function MessagesPage() {
             <MessageCircle className="mx-auto h-12 w-12 text-neutral-400" />
             <p className="mt-3 text-neutral-600">Aucune conversation</p>
             <p className="mt-1 text-sm text-neutral-500">
-              Les échanges avec les chauffeurs apparaîtront ici après une réservation.
+              Les échanges liés à vos réservations SentraJet apparaîtront ici.
             </p>
-            <Link href="/recherche" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-              Trouver un trajet
+            <Link href="/reserver" className="mt-4 inline-block text-sm font-medium text-amber-800 hover:underline">
+              Faire une demande
             </Link>
           </Card>
         ) : (

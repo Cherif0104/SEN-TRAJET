@@ -1,5 +1,7 @@
 # Pivot produit — SentraJet Premium (plateforme propriétaire)
 
+> Voir aussi **`docs/MASTER_INSTRUCTIONS.md`** (cahier d’instructions prioritaire anti-marketplace).
+
 Document de référence pour la reprise du projet. Remplace progressivement le positionnement « marketplace / mise en relation type Yango » par une **plateforme propriétaire** exploitée par SentraJet Premium.
 
 Nom produit cible : **SentraJet Premium**  

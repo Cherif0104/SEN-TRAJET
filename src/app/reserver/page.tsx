@@ -21,7 +21,14 @@ import {
   ensureClientForUser,
 } from "@/lib/platformOps";
 
-const SERVICES: ServiceType[] = ["transfert_aibd", "aibd_retour", "interurbain", "mise_a_disposition"];
+const SERVICES: ServiceType[] = [
+  "transfert_aibd",
+  "aibd_retour",
+  "interurbain",
+  "mise_a_disposition",
+  "groupe_evenement",
+  "autre",
+];
 
 function ReserverPageContent() {
   const { user, profile } = useAuth();
@@ -208,7 +215,8 @@ function ReserverPageContent() {
     }
   }
 
-  const needsDistance = serviceType === "interurbain" || serviceType === "mise_a_disposition";
+  const needsDistance =
+    serviceType === "interurbain" || serviceType === "mise_a_disposition" || serviceType === "groupe_evenement";
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
@@ -216,11 +224,11 @@ function ReserverPageContent() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">SentraJet Premium</p>
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-neutral-900">
-          Simulez et réservez en toute simplicité
+          Que souhaitez-vous faire ?
         </h1>
         <p className="mt-2 text-neutral-600">
-          Transfert aéroport, voyage ou mise à disposition. SentraJet traite votre demande, vous
-          confirme le tarif, puis assigne un véhicule de sa flotte.
+          Vous réservez une prestation SentraJet. Nous étudions, proposons un devis, puis affectons
+          véhicule et chauffeur. Vous ne choisissez ni chauffeur ni véhicule.
         </p>
 
         {!user ? (
@@ -431,8 +439,11 @@ function ReserverPageContent() {
               disabled={saving}
               className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-900 hover:bg-amber-400 disabled:opacity-60"
             >
-              {saving ? "Envoi…" : "Envoyer ma demande de réservation"}
+              {saving ? "Envoi…" : "Demander cette prestation"}
             </button>
+            <p className="text-center text-xs text-neutral-500">
+              Statut initial : demande reçue. SentraJet vous recontacte avec le devis.
+            </p>
           </form>
         )}
       </main>

@@ -19,13 +19,17 @@ export type ServiceType =
   | "transfert_aibd"
   | "aibd_retour"
   | "interurbain"
-  | "mise_a_disposition";
+  | "mise_a_disposition"
+  | "groupe_evenement"
+  | "autre";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  transfert_aibd: "Transfert aéroport (AIBD)",
+  transfert_aibd: "Transfert aéroport",
   aibd_retour: "Récupération AIBD + retour",
-  interurbain: "Voyage interurbain",
-  mise_a_disposition: "Mise à disposition",
+  interurbain: "Voyager",
+  mise_a_disposition: "Mise à disposition avec chauffeur",
+  groupe_evenement: "Groupe / Événement",
+  autre: "Autre demande",
 };
 
 const FALLBACK_TARIFFS: SentrajetTariff[] = [
@@ -40,6 +44,7 @@ const FALLBACK_TARIFFS: SentrajetTariff[] = [
   { segment: "client", rule_key: "interurbain_km", label: "Interurbain / km", amount_fcfa: 850, unit: "per_km" },
   { segment: "client", rule_key: "interurbain_min", label: "Minimum interurbain", amount_fcfa: 30000, unit: "forfait" },
   { segment: "client", rule_key: "mad_morning", label: "MAD matinée ≤100 km", amount_fcfa: 50000, unit: "forfait" },
+  { segment: "client", rule_key: "mad_overage_km", label: "MAD hors forfait / km", amount_fcfa: 700, unit: "per_km" },
   { segment: "partner", rule_key: "aibd_1_2", label: "AIBD 1–2 passagers", amount_fcfa: 20000, unit: "forfait" },
   { segment: "partner", rule_key: "aibd_3_5", label: "AIBD 3–5 passagers", amount_fcfa: 25000, unit: "forfait" },
   { segment: "partner", rule_key: "aibd_6_8", label: "AIBD 6–8 passagers", amount_fcfa: 30000, unit: "forfait" },
@@ -47,6 +52,7 @@ const FALLBACK_TARIFFS: SentrajetTariff[] = [
   { segment: "partner", rule_key: "interurbain_km", label: "Interurbain / km", amount_fcfa: 700, unit: "per_km" },
   { segment: "partner", rule_key: "interurbain_min", label: "Minimum interurbain", amount_fcfa: 30000, unit: "forfait" },
   { segment: "partner", rule_key: "mad_morning", label: "MAD matinée ≤100 km", amount_fcfa: 50000, unit: "forfait" },
+  { segment: "partner", rule_key: "mad_overage_km", label: "MAD hors forfait / km", amount_fcfa: 700, unit: "per_km" },
 ];
 
 function aibdKey(passengers: number): string {
@@ -158,7 +164,7 @@ export function computeSentrajetPrice(params: {
   } else if (params.serviceType === "mise_a_disposition") {
     const madBase = params.madMorningFcfa ?? byKey("mad_morning")?.amount_fcfa ?? 50000;
     const includedKm = params.madIncludedKm ?? 100;
-    const rate = byKey("interurbain_km")?.amount_fcfa ?? kmRateDefault;
+    const rate = byKey("mad_overage_km")?.amount_fcfa ?? 700;
     const km = Number(params.distanceKm ?? 0);
     if (!km || km <= 0) {
       amountBeforeDiscountFcfa = madBase;
@@ -177,10 +183,20 @@ export function computeSentrajetPrice(params: {
       ruleKey = "mad_morning";
       surDevis = false;
     }
+  } else if (params.serviceType === "groupe_evenement") {
+    amountBeforeDiscountFcfa = 0;
+    label = `${params.passengers} passagers → environ ${vehiclesNeeded} véhicule(s) — devis SentraJet`;
+    ruleKey = "groupe_devis";
+    surDevis = true;
+  } else if (params.serviceType === "autre") {
+    amountBeforeDiscountFcfa = 0;
+    label = "Sur devis — SentraJet vous recontacte";
+    ruleKey = "autre_devis";
+    surDevis = true;
   }
 
   const discountPercent =
-    params.segment === "client" && params.applyAccountDiscount
+    params.segment === "client" && params.applyAccountDiscount && !surDevis
       ? Math.max(0, params.accountDiscountPercent ?? 10)
       : 0;
   const discountFcfa = roundFcfa((amountBeforeDiscountFcfa * discountPercent) / 100);
@@ -197,7 +213,10 @@ export function computeSentrajetPrice(params: {
         : label,
     ruleKey,
     surDevis,
-    vehiclesNeeded: params.serviceType === "interurbain" && params.passengers > 11 ? vehiclesNeeded : 1,
+    vehiclesNeeded:
+      params.serviceType === "groupe_evenement" || (params.serviceType === "interurbain" && params.passengers > 11)
+        ? vehiclesNeeded
+        : 1,
   };
 }
 
