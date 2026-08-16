@@ -27,6 +27,12 @@ export default function MobileAppPage() {
   const installLatest = async () => {
     setBusy(true);
     setFeedback(null);
+    if (canInstall) {
+      const result = await install();
+      if (result === "accepted") setFeedback(t("mobileApp.latestLoaded"));
+      setBusy(false);
+      return;
+    }
     if (isInstalled) {
       const result = await update();
       if (result === "updated") {
@@ -35,12 +41,6 @@ export default function MobileAppPage() {
       } else {
         setFeedback(t("mobileApp.updateUnavailable"));
       }
-      setBusy(false);
-      return;
-    }
-    if (canInstall) {
-      const result = await install();
-      if (result === "accepted") setFeedback(t("mobileApp.latestLoaded"));
       setBusy(false);
       return;
     }
@@ -74,7 +74,7 @@ export default function MobileAppPage() {
                   ) : (
                     <Download className="h-5 w-5" />
                   )}
-                  {isInstalled ? t("mobileApp.updateAction") : t("mobileApp.installAction")}
+                  {t("mobileApp.downloadLatestAction")}
                 </Button>
                 {isInstalled ? (
                   <div className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-500/10 px-5 font-semibold text-emerald-600">

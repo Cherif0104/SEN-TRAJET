@@ -18,6 +18,7 @@ type PwaInstallContextValue = {
 };
 
 const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
+const INSTALLED_KEY = "sentrajet-pwa-installed";
 
 function detectsStandalone(): boolean {
   return (
@@ -40,7 +41,10 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
   const [platform, setPlatform] = useState<InstallPlatform>("unknown");
 
   useEffect(() => {
-    setIsInstalled(detectsStandalone());
+    const installed =
+      detectsStandalone() || window.localStorage.getItem(INSTALLED_KEY) === "1";
+    setIsInstalled(installed);
+    if (detectsStandalone()) window.localStorage.setItem(INSTALLED_KEY, "1");
     setPlatform(detectsPlatform());
 
     const handlePrompt = (event: Event) => {
@@ -50,6 +54,7 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
     const handleInstalled = () => {
       setPromptEvent(null);
       setIsInstalled(true);
+      window.localStorage.setItem(INSTALLED_KEY, "1");
     };
 
     window.addEventListener("beforeinstallprompt", handlePrompt);
@@ -80,9 +85,11 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
       return "unavailable" as const;
     }
     try {
-      const registration = await navigator.serviceWorker.getRegistration("/");
-      await registration?.update();
-      registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+      const existing = await navigator.serviceWorker.getRegistration("/");
+      const registration =
+        existing ?? (await navigator.serviceWorker.register("/sw.js", { scope: "/" }));
+      await registration.update();
+      registration.waiting?.postMessage({ type: "SKIP_WAITING" });
 
       if ("caches" in window) {
         const keys = await window.caches.keys();
@@ -92,6 +99,8 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
             .map((key) => window.caches.delete(key)),
         );
       }
+      window.localStorage.setItem(INSTALLED_KEY, "1");
+      setIsInstalled(true);
       return "updated" as const;
     } catch {
       return "unavailable" as const;

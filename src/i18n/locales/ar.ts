@@ -82,6 +82,7 @@ export const ar: Record<TranslationKey, string> = {
   "mobileApp.title": "SentraJet على هاتفك.",
   "mobileApp.subtitle": "ثبّت نسخة الهاتف: الخدمات والحسابات والتحديثات نفسها الموجودة على الويب.",
   "mobileApp.installAction": "تثبيت التطبيق",
+  "mobileApp.downloadLatestAction": "تنزيل أحدث إصدار",
   "mobileApp.installed": "التطبيق مثبت بالفعل",
   "mobileApp.updateAction": "تحديث التطبيق",
   "mobileApp.alwaysLatest": "يبقى الزر متاحاً دائماً. يتم تحديث التطبيق المثبت إلى أحدث إصدار.",

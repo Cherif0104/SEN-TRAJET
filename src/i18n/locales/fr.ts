@@ -80,6 +80,7 @@ export const fr = {
   "mobileApp.title": "SentraJet dans votre téléphone.",
   "mobileApp.subtitle": "Installez la version mobile : mêmes services, mêmes comptes et mêmes mises à jour que sur le web.",
   "mobileApp.installAction": "Installer l’application",
+  "mobileApp.downloadLatestAction": "Télécharger la dernière version",
   "mobileApp.installed": "Application déjà installée",
   "mobileApp.updateAction": "Mettre à jour l’application",
   "mobileApp.alwaysLatest": "Le bouton reste toujours disponible. Une application déjà installée est actualisée vers la dernière version.",

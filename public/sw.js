@@ -1,4 +1,4 @@
-const CACHE_NAME = "sen-trajet-v7-always-latest";
+const CACHE_NAME = "sen-trajet-v8-always-latest";
 const STATIC_ASSETS = [
   "/",
   "/application-mobile",

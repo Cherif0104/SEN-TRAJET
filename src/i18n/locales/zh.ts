@@ -82,6 +82,7 @@ export const zh: Record<TranslationKey, string> = {
   "mobileApp.title": "在手机上使用 SentraJet。",
   "mobileApp.subtitle": "安装移动版：与网页版使用相同的服务、账户和更新。",
   "mobileApp.installAction": "安装应用",
+  "mobileApp.downloadLatestAction": "下载最新版本",
   "mobileApp.installed": "应用已安装",
   "mobileApp.updateAction": "更新应用",
   "mobileApp.alwaysLatest": "按钮始终可用。已安装的应用会更新到最新版本。",
