@@ -561,7 +561,7 @@ export async function updateBookingWorkflowStatus(params: {
   const patch: Record<string, unknown> = { status: params.toStatus };
   if (params.quoteAmountFcfa != null) {
     patch.estimated_price = params.quoteAmountFcfa;
-    patch.final_price = params.quoteAmountFcfa;
+    patch.final_amount_fcfa = params.quoteAmountFcfa;
   }
 
   const { error } = await supabase.from("bookings").update(patch).eq("id", params.bookingId);
