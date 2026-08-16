@@ -11,7 +11,7 @@ export function HeroSection() {
     <section className="relative min-h-[min(92vh,720px)] overflow-hidden bg-[#07111f] pb-16 pt-8 sm:min-h-[min(88vh,780px)] sm:pb-20 sm:pt-12 lg:pt-16">
       <div className="absolute inset-0">
         <Image
-          src="/brand/sentrajet-hero.png"
+          src="/brand/sentrajet-vehicle-hero.webp"
           alt="Véhicule SentraJet Premium"
           fill
           priority

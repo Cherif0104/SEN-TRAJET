@@ -43,6 +43,7 @@ export function AddressAutocomplete({
   accent = "pickup",
 }: Props) {
   const listId = useId();
+  const inputId = `${listId}-input`;
   const [query, setQuery] = useState(value?.address || value?.label || textValue || "");
   const [items, setItems] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -205,7 +206,7 @@ export function AddressAutocomplete({
   return (
     <div ref={boxRef} className="relative">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+        <label htmlFor={inputId} className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
           {label}
         </label>
         {showMyLocation ? (
@@ -233,6 +234,8 @@ export function AddressAutocomplete({
         <MapPin className={`ml-3 h-5 w-5 shrink-0 ${pinColor}`} />
         <input
           ref={inputRef}
+          id={inputId}
+          name={`${accent}_address`}
           className="min-h-[52px] w-full bg-transparent px-3 py-3 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
           value={query}
           placeholder={placeholder || "Rechercher une adresse…"}

@@ -361,7 +361,7 @@
   inset: 0;
   background:
     linear-gradient(90deg, #0b1728 0%, rgba(11, 23, 40, 0.9) 42%, rgba(11, 23, 40, 0.18) 100%),
-    url("/brand/sentrajet-hero.png") center / cover;
+    url("/brand/sentrajet-vehicle-hero.webp") center / cover;
 }
 .sj-hero-stats {
   display: grid;

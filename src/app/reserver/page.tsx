@@ -612,12 +612,12 @@ function ReserverWizard() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Date</label>
-              <input type="date" className="input-base mt-1.5" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
+              <label htmlFor="booking-date" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Date</label>
+              <input id="booking-date" name="booking_date" type="date" className="input-base mt-1.5" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
             </div>
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Heure</label>
-              <input type="time" className="input-base mt-1.5" value={draft.time} onChange={(e) => patch({ time: e.target.value })} />
+              <label htmlFor="booking-time" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Heure</label>
+              <input id="booking-time" name="booking_time" type="time" className="input-base mt-1.5" value={draft.time} onChange={(e) => patch({ time: e.target.value })} />
             </div>
           </div>
 
@@ -654,11 +654,13 @@ function ReserverWizard() {
               </button>
             ) : (
               <div className="mt-3">
-                <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                <label htmlFor="booking-waiting" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
                   Attente (minutes)
                 </label>
                 <input
                   type="number"
+                  id="booking-waiting"
+                  name="waiting_minutes"
                   min={0}
                   step={30}
                   className="input-base mt-1.5"
@@ -803,8 +805,8 @@ function ReserverWizard() {
             </p>
           </div>
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Téléphone</label>
-            <input className="input-base mt-1.5" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+221 …" />
+            <label htmlFor="booking-phone" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Téléphone</label>
+            <input id="booking-phone" name="phone" type="tel" className="input-base mt-1.5" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+221 …" />
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button

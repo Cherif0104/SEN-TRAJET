@@ -6,6 +6,7 @@ const STATIC_ASSETS = [
   "/brand/sentrajet-mark-transparent.svg",
   "/brand/sentrajet-wordmark.svg",
   "/brand/sentrajet-wordmark-light.svg",
+  "/brand/sentrajet-vehicle-hero.webp",
   "/icons/app-icon-192.png",
   "/icons/app-icon-512.png",
   "/icons/apple-touch-icon.png",

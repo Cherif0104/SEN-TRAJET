@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Languages, MonitorCog, Settings2 } from "lucide-react";
 import { locales, type Locale } from "@/i18n";
 import {
@@ -14,6 +14,8 @@ export function PreferencesMenu({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, theme, setTheme, t } = usePreferences();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const languageId = useId();
+  const themeId = useId();
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -43,12 +45,14 @@ export function PreferencesMenu({ compact = false }: { compact?: boolean }) {
           <strong className="block text-sm text-[var(--color-text-primary)]">
             {t("preferences.title")}
           </strong>
-          <label className="mt-4 grid gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
+          <label htmlFor={languageId} className="mt-4 grid gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
             <span className="flex items-center gap-1.5">
               <Languages className="h-3.5 w-3.5" />
               {t("preferences.language")}
             </span>
             <select
+              id={languageId}
+              name="interface_language"
               value={locale}
               onChange={(event) => setLocale(event.target.value as Locale)}
               className="min-h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
@@ -60,12 +64,14 @@ export function PreferencesMenu({ compact = false }: { compact?: boolean }) {
               ))}
             </select>
           </label>
-          <label className="mt-3 grid gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
+          <label htmlFor={themeId} className="mt-3 grid gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
             <span className="flex items-center gap-1.5">
               <MonitorCog className="h-3.5 w-3.5" />
               {t("preferences.theme")}
             </span>
             <select
+              id={themeId}
+              name="interface_theme"
               value={theme}
               onChange={(event) =>
                 setTheme(event.target.value as ThemePreference)
