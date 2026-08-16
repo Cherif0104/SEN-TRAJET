@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Image from "next/image";
-import { CheckCircle2, Download, MoreVertical, Share2, Smartphone } from "lucide-react";
+import { CheckCircle2, Download, MoreVertical, RefreshCw, Share2, Smartphone } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
@@ -11,7 +12,10 @@ import { usePwaInstall } from "@/providers/PwaInstallProvider";
 
 export default function MobileAppPage() {
   const { t } = usePreferences();
-  const { canInstall, install, isInstalled, platform } = usePwaInstall();
+  const { canInstall, install, isInstalled, platform, update } = usePwaInstall();
+  const manualRef = useRef<HTMLElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const instruction =
     platform === "ios"
@@ -19,6 +23,31 @@ export default function MobileAppPage() {
       : platform === "android"
         ? t("mobileApp.androidInstruction")
         : t("mobileApp.desktopInstruction");
+
+  const installLatest = async () => {
+    setBusy(true);
+    setFeedback(null);
+    if (isInstalled) {
+      const result = await update();
+      if (result === "updated") {
+        setFeedback(t("mobileApp.latestLoaded"));
+        window.setTimeout(() => window.location.reload(), 700);
+      } else {
+        setFeedback(t("mobileApp.updateUnavailable"));
+      }
+      setBusy(false);
+      return;
+    }
+    if (canInstall) {
+      const result = await install();
+      if (result === "accepted") setFeedback(t("mobileApp.latestLoaded"));
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    setFeedback(instruction);
+    manualRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-background)]">
@@ -39,28 +68,32 @@ export default function MobileAppPage() {
               </p>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Button size="lg" onClick={() => void installLatest()} disabled={busy}>
+                  {isInstalled ? (
+                    <RefreshCw className={`h-5 w-5 ${busy ? "animate-spin" : ""}`} />
+                  ) : (
+                    <Download className="h-5 w-5" />
+                  )}
+                  {isInstalled ? t("mobileApp.updateAction") : t("mobileApp.installAction")}
+                </Button>
                 {isInstalled ? (
                   <div className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-500/10 px-5 font-semibold text-emerald-600">
                     <CheckCircle2 className="h-5 w-5" />
                     {t("mobileApp.installed")}
                   </div>
-                ) : canInstall ? (
-                  <Button size="lg" onClick={() => void install()}>
-                    <Download className="h-5 w-5" />
-                    {t("mobileApp.installAction")}
-                  </Button>
-                ) : (
-                  <div className="max-w-lg rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                    {instruction}
-                  </div>
-                )}
+                ) : null}
                 <Button variant="secondary" size="lg" href="/reserver">
                   {t("actions.bookNow")}
                 </Button>
               </div>
+              {feedback ? (
+                <p role="status" className="mt-3 text-sm font-semibold text-[var(--color-accent)]">
+                  {feedback}
+                </p>
+              ) : null}
 
               <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-                {t("mobileApp.noStore")}
+                {t("mobileApp.alwaysLatest")}
               </p>
             </div>
 
@@ -99,7 +132,7 @@ export default function MobileAppPage() {
           </div>
         </section>
 
-        <section className="border-y border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-4 py-12 sm:px-6">
+        <section ref={manualRef} className="scroll-mt-6 border-y border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-4 py-12 sm:px-6">
           <div className="mx-auto max-w-4xl">
             <div className="text-center">
               <Smartphone className="mx-auto h-9 w-9 text-[var(--color-accent)]" />

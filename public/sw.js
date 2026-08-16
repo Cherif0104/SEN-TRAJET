@@ -1,4 +1,4 @@
-const CACHE_NAME = "sen-trajet-v6-branded-launch";
+const CACHE_NAME = "sen-trajet-v7-always-latest";
 const STATIC_ASSETS = [
   "/",
   "/application-mobile",
@@ -39,6 +39,10 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {

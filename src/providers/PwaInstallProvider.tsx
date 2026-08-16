@@ -14,6 +14,7 @@ type PwaInstallContextValue = {
   isInstalled: boolean;
   platform: InstallPlatform;
   install: () => Promise<"accepted" | "dismissed" | "unavailable">;
+  update: () => Promise<"updated" | "unavailable">;
 };
 
 const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
@@ -53,6 +54,12 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
 
     window.addEventListener("beforeinstallprompt", handlePrompt);
     window.addEventListener("appinstalled", handleInstalled);
+    if ("serviceWorker" in navigator && navigator.onLine) {
+      void navigator.serviceWorker
+        .getRegistration("/")
+        .then((registration) => registration?.update())
+        .catch(() => undefined);
+    }
     return () => {
       window.removeEventListener("beforeinstallprompt", handlePrompt);
       window.removeEventListener("appinstalled", handleInstalled);
@@ -68,14 +75,38 @@ export function PwaInstallProvider({ children }: { children: React.ReactNode }) 
     return choice.outcome;
   }, [promptEvent]);
 
+  const update = useCallback(async () => {
+    if (!("serviceWorker" in navigator) || !navigator.onLine) {
+      return "unavailable" as const;
+    }
+    try {
+      const registration = await navigator.serviceWorker.getRegistration("/");
+      await registration?.update();
+      registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+
+      if ("caches" in window) {
+        const keys = await window.caches.keys();
+        await Promise.all(
+          keys
+            .filter((key) => key.startsWith("sen-trajet-"))
+            .map((key) => window.caches.delete(key)),
+        );
+      }
+      return "updated" as const;
+    } catch {
+      return "unavailable" as const;
+    }
+  }, []);
+
   const value = useMemo<PwaInstallContextValue>(
     () => ({
       canInstall: Boolean(promptEvent),
       isInstalled,
       platform,
       install,
+      update,
     }),
-    [install, isInstalled, platform, promptEvent],
+    [install, isInstalled, platform, promptEvent, update],
   );
 
   return <PwaInstallContext.Provider value={value}>{children}</PwaInstallContext.Provider>;
