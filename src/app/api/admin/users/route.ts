@@ -6,6 +6,10 @@ import {
   type AssignableRole,
 } from "@/lib/accountRoles";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import {
+  SENTRAJET_SUPABASE_ANON_KEY,
+  SENTRAJET_SUPABASE_URL,
+} from "@/lib/supabaseConfig";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +23,47 @@ function errorResponse(message: string, status: number) {
     { error: message },
     { status, headers: { "Cache-Control": "no-store" } },
   );
+}
+
+function hasDirectAdminClient(): boolean {
+  try {
+    getSupabaseAdmin();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function proxyToAccountFunction(request: Request) {
+  try {
+    const authorization = request.headers.get("authorization") ?? "";
+    const body =
+      request.method === "GET" || request.method === "HEAD"
+        ? undefined
+        : await request.text();
+    const upstream = await fetch(
+      `${SENTRAJET_SUPABASE_URL}/functions/v1/admin-users`,
+      {
+        method: request.method,
+        headers: {
+          Authorization: authorization,
+          apikey: SENTRAJET_SUPABASE_ANON_KEY,
+          ...(body ? { "Content-Type": "application/json" } : {}),
+        },
+        body,
+        cache: "no-store",
+      },
+    );
+    return new NextResponse(await upstream.text(), {
+      status: upstream.status,
+      headers: {
+        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch {
+    return errorResponse("account_management_not_configured", 503);
+  }
 }
 
 async function authorize(request: Request): Promise<AuthorizedAdmin | NextResponse> {
@@ -72,6 +117,7 @@ function publicUser(
 }
 
 export async function GET(request: Request) {
+  if (!hasDirectAdminClient()) return proxyToAccountFunction(request);
   const authorization = await authorize(request);
   if (authorization instanceof NextResponse) return authorization;
 
@@ -118,6 +164,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!hasDirectAdminClient()) return proxyToAccountFunction(request);
   const authorization = await authorize(request);
   if (authorization instanceof NextResponse) return authorization;
 
@@ -216,6 +263,7 @@ async function assignRole(
 }
 
 export async function DELETE(request: Request) {
+  if (!hasDirectAdminClient()) return proxyToAccountFunction(request);
   const authorization = await authorize(request);
   if (authorization instanceof NextResponse) return authorization;
 
