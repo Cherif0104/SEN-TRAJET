@@ -270,7 +270,7 @@ export type SentrajetTariff = {
   rule_key: string;
   label: string;
   amount_fcfa: number;
-  unit: "forfait" | "per_km";
+  unit: "forfait" | "per_km" | "sur_devis";
   is_active?: boolean;
 };
 
@@ -284,7 +284,12 @@ export async function getSentrajetTariffs(segment?: PricingSegment): Promise<Sen
       rule_key: r.ruleKey,
       label: r.label,
       amount_fcfa: Math.round(Number(r.pricePerKmFcfa ?? r.basePriceFcfa ?? 0)),
-      unit: r.pricingMode === "per_km" ? "per_km" : "forfait",
+      unit:
+        r.pricingMode === "manual"
+          ? "sur_devis"
+          : r.pricingMode === "per_km"
+            ? "per_km"
+            : "forfait",
       is_active: true,
     }));
   }

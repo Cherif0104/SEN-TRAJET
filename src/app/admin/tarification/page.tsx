@@ -10,14 +10,15 @@ const publicRules = [
   ["Aller-retour", "distance routière aller + retour"],
   ["Course ≤ 45 km", "minimum 20 000 FCFA si le km est inférieur"],
   ["MAD public Dakar", "50 000 FCFA / 10 h (frais externes exclus)"],
+  ["MAD public hors Dakar ≤100 km", "70 000 FCFA / 10 h (frais externes exclus)"],
+  ["MAD public hors Dakar >100 km", "70 000 + 530 FCFA/km au-delà de 100 km"],
   ["Cérémonies / Autre", "sur devis"],
   ["Attente", "30 min offertes puis 2 500 F / 30 min (hors MAD)"],
 ];
 
 const b2bRules = [
   ["MAD Dakar 10 h", "40 000 FCFA (carburant/péages/parking exclus)"],
-  ["MAD hors Dakar ≤100 km", "60 000 FCFA"],
-  ["MAD hors Dakar >100 km", "60 000 + 600 F/km au-delà"],
+  ["MAD hors Dakar", "Sur devis après validation du trajet"],
   ["Interurbain", "700 F/km · min 30 000 · AR = ×2"],
   ["Visibilité", "Espace partenaire uniquement — jamais en public"],
 ];

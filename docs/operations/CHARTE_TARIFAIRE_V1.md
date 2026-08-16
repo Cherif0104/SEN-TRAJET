@@ -12,7 +12,7 @@ Référence fonctionnelle du moteur. Implémentation :
 | Couche | Qui voit | Exemple |
 |--------|----------|---------|
 | **public** | Client final / pro non certifié | 800 / 900 / **1 200** F/km |
-| **partner** | Partenaire certifié (espace B2B) | MAD Dakar 40 000 · hors Dakar 60 000 + 600 F/km >100 km |
+| **partner** | Partenaire certifié (espace B2B) | MAD Dakar 40 000 / 10 h · hors Dakar sur devis |
 | **supplier** | Admin / interne uniquement | Coût d’achat transporteur |
 
 Le client ne voit jamais partenaire, fournisseur, marge ni commission.
@@ -26,6 +26,14 @@ Hyundai Starex — 10 places max (extensible ensuite).
 `Prix transport = distance_routière_réelle × tarif/km(passagers)`  
 Aller-retour : distance aller + retour (ou ×2 si symétrique).  
 Pas d’orthodromie. Distance via OSM/Google (`/api/distance`).
+
+## Mise à disposition
+
+- Public Dakar : **50 000 FCFA / 10 h**.
+- Public hors Dakar : **70 000 FCFA / 10 h jusqu’à 100 km**, puis **530 FCFA/km** au-delà.
+- Partenaire Dakar : **40 000 FCFA / 10 h**.
+- Partenaire hors Dakar : **sur devis**, jusqu’à validation d’un barème explicite.
+- Chauffeur inclus ; carburant, parking, péages et ferry exclus.
 
 ## Contrôles
 
