@@ -10,6 +10,11 @@ import {
 } from "@/lib/sentrajetPricing";
 import { createPaymentForBooking, createPlatformBooking } from "@/lib/platformOps";
 import { listBusinessRules, ruleString } from "@/lib/engines/businessRules";
+import {
+  AddressAutocomplete,
+  type SelectedPlace,
+} from "@/components/booking/AddressAutocomplete";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 type BookingFormProps = {
   segment: PricingSegment;
@@ -21,14 +26,17 @@ type BookingFormProps = {
 const SERVICES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][];
 
 export function BookingForm({ segment, clientId, partnerContractId, onCreated }: BookingFormProps) {
+  const { t } = usePreferences();
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
-  const [pickup, setPickup] = useState(segment === "partner" ? "Dakar" : "");
-  const [dropoff, setDropoff] = useState("");
+  const [pickupPlace, setPickupPlace] = useState<SelectedPlace | null>(null);
+  const [dropoffPlace, setDropoffPlace] = useState<SelectedPlace | null>(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [passengers, setPassengers] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("transfert_aibd");
   const [distanceKm, setDistanceKm] = useState<number | "">("");
+  const [distanceLoading, setDistanceLoading] = useState(false);
+  const [distanceError, setDistanceError] = useState<string | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
   const [phone, setPhone] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
@@ -48,21 +56,45 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
   }, [segment]);
 
   useEffect(() => {
-    if (!pickup.trim() || !dropoff.trim()) return;
+    if (!pickupPlace || !dropoffPlace) {
+      setDistanceKm("");
+      setDistanceError(null);
+      return;
+    }
     let cancelled = false;
     const t = setTimeout(() => {
       void (async () => {
+        setDistanceLoading(true);
+        setDistanceError(null);
         try {
           const res = await fetch("/api/distance", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fromPlace: pickup.trim(), toPlace: dropoff.trim() }),
+            body: JSON.stringify({
+              fromPlace: pickupPlace.address,
+              toPlace: dropoffPlace.address,
+              fromLat: pickupPlace.lat,
+              fromLng: pickupPlace.lng,
+              toLat: dropoffPlace.lat,
+              toLng: dropoffPlace.lng,
+            }),
           });
-          if (!res.ok) return;
-          const data = (await res.json()) as { distanceKm?: number };
+          const data = (await res.json()) as { distanceKm?: number; error?: string };
+          if (!res.ok || typeof data.distanceKm !== "number") {
+            throw new Error(data.error || "Distance routière indisponible.");
+          }
           if (!cancelled && typeof data.distanceKm === "number") setDistanceKm(data.distanceKm);
-        } catch {
-          /* ignore */
+        } catch (distanceFailure) {
+          if (!cancelled) {
+            setDistanceKm("");
+            setDistanceError(
+              distanceFailure instanceof Error
+                ? distanceFailure.message
+                : "Distance routière indisponible.",
+            );
+          }
+        } finally {
+          if (!cancelled) setDistanceLoading(false);
         }
       })();
     }, 350);
@@ -70,7 +102,7 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
       cancelled = true;
       clearTimeout(t);
     };
-  }, [pickup, dropoff]);
+  }, [pickupPlace, dropoffPlace]);
 
   const quote = useMemo(
     () =>
@@ -91,8 +123,12 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
     setError(null);
     setMessage(null);
     setPayLink(null);
-    if (!pickup.trim() || !dropoff.trim() || !date || !time || !phone.trim()) {
+    if (!pickupPlace || !dropoffPlace || !date || !time || !phone.trim()) {
       setError("Renseignez départ, destination, date, heure et téléphone.");
+      return;
+    }
+    if (distanceLoading || distanceKm === "") {
+      setError("Attendez le calcul de la distance routière avant de continuer.");
       return;
     }
     setSaving(true);
@@ -101,8 +137,8 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
       const booking = await createPlatformBooking({
         clientId,
         partnerContractId,
-        pickup: pickup.trim(),
-        dropoff: dropoff.trim(),
+        pickup: pickupPlace.address,
+        dropoff: dropoffPlace.address,
         pickupTime,
         serviceType,
         passengers,
@@ -155,14 +191,23 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
   return (
     <form className="sj-form" onSubmit={submit}>
       <div className="sj-form-grid">
-        <div className="sj-field">
-          <label>Départ</label>
-          <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Ex. Dakar Centre / AIBD" />
-        </div>
-        <div className="sj-field">
-          <label>Destination</label>
-          <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Ex. Saly / Mbour / AIBD" />
-        </div>
+        <AddressAutocomplete
+          label={t("booking.pickup")}
+          placeholder={t("booking.pickupPlaceholder")}
+          value={pickupPlace}
+          onSelect={setPickupPlace}
+          onClear={() => setPickupPlace(null)}
+          showMyLocation
+          accent="pickup"
+        />
+        <AddressAutocomplete
+          label={t("booking.destination")}
+          placeholder={t("booking.destinationPlaceholder")}
+          value={dropoffPlace}
+          onSelect={setDropoffPlace}
+          onClear={() => setDropoffPlace(null)}
+          accent="dropoff"
+        />
         <div className="sj-field">
           <label>Date</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -197,15 +242,18 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         </div>
         {needsDistance ? (
           <div className="sj-field">
-            <label>Distance aller (km)</label>
+            <label>Distance routière aller</label>
             <input
-              type="number"
-              min={0}
-              step={1}
-              value={distanceKm}
-              onChange={(e) => setDistanceKm(e.target.value === "" ? "" : Number(e.target.value))}
-              placeholder="Ex. 95"
+              value={
+                distanceLoading
+                  ? t("booking.calculating")
+                  : distanceKm === ""
+                    ? t("booking.selectRoute")
+                    : `${distanceKm} km`
+              }
+              readOnly
             />
+            {distanceError ? <small className="text-[var(--color-error)]">{distanceError}</small> : null}
           </div>
         ) : null}
         {needsDistance ? (
