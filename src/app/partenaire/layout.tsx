@@ -20,7 +20,7 @@ const nav = [
 export default function PartenaireLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const { t } = usePreferences();
   const isOnboarding = pathname === "/partenaire/onboarding";
 
@@ -30,14 +30,18 @@ export default function PartenaireLayout({ children }: { children: React.ReactNo
       router.replace("/connexion?next=" + encodeURIComponent(pathname));
       return;
     }
-    if (profile && !canAccessPartnerZone(profile.role)) {
+    if (!profile) {
+      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
+      return;
+    }
+    if (!canAccessPartnerZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
-  }, [pathname, router, isOnboarding, loading, profile, user]);
+  }, [pathname, router, isOnboarding, loading, profile, signOut, user]);
 
   if (
     !isOnboarding &&
-    (loading || !user || (profile && !canAccessPartnerZone(profile.role)))
+    (loading || !user || !profile || !canAccessPartnerZone(profile.role))
   ) {
     return <BrandedLoader fullScreen />;
   }

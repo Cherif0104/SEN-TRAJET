@@ -58,7 +58,7 @@ const mobileNav = nav.filter((item) =>
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const { t } = usePreferences();
 
   useEffect(() => {
@@ -67,12 +67,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/connexion?next=" + encodeURIComponent(pathname));
       return;
     }
-    if (profile && !canAccessAdminZone(profile.role)) {
+    if (!profile) {
+      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
+      return;
+    }
+    if (!canAccessAdminZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
-  }, [loading, profile, router, pathname, user]);
+  }, [loading, profile, router, pathname, signOut, user]);
 
-  if (loading || !user || (profile && !canAccessAdminZone(profile.role))) {
+  if (loading || !user || !profile || !canAccessAdminZone(profile.role)) {
     return <BrandedLoader fullScreen />;
   }
 

@@ -18,7 +18,7 @@ const nav = [
 export default function CompteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const { t } = usePreferences();
 
   useEffect(() => {
@@ -27,10 +27,14 @@ export default function CompteLayout({ children }: { children: React.ReactNode }
       router.replace("/connexion?next=" + encodeURIComponent(pathname));
       return;
     }
-    if (profile && profile.role !== "client") router.replace("/");
-  }, [loading, pathname, profile, router, user]);
+    if (!profile) {
+      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
+      return;
+    }
+    if (profile.role !== "client") router.replace("/dashboard?forbidden=1");
+  }, [loading, pathname, profile, router, signOut, user]);
 
-  if (loading || !user || (profile && profile.role !== "client")) {
+  if (loading || !user || !profile || profile.role !== "client") {
     return <BrandedLoader fullScreen />;
   }
 

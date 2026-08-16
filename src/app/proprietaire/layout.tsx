@@ -19,7 +19,7 @@ const nav = [
 export default function ProprietaireLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const { t } = usePreferences();
 
   useEffect(() => {
@@ -28,12 +28,16 @@ export default function ProprietaireLayout({ children }: { children: React.React
       router.replace("/connexion?next=" + encodeURIComponent(pathname));
       return;
     }
-    if (profile && !canAccessOwnerZone(profile.role)) {
+    if (!profile) {
+      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
+      return;
+    }
+    if (!canAccessOwnerZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
-  }, [loading, pathname, profile, router, user]);
+  }, [loading, pathname, profile, router, signOut, user]);
 
-  if (loading || !user || (profile && !canAccessOwnerZone(profile.role))) {
+  if (loading || !user || !profile || !canAccessOwnerZone(profile.role)) {
     return <BrandedLoader fullScreen />;
   }
 

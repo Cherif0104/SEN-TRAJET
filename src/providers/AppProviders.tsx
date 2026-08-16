@@ -3,26 +3,12 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AppSplashScreen } from "@/components/brand/AppSplashScreen";
-import { AuthProvider, useAuthContext, type Profile } from "@/providers/AuthProvider";
+import { AuthProvider, useAuthContext } from "@/providers/AuthProvider";
 import { PreferencesProvider, usePreferences } from "@/providers/PreferencesProvider";
 import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
+import { workspaceForRole } from "@/lib/rbac";
 
 const MINIMUM_SPLASH_DISPLAY_MS = 1_000;
-
-function destinationForRole(role: Profile["role"]): string {
-  if (role === "client") return "/compte";
-  if (role === "driver") return "/chauffeur";
-  if (role === "vehicle_owner" || role === "owner") return "/proprietaire";
-  if (
-    role === "partner" ||
-    role === "partner_manager" ||
-    role === "partner_operator" ||
-    role === "rental_owner"
-  ) {
-    return "/partenaire";
-  }
-  return "/admin";
-}
 
 function requestedInternalDestination(): string | null {
   const candidate = new URLSearchParams(window.location.search).get("next");
@@ -53,8 +39,8 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
     if (user && profile && (pathname === "/" || pathname === "/connexion")) {
       const destination =
         pathname === "/connexion"
-          ? requestedInternalDestination() ?? destinationForRole(profile.role)
-          : destinationForRole(profile.role);
+          ? requestedInternalDestination() ?? workspaceForRole(profile.role)
+          : workspaceForRole(profile.role);
       window.location.replace(destination);
       return;
     }

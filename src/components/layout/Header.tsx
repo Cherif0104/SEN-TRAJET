@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { PreferencesMenu } from "@/components/preferences/PreferencesMenu";
 import { usePreferences } from "@/providers/PreferencesProvider";
+import { workspaceForRole } from "@/lib/rbac";
 
 export function Header() {
   const router = useRouter();
@@ -20,44 +21,19 @@ export function Header() {
   const handleSignOut = async () => {
     await signOut();
     setMenuOpen(false);
-    router.push("/");
+    router.replace("/connexion");
     router.refresh();
   };
 
-  const isDriver = profile?.role === "driver";
-  const isPartner = ["partner", "partner_manager", "partner_operator", "provider"].includes(
-    profile?.role ?? ""
-  );
-  const isAdmin = [
-    "admin",
-    "super_admin",
-    "commercial",
-    "trainer",
-    "regional_manager",
-    "manager",
-    "ops",
-    "finance",
-    "fleet_manager",
-  ].includes(profile?.role ?? "");
-  const isOwner = ["rental_owner", "vehicle_owner", "owner"].includes(profile?.role ?? "");
   const isLoggedIn = !!user;
-
-  const hubHref = isAdmin
-    ? "/admin"
-    : isOwner
-      ? "/proprietaire"
-      : isPartner
-        ? "/partenaire"
-        : isDriver
-          ? "/chauffeur"
-          : "/compte";
-  const hubLabel = isAdmin
+  const hubHref = workspaceForRole(profile?.role);
+  const hubLabel = hubHref === "/admin"
     ? t("nav.administration")
-    : isOwner
+    : hubHref === "/proprietaire"
       ? t("nav.owner")
-      : isPartner
+      : hubHref === "/partenaire"
         ? t("nav.partner")
-        : isDriver
+        : hubHref === "/chauffeur"
           ? t("nav.missions")
           : t("nav.account");
 

@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { canAccessAdminZone, canAccessDriverZone, canAccessPartnerZone } from "@/lib/rbac";
+import {
+  canAccessAdminZone,
+  canAccessDriverZone,
+  canAccessOwnerZone,
+  canAccessPartnerZone,
+  normalizeRole,
+} from "@/lib/rbac";
 import { getSentrajetSupabasePublicConfig } from "@/lib/supabaseConfig";
 
 const { url: supabaseUrl, key: supabaseKey } =
@@ -11,6 +17,10 @@ export async function middleware(request: NextRequest) {
   const isChauffeur = pathname.startsWith("/chauffeur");
   const isAdmin = pathname.startsWith("/admin");
   const isPartenaire = pathname.startsWith("/partenaire");
+  const isProprietaire = pathname.startsWith("/proprietaire");
+  const isCompte = pathname.startsWith("/compte");
+  const isProtected =
+    isChauffeur || isAdmin || isPartenaire || isProprietaire || isCompte;
 
   try {
     let response = NextResponse.next({ request });
@@ -36,23 +46,33 @@ export async function middleware(request: NextRequest) {
     // Si le cookie SSR est absent/incomplet, un redirect middleware provoquerait
     // une boucle infinie vers /connexion?next=... ; on laisse alors les layouts
     // client gérer l'authentification.
-    if ((isChauffeur || isAdmin || isPartenaire) && !session) {
+    if (isProtected && !session) {
       return response;
     }
 
-    if (session && (isChauffeur || isAdmin || isPartenaire)) {
+    if (session && isProtected) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
         .maybeSingle();
 
-      const role = profile?.role as string | undefined;
+      let role = profile?.role as string | undefined;
+      if (!role) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .limit(1);
+        role = roles?.[0]?.role as string | undefined;
+      }
 
       const forbidden =
         (isChauffeur && !canAccessDriverZone(role)) ||
         (isAdmin && !canAccessAdminZone(role)) ||
-        (isPartenaire && !canAccessPartnerZone(role));
+        (isPartenaire && !canAccessPartnerZone(role)) ||
+        (isProprietaire && !canAccessOwnerZone(role)) ||
+        (isCompte && normalizeRole(role) !== "client");
 
       if (forbidden) {
         const redirectUrl = new URL("/dashboard", request.url);
@@ -76,5 +96,9 @@ export const config = {
     "/admin/:path*",
     "/partenaire",
     "/partenaire/:path*",
+    "/proprietaire",
+    "/proprietaire/:path*",
+    "/compte",
+    "/compte/:path*",
   ],
 };

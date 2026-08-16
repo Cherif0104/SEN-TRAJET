@@ -91,3 +91,21 @@ export function canAccessOwnerZone(role: string | null | undefined): boolean {
     r === "super_admin"
   );
 }
+
+/** Destination unique utilisée après connexion et dans tous les points d’entrée. */
+export function workspaceForRole(role: string | null | undefined): string {
+  const raw = role ?? "";
+  const normalized = normalizeRole(raw);
+  if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
+  if (raw === "vehicle_owner" || raw === "owner") return "/proprietaire";
+  if (
+    normalized === "partner" ||
+    raw === "partner_manager" ||
+    raw === "partner_operator" ||
+    raw === "rental_owner"
+  ) {
+    return "/partenaire";
+  }
+  if (normalized === "driver") return "/chauffeur";
+  return "/compte";
+}
