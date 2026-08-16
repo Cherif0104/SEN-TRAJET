@@ -116,31 +116,14 @@
 .sj-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
   padding: 4px 10px 26px;
 }
-.sj-brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: linear-gradient(145deg, var(--sj-gold2), #9b681b);
-  display: grid;
-  place-items: center;
-  color: #111;
-  font-weight: 900;
+.sj-brand a {
+  width: 100%;
 }
-.sj-brand b {
-  font-family: var(--font-display), Manrope, sans-serif;
-  font-size: 18px;
-  letter-spacing: 0.02em;
-  display: block;
-}
-.sj-brand small {
-  display: block;
-  color: var(--sj-gold2);
-  font-size: 10px;
-  letter-spacing: 0.28em;
-  margin-top: 2px;
+.sj-brand img {
+  width: min(100%, 210px);
+  height: auto;
 }
 .sj-nav {
   display: grid;

@@ -15,7 +15,7 @@ export function Footer() {
     <footer className="border-t border-neutral-800 bg-[#07111f] text-zinc-400">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-          <Logo className="[&_span]:text-white" />
+          <Logo variant="light" />
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
             {footerLinks.map((link) => (
               <Link

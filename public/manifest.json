@@ -2,21 +2,27 @@
   "name": "SentraJet Premium",
   "short_name": "SentraJet",
   "description": "Transport avec chauffeur — réservation, dispatch et flotte SentraJet Premium",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#07111f",
   "theme_color": "#07111f",
   "lang": "fr",
+  "categories": ["travel", "business", "navigation"],
   "icons": [
     {
       "src": "/icons/app-icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/app-icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

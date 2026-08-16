@@ -1,9 +1,14 @@
-const CACHE_NAME = "sen-trajet-v2";
+const CACHE_NAME = "sen-trajet-v3-brand";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
-  "/icons/icon-192.svg",
-  "/icons/icon-512.svg",
+  "/brand/sentrajet-mark.svg",
+  "/brand/sentrajet-wordmark.svg",
+  "/brand/sentrajet-wordmark-light.svg",
+  "/icons/app-icon-192.png",
+  "/icons/app-icon-512.png",
+  "/icons/apple-touch-icon.png",
+  "/icons/favicon-32.png",
 ];
 
 function offlineResponse(body, status) {

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Manrope } from "next/font/google";
+import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -53,12 +55,13 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${dmSans.variable} ${manrope.variable}`}>
       <head>
-        <link rel="icon" href="/icons/app-icon-192.png" type="image/png" />
+        <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
         {children}
+        <InstallAppPrompt />
         <script
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator){var h=location.hostname;var local=h==='localhost'||h==='127.0.0.1'||h==='[::1]';if(!local){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}}`,

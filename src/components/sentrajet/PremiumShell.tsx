@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Logo } from "@/components/layout/Logo";
 
 export type PremiumNavItem = {
   href: string;
@@ -31,11 +32,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
     <div className="sj-app">
       <aside className="sj-sidebar">
         <div className="sj-brand">
-          <div className="sj-brand-mark">SJ</div>
-          <div>
-            <b>SENTRAJET</b>
-            <small>PREMIUM</small>
-          </div>
+          <Logo variant="light" />
         </div>
         <nav className="sj-nav">
           {nav.map(({ href, label, icon: Icon }) => (
