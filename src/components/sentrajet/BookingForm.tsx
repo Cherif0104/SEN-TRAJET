@@ -111,7 +111,7 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         serviceType,
         passengers,
         luggage: luggageCount === "" ? 0 : Number(luggageCount),
-        distanceKm: distanceKm === "" ? null : Number(distanceKm),
+        distanceKm,
         tripMode: isRoundTrip ? "aller_retour" : "aller_simple",
         applyAccountDiscount: segment === "client" && Boolean(clientId),
       }),
