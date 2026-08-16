@@ -1,6 +1,10 @@
 # Vision et conception — SEN TRAJET
 
-Document de référence pour finaliser la plateforme : logique métier, parcours utilisateurs, rôles (dont Partenaires), carte interactive, alignement landing / produit. À utiliser comme socle pour les développements et la suppression des données mock.
+Document de référence historique pour finaliser la plateforme : logique métier, parcours utilisateurs, rôles (dont Partenaires), carte interactive, alignement landing / produit. À utiliser comme socle pour les développements et la suppression des données mock.
+
+> **Pivot produit (reprise)** : le modèle cible n’est plus une marketplace type Yango / mise en relation.  
+> SentraJet Premium devient une **plateforme propriétaire** (flotte interne, dispatch, espaces Client / Partenaire / Ops / Chauffeur).  
+> Voir **[PIVOT_SENTRAJET_PREMIUM.md](./PIVOT_SENTRAJET_PREMIUM.md)** — nouvelle source de vérité pour les développements à venir. Les sections marketplace ci-dessous restent utiles pour l’historique et le code legacy, mais ne guident plus le produit.
 
 ---
 

@@ -1,4 +1,4 @@
-name: Vercel Deploy
+name: CI
 
 on:
   push:
@@ -9,7 +9,8 @@ on:
       - main
 
 jobs:
-  deploy:
+  quality:
+    name: Lint & build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,14 +28,10 @@ jobs:
       - name: Run lint
         run: npm run lint
 
-      - name: Pull Vercel environment information
-        run: npx vercel pull --yes --environment=${{ github.event_name == 'pull_request' && 'preview' || 'production' }} --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build project artifacts
-        run: npx vercel build ${{ github.event_name == 'pull_request' && '' || '--prod' }} --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to Vercel
-        run: npx vercel deploy --prebuilt ${{ github.event_name == 'pull_request' && '' || '--prod' }} --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Run production build
+        run: npm run build
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Placeholders CI — le déploiement réel est fait par l'intégration GitHub native de Vercel.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-key

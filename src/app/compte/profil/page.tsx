@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
 import { updateProfile } from "@/lib/profiles";
 
@@ -11,7 +9,6 @@ export default function CompteProfilPage() {
   const { user, profile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [city, setCity] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -19,60 +16,52 @@ export default function CompteProfilPage() {
     if (profile) {
       setFullName(profile.full_name || "");
       setPhone(profile.phone || "");
-      setCity(profile.city || "");
     }
   }, [profile]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!user?.id) return;
     setSaving(true);
-    setSaved(false);
-    await updateProfile(user.id, { full_name: fullName, phone: phone || undefined, city: city || undefined });
-    refreshProfile?.();
-    setSaved(true);
-    setSaving(false);
-    setTimeout(() => setSaved(false), 2000);
-  };
+    try {
+      await updateProfile(user.id, { full_name: fullName, phone: phone || undefined });
+      refreshProfile?.();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
-      <h1 className="text-xl font-bold text-neutral-900">Mon profil</h1>
-      <p className="mt-1 text-neutral-600">
-        Modifiez vos informations personnelles.
-      </p>
-
-      <Card className="mt-6">
-        <form onSubmit={handleSave} className="space-y-4">
-          <Input
-            label="Nom complet"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-          />
-          <Input
-            label="Téléphone"
-            type="tel"
-            placeholder="+221 77 123 45 67"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-          <Input
-            label="Ville"
-            placeholder="Dakar"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-          />
-          {user?.email && (
-            <p className="text-sm text-neutral-500">
-              Email du compte : {user.email}
-            </p>
-          )}
-          <Button type="submit" isLoading={saving}>
-            {saved ? "Enregistré !" : "Enregistrer"}
-          </Button>
+      <SjSectionHead title="Mon profil" />
+      <SjCard>
+        <form className="sj-form" onSubmit={handleSave}>
+          <div className="sj-form-grid">
+            <div className="sj-field">
+              <label>Nom</label>
+              <input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+            <div className="sj-field">
+              <label>Téléphone</label>
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="sj-field">
+              <label>E-mail</label>
+              <input value={user?.email || ""} disabled />
+            </div>
+            <div className="sj-field">
+              <label>Rôle</label>
+              <input value="Client" disabled />
+            </div>
+          </div>
+          <button type="submit" className="sj-btn sj-btn-primary" disabled={saving}>
+            {saving ? "Enregistrement…" : "Enregistrer"}
+          </button>
+          {saved ? <p style={{ color: "#6de0b0", margin: 0 }}>Profil enregistré.</p> : null}
         </form>
-      </Card>
+      </SjCard>
     </>
   );
 }

@@ -9,13 +9,11 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
-import { updateProfile } from "@/lib/profiles";
-import { Users, Car, Package, ArrowLeft, Building2 } from "lucide-react";
+import { Users, Car, ArrowLeft, Building2 } from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
-type RoleType = "client" | "driver" | "partner" | "rental_owner";
-type DriverVehicleType = "personnes" | "utilitaire";
+type RoleType = "client";
 
 function formatAuthErrorMessage(rawMessage: string | null | undefined, mode: AuthMode): string {
   const msg = String(rawMessage ?? "").toLowerCase();
@@ -53,36 +51,42 @@ function formatAuthErrorMessage(rawMessage: string | null | undefined, mode: Aut
   return rawMessage ?? "Une erreur est survenue. Réessayez dans quelques instants.";
 }
 
+function safeNext(path: string | null): string | null {
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return null;
+  return path;
+}
+
 function InscriptionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<"choice" | "vehicle" | "form">("choice");
+  const [step, setStep] = useState<"choice" | "form">("choice");
   const [authMode, setAuthMode] = useState<AuthMode>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<RoleType>("client");
-  const [driverVehicleType, setDriverVehicleType] = useState<DriverVehicleType | null>(null);
-  const [inviteCode, setInviteCode] = useState("");
+  const nextAfterAuth = safeNext(searchParams.get("next"));
 
   useEffect(() => {
-    const invite = searchParams.get("invite");
-    if (invite) setInviteCode(invite.trim().toUpperCase());
     const roleParam = searchParams.get("role");
-    if (roleParam === "partenaire") {
-      setRole("partner");
-      setStep("form");
+    if (roleParam === "partenaire" || roleParam === "partner") {
+      router.replace("/devenir-partenaire");
+      return;
     }
-    if (roleParam === "loueur") {
-      setRole("rental_owner");
+    if (roleParam === "loueur" || roleParam === "proprietaire") {
+      router.replace("/devenir-partenaire?profil=proprietaire");
+      return;
+    }
+    if (roleParam === "client") {
+      setRole("client");
       setStep("form");
     }
     if (roleParam === "chauffeur") {
-      setRole("driver");
-      setStep("vehicle");
+      setRole("client");
+      setStep("choice");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const [otp, setOtp] = useState("");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("form");
@@ -90,16 +94,9 @@ function InscriptionPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const isPartnerLikeRole = role === "partner" || role === "rental_owner";
-  const canShowForm = role === "client" || isPartnerLikeRole || (role === "driver" && driverVehicleType);
-  const signupButtonLabel =
-    role === "partner"
-      ? "S'inscrire comme partenaire"
-      : role === "rental_owner"
-        ? "S'inscrire comme loueur pro"
-        : role === "driver"
-          ? "S'inscrire comme chauffeur"
-          : "S'inscrire comme passager";
+  /** Inscription publique = client uniquement (OS SentraJet). */
+  const canShowForm = role === "client";
+  const signupButtonLabel = "Créer mon compte client (−10 %)";
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,10 +109,8 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role,
+            role: "client",
             phone,
-            ...(role === "driver" && driverVehicleType ? { driver_vehicle_type: driverVehicleType } : {}),
-            ...(role === "driver" && inviteCode ? { invite_code: inviteCode } : {}),
           },
         },
       });
@@ -125,7 +120,11 @@ function InscriptionPageContent() {
         return;
       }
       setSuccess(true);
-      router.refresh();
+      if (nextAfterAuth) {
+        window.location.replace(nextAfterAuth);
+        return;
+      }
+      window.location.replace("/compte");
     } catch {
       setError("Une erreur inattendue s'est produite.");
     } finally {
@@ -148,9 +147,7 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role,
-            ...(role === "driver" && driverVehicleType ? { driver_vehicle_type: driverVehicleType } : {}),
-            ...(role === "driver" && inviteCode ? { invite_code: inviteCode } : {}),
+            role: "client",
           },
         },
       });
@@ -187,25 +184,12 @@ function InscriptionPageContent() {
         setLoading(false);
         return;
       }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (isPartnerLikeRole) {
-        router.push("/partenaire/onboarding");
-        router.refresh();
+      await supabase.auth.getUser();
+      if (nextAfterAuth) {
+        window.location.replace(nextAfterAuth);
         return;
       }
-      if (role === "driver" && inviteCode && user?.id) {
-        try {
-          const res = await fetch(`/api/partners/invite/${encodeURIComponent(inviteCode)}`);
-          if (res.ok) {
-            const { partner_id } = await res.json();
-            await updateProfile(user.id, { partner_id });
-          }
-        } catch {
-          // ignore
-        }
-      }
-      router.push("/");
-      router.refresh();
+      window.location.replace("/compte");
     } catch {
       setError("Une erreur inattendue s'est produite.");
     } finally {
@@ -216,9 +200,9 @@ function InscriptionPageContent() {
   return (
     <AuthPageScaffold
       title="Créer un compte"
-      subtitle="Passagers, chauffeurs, partenaires ou loueurs pro : inscrivez-vous en quelques minutes."
+      subtitle="Compte client SentraJet Premium (−10 %). Partenaires : contact & certification uniquement."
     >
-        {/* Étape 1 : Choix Client ou Chauffeur */}
+        {/* Étape 1 : Choix Client / Partenaire / Propriétaire */}
         {step === "choice" && (
           <>
             <p className="mt-8 text-sm font-semibold text-slate-800">Je suis</p>
@@ -230,138 +214,57 @@ function InscriptionPageContent() {
                   setStep("form");
                   setError(null);
                 }}
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Users className="h-7 w-7" />
                 </div>
                 <span className="text-lg font-semibold text-slate-900">Client</span>
                 <span className="text-sm text-slate-600">
-                  Je cherche un trajet ou je veux envoyer un colis
+                  Je réserve une prestation SentraJet (−10 % avec compte)
                 </span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("driver");
-                  setStep("vehicle");
-                  setError(null);
-                }}
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40"
+              <Link
+                href="/devenir-partenaire"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
-                  <Car className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Chauffeur</span>
-                <span className="text-sm text-slate-600">
-                  Je propose des trajets et je peux aussi louer mes véhicules
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("rental_owner");
-                  setStep("form");
-                  setError(null);
-                }}
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40 sm:col-span-2"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Building2 className="h-7 w-7" />
                 </div>
-                <span className="text-lg font-semibold text-slate-900">Loueur pro</span>
+                <span className="text-lg font-semibold text-slate-900">Professionnel ?</span>
                 <span className="text-sm text-slate-600">
-                  Je fais uniquement de la location de véhicules (catalogue pro)
+                  Devenir partenaire — diagnostic SentraJet (pas de compte auto)
                 </span>
-              </button>
+              </Link>
+              <Link
+                href="/devenir-partenaire?profil=proprietaire"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40 sm:col-span-2"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
+                  <Car className="h-7 w-7" />
+                </div>
+                <span className="text-lg font-semibold text-slate-900">Propriétaire / investisseur</span>
+                <span className="text-sm text-slate-600">
+                  Contact commercial — contrat d’actifs, pas d’inscription libre
+                </span>
+              </Link>
             </div>
             <p className="mt-6 text-center text-sm text-slate-500">
-              Vous gérez une flotte ?{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("partner");
-                  setStep("form");
-                  setError(null);
-                }}
-                className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-              >
-                Devenir partenaire
-              </button>
+              Les chauffeurs sont recrutés et affectés par SentraJet — pas d’inscription marketplace ouverte.
             </p>
-          </>
-        )}
-
-        {/* Étape 2 (chauffeur uniquement) : Type de véhicule */}
-        {step === "vehicle" && role === "driver" && (
-          <>
-            <button
-              type="button"
-              onClick={() => setStep("choice")}
-              className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-emerald-700"
-            >
-              <ArrowLeft className="h-4 w-4" /> Retour
-            </button>
-            <p className="mt-4 text-sm font-medium text-neutral-700">Type de véhicule</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Petits colis (sachets, petits cartons) peuvent être pris par les chauffeurs personnes. Au-delà de 10 kg, on passe par les véhicules utilitaires.
-            </p>
-            <div className="mt-3 grid gap-4 sm:grid-cols-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setDriverVehicleType("personnes");
-                  setStep("form");
-                }}
-                className="flex items-start gap-4 rounded-2xl border-2 border-slate-200/90 bg-white p-5 text-left shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
-                  <Users className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="font-semibold text-neutral-900">Transport de personnes</span>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    Voyageurs + option petits colis (sachets, petits cartons, &lt; 10 kg)
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDriverVehicleType("utilitaire");
-                  setStep("form");
-                }}
-                className="flex items-start gap-4 rounded-2xl border-2 border-slate-200/90 bg-white p-5 text-left shadow-sm transition-all hover:border-amber-300/90 hover:bg-amber-50/50"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-                  <Package className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="font-semibold text-neutral-900">Véhicule utilitaire</span>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    Bagages, gros colis et charges (&gt; 10 kg)
-                  </p>
-                </div>
-              </button>
-            </div>
           </>
         )}
 
         {/* Étape formulaire */}
         {step === "form" && canShowForm && (
           <>
-            {(role === "driver" || isPartnerLikeRole) && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (role === "driver" && driverVehicleType) setStep("vehicle");
-                  else setStep("choice");
-                }}
-                className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-emerald-700"
-              >
-                <ArrowLeft className="h-4 w-4" /> Retour
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setStep("choice")}
+              className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-amber-800"
+            >
+              <ArrowLeft className="h-4 w-4" /> Retour
+            </button>
 
             <div className="mt-6 flex rounded-xl border border-slate-200/90 bg-slate-100/80 p-1">
               <button
@@ -383,9 +286,7 @@ function InscriptionPageContent() {
             <Card className="mt-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/35">
               {success && authMode === "email" && (
                 <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 ring-1 ring-emerald-200/60">
-                  {isPartnerLikeRole
-                    ? "Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous pour compléter votre espace partenaire."
-                    : "Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous."}
+                  Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous.
                 </p>
               )}
               {error && (
@@ -394,17 +295,7 @@ function InscriptionPageContent() {
 
               {authMode === "email" && (
                 <form onSubmit={handleEmailSubmit} className="space-y-4">
-                  {role === "driver" && driverVehicleType && (
-                    <p className="rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
-                      {driverVehicleType === "personnes"
-                        ? "Véhicule pour personnes (avec option petits colis)"
-                        : "Véhicule utilitaire (bagages, gros colis)"}
-                    </p>
-                  )}
                   <Input label="Nom complet" placeholder="Mamadou Diallo" value={name} onChange={(e) => setName(e.target.value)} required />
-                  {role === "driver" && (
-                    <Input label="Code parrain (optionnel)" placeholder="Ex: ABC12XYZ" value={inviteCode} onChange={(e) => setInviteCode(e.target.value.trim().toUpperCase())} />
-                  )}
                   <Input label="Email" type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   <Input label="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                   <Button type="submit" fullWidth isLoading={loading}>
@@ -415,15 +306,7 @@ function InscriptionPageContent() {
 
               {authMode === "phone" && phoneStep === "form" && (
                 <form onSubmit={handlePhoneSendOtp} className="space-y-4">
-                  {role === "driver" && driverVehicleType && (
-                    <p className="rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
-                      {driverVehicleType === "personnes" ? "Véhicule pour personnes (avec option petits colis)" : "Véhicule utilitaire (bagages, gros colis)"}
-                    </p>
-                  )}
                   <Input label="Nom complet" placeholder="Mamadou Diallo" value={name} onChange={(e) => setName(e.target.value)} required />
-                  {role === "driver" && (
-                    <Input label="Code parrain (optionnel)" placeholder="Ex: ABC12XYZ" value={inviteCode} onChange={(e) => setInviteCode(e.target.value.trim().toUpperCase())} />
-                  )}
                   <Input label="Numéro de téléphone" type="tel" placeholder="77 123 45 67" value={phone} onChange={(e) => setPhone(e.target.value)} required />
                   <p className="text-xs text-neutral-500">Format Sénégal (+221). Vous recevrez un code par SMS.</p>
                   <Button type="submit" fullWidth isLoading={loading}>Envoyer le code</Button>
@@ -444,7 +327,7 @@ function InscriptionPageContent() {
 
         <p className="mt-8 text-center text-sm text-slate-600">
           Déjà un compte ?{" "}
-          <Link href="/connexion" className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline">
+          <Link href="/connexion" className="font-semibold text-amber-800 hover:text-amber-900 hover:underline">
             Se connecter
           </Link>
         </p>

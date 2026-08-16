@@ -1,214 +1,59 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowRight, MapPin, Search } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { senegalCities } from "@/data/senegalLocations";
-import { reverseGeocode } from "@/lib/geocode";
-import type { PickupMode } from "@/lib/pricing";
-import { useGeolocation } from "@/hooks/useGeolocation";
+import Link from "next/link";
 
 export function HeroSection() {
-  const [depart, setDepart] = useState("");
-  const [destination, setDestination] = useState("");
-  const [date, setDate] = useState("");
-  const [heure, setHeure] = useState("");
-  const [pickupMode, setPickupMode] = useState<PickupMode>("driver_point");
-  const [geolocating, setGeolocating] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const cityOptions = useMemo(() => senegalCities, []);
-  const geo = useGeolocation({ enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (depart) params.set("depart", depart);
-    if (destination) params.set("destination", destination);
-    if (date) params.set("date", date);
-    if (heure) params.set("heure", heure);
-    params.set("pickupMode", pickupMode);
-    window.location.href = `/recherche?${params.toString()}`;
-  };
-
-  const applyMyLocation = async (field: "depart" | "destination") => {
-    setGeoError(null);
-    setGeolocating(true);
-    const res = await geo.getPosition();
-    if (!res.ok) {
-      setGeolocating(false);
-      setGeoError(res.error);
-      return;
-    }
-    const label = (await reverseGeocode(res.position.lat, res.position.lng)) ?? `${res.position.lat.toFixed(4)}, ${res.position.lng.toFixed(4)}`;
-    if (field === "depart") setDepart(label);
-    else setDestination(label);
-    setGeolocating(false);
-  };
-
   return (
-    <section className="relative min-h-[min(92vh,720px)] overflow-hidden bg-slate-950 pb-16 pt-8 sm:min-h-[min(88vh,780px)] sm:pb-20 sm:pt-12 lg:pt-16">
-      {/* Photo Dakar — recadrage mobile vers la gauche (chauffeur / SUV) */}
+    <section className="relative min-h-[min(92vh,720px)] overflow-hidden bg-[#07111f] pb-16 pt-8 sm:min-h-[min(88vh,780px)] sm:pb-20 sm:pt-12 lg:pt-16">
       <div className="absolute inset-0">
         <Image
-          src="/images/hero-sen-trajet.png"
-          alt="Chauffeur et véhicules à Dakar, vue sur la côte"
+          src="/brand/sentrajet-hero.png"
+          alt="Véhicule SentraJet Premium"
           fill
           priority
           quality={90}
-          className="object-cover object-[22%_center] sm:object-[28%_center] lg:object-center"
+          className="object-cover object-center"
           sizes="100vw"
         />
       </div>
-      {/* Voile pour lisibilité du texte sur le ciel et la route */}
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/55 to-slate-950/88"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#07111f]/85 via-[#07111f]/50 to-[#07111f]/92"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/25 to-transparent sm:from-slate-950/65 sm:via-slate-950/20"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_0%,rgba(16,185,129,0.12),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#07111f]/80 via-[#07111f]/30 to-transparent"
         aria-hidden
       />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <p className="text-sm font-semibold text-emerald-300 drop-shadow-sm">SEN TRAJET</p>
-        <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-white drop-shadow-md sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-          Le trajet qu’il vous faut, sans friction.
+        <p className="font-display text-sm font-semibold tracking-[0.22em] text-[#f0c86b]">
+          SENTRAJET PREMIUM
+        </p>
+        <h1 className="mt-4 max-w-3xl font-display text-4xl font-bold tracking-tight text-white drop-shadow-md sm:text-5xl lg:text-[3.4rem] lg:leading-[1.08]">
+          SentraJet Premium
         </h1>
-        <p className="mt-4 max-w-xl text-base text-slate-100/90 drop-shadow sm:text-lg">
-          Trajets interurbains et envoi de colis : comparez les offres, réservez en ligne et suivez le parcours — paiements
-          pensés pour le contexte local (dont mobile money).
+        <p className="mt-4 max-w-xl text-base text-white/90 drop-shadow sm:text-lg">
+          Transfert aéroport, voyage ou mise à disposition — flotte SentraJet, devis clair, véhicule
+          assigné le jour J.
         </p>
 
-        <form
-          onSubmit={handleSearch}
-          className="mt-10 rounded-2xl border border-white/10 bg-white p-4 shadow-2xl shadow-black/40 sm:p-6 lg:p-8"
-        >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
-            <div className="relative lg:col-span-1">
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Départ
-              </label>
-              <Input
-                placeholder="Ville ou commune"
-                value={depart}
-                onChange={(e) => setDepart(e.target.value)}
-                list="senegal-cities-hero"
-                className="h-12 border-neutral-200 pr-11 text-neutral-900"
-              />
-              <button
-                type="button"
-                onClick={() => applyMyLocation("depart")}
-                disabled={geolocating}
-                className="absolute bottom-2 right-2 rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-emerald-600 disabled:opacity-50"
-                title="Ma position"
-                aria-label="Utiliser ma position pour le départ"
-              >
-                <MapPin className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="relative lg:col-span-1">
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Arrivée
-              </label>
-              <Input
-                placeholder="Ville ou commune"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                list="senegal-cities-hero"
-                className="h-12 border-neutral-200 pr-11 text-neutral-900"
-              />
-              <button
-                type="button"
-                onClick={() => applyMyLocation("destination")}
-                disabled={geolocating}
-                className="absolute bottom-2 right-2 rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-emerald-600 disabled:opacity-50"
-                title="Ma position"
-                aria-label="Utiliser ma position pour l’arrivée"
-              >
-                <MapPin className="h-5 w-5" />
-              </button>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Date
-              </label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-12 border-neutral-200 text-neutral-900"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Heure
-              </label>
-              <Input
-                type="time"
-                value={heure}
-                onChange={(e) => setHeure(e.target.value)}
-                className="h-12 border-neutral-200 text-neutral-900"
-              />
-            </div>
-          </div>
-          <datalist id="senegal-cities-hero">
-            {cityOptions.map((city) => (
-              <option key={city} value={city} />
-            ))}
-          </datalist>
-          {geoError && (
-            <p className="mt-3 text-sm text-amber-800" role="alert">
-              {geoError}
-            </p>
-          )}
-
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="inline-flex rounded-xl border border-neutral-200 bg-neutral-50 p-1">
-              <button
-                type="button"
-                onClick={() => setPickupMode("driver_point")}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                  pickupMode === "driver_point" ? "bg-white text-emerald-700 shadow-sm" : "text-neutral-600"
-                }`}
-              >
-                Point chauffeur
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickupMode("home_pickup")}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                  pickupMode === "home_pickup" ? "bg-white text-emerald-700 shadow-sm" : "text-neutral-600"
-                }`}
-              >
-                A domicile (+2000)
-              </button>
-            </div>
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="h-12 bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-500 sm:min-w-[200px]"
-            >
-              <Search className="mr-2 h-5 w-5" />
-              Rechercher
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              href="/demande"
-              className="text-neutral-600 hover:text-neutral-900"
-            >
-              Plutôt une demande personnalisée
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </form>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/reserver"
+            className="inline-flex items-center justify-center rounded-xl bg-[#d5a64a] px-6 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"
+          >
+            Réserver
+          </Link>
+          <a
+            href="https://wa.me/221788324069"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
+          >
+            WhatsApp
+          </a>
+        </div>
       </div>
     </section>
   );

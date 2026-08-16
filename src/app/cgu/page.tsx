@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
 export const metadata = {
-  title: "Conditions générales d’utilisation — SEN TRAJET",
-  description: "CGU de la plateforme SEN TRAJET.",
+  title: "CGV & règles de réservation — SentraJet Premium",
+  description:
+    "Projet de conditions générales de vente et règles de réservation SentraJet Premium (brouillon opérationnel).",
 };
 
 export default function CguPage() {
@@ -12,46 +14,77 @@ export default function CguPage() {
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-          Conditions générales d’utilisation
+          Conditions générales de vente & règles de réservation
         </h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Dernière mise à jour : {new Date().toLocaleDateString("fr-FR")}
+        <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <strong>Brouillon opérationnel</strong> — à faire relire et valider juridiquement avant
+          publication définitive. Cadre sénégalais notamment : loi n°2021-25 (prix & protection du
+          consommateur) et loi n°2008-08 (transactions électroniques).
         </p>
-        <div className="mt-8 space-y-6 text-sm text-neutral-600">
+
+        <div className="mt-8 space-y-6 text-sm text-neutral-700">
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">1. Objet</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">1. Présentation</h2>
             <p className="mt-2">
-              Les présentes conditions générales d’utilisation (CGU) régissent l’accès et l’utilisation de la plateforme SEN TRAJET, service de mise en relation pour le transport interurbain et l’envoi de colis au Sénégal.
+              SentraJet Premium est un service sénégalais de transport privé avec chauffeur
+              (transferts aéroport, interurbain, mise à disposition, groupes, VIP, etc.).
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">2. Acceptation</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">2. Espaces</h2>
             <p className="mt-2">
-              L’utilisation de la plateforme implique l’acceptation sans réserve des présentes CGU. En cas de désaccord, l’utilisateur s’abstient d’utiliser le service.
+              Client, Chauffeur, Partenaire B2B, Propriétaire/Investisseur (Vehicle Partner), et
+              Control Center SentraJet.
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">3. Rôles et responsabilités</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">3. Réservation</h2>
             <p className="mt-2">
-              SEN TRAJET met en relation des clients (voyageurs) et des chauffeurs ou partenaires. La plateforme ne assure pas le transport ; les chauffeurs sont responsables de l’exécution des trajets et du respect de la réglementation en vigueur.
+              Demande → Calcul tarif → Validation → Paiement (Wave) → Confirmation → Affectation
+              chauffeur → Prise en charge → Clôture. Une réservation n’est confirmée qu’après
+              validation selon les règles SentraJet.
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">4. Réservations et annulations</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">4. Annulation</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>Plus de 6 h avant : sans frais</li>
+              <li>Entre 4 h et 6 h : 30 %</li>
+              <li>Moins de 2 h : 50 %</li>
+              <li>Tranche 2 h–4 h : décision métier ouverte (non inventée)</li>
+            </ul>
+          </section>
+          <section>
+            <h2 className="text-lg font-semibold text-neutral-900">5. Attente</h2>
+            <p className="mt-2">30 minutes gratuites, puis 2 500 FCFA par tranche de 30 minutes.</p>
+          </section>
+          <section>
+            <h2 className="text-lg font-semibold text-neutral-900">6. Tarifs (extrait)</h2>
             <p className="mt-2">
-              Les conditions d’annulation et de remboursement sont communiquées au moment de la réservation. En cas d’annulation par le client ou le chauffeur, les règles applicables sont celles affichées sur la plateforme et dans l’espace compte.
+              AIBD client : 25 000 à 50 000 FCFA selon passagers. AIBD+retour : 35 000 à 60 000 FCFA.
+              Interurbain : 850 FCFA/km (min. 30 000). Partenaire : grilles B2B dédiées (700 FCFA/km).
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">5. Données personnelles</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">7. Vehicle Partner</h2>
             <p className="mt-2">
-              Le traitement des données personnelles est décrit dans la politique de confidentialité. En utilisant SEN TRAJET, vous acceptez ce traitement dans le cadre du service.
+              Contrat d’exploitation à partir de 500 000 FCFA/mois selon véhicule et modalités —
+              présentation contractuelle, pas un rendement garanti.
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">6. Contact</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">Document complet</h2>
             <p className="mt-2">
-              Pour toute question relative aux CGU : utilisez la page « Nous contacter » ou les coordonnées indiquées sur la plateforme.
+              Le cadre opérationnel détaillé (statuts, process, données personnelles, réclamations,
+              force majeure) est maintenu dans le dépôt :{" "}
+              <code className="text-xs bg-neutral-100 px-1 rounded">
+                docs/operations/CGV_REGLES_RESERVATION.md
+              </code>
+              . Architecture moteurs :{" "}
+              <Link href="/admin/regles" className="text-primary underline">
+                Control Center — Règles métier
+              </Link>
+              .
             </p>
           </section>
         </div>

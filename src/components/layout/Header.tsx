@@ -22,19 +22,41 @@ export function Header() {
   };
 
   const isDriver = profile?.role === "driver";
-  const isPartner = ["partner", "partner_manager", "partner_operator", "rental_owner"].includes(profile?.role ?? "");
-  const isAdmin = ["admin", "super_admin", "commercial", "trainer", "regional_manager"].includes(profile?.role ?? "");
+  const isPartner = ["partner", "partner_manager", "partner_operator", "rental_owner", "provider"].includes(
+    profile?.role ?? ""
+  );
+  const isAdmin = [
+    "admin",
+    "super_admin",
+    "commercial",
+    "trainer",
+    "regional_manager",
+    "manager",
+    "ops",
+    "finance",
+    "fleet_manager",
+  ].includes(profile?.role ?? "");
+  const isOwner = profile?.role === "rental_owner";
   const isLoggedIn = !!user;
 
-  /** Une seule URL : la page /dashboard redirige selon le rôle (admin, partenaire, chauffeur, client). */
-  const hubHref = "/dashboard";
+  const hubHref = isAdmin
+    ? "/admin"
+    : isPartner
+      ? "/partenaire"
+      : isDriver
+        ? "/chauffeur"
+        : isOwner
+          ? "/proprietaire"
+          : "/compte";
   const hubLabel = isAdmin
     ? "Administration"
     : isPartner
-      ? "Mon espace"
+      ? "Espace partenaire"
       : isDriver
-        ? "Tableau de bord"
-        : "Mon compte";
+        ? "Missions"
+        : isOwner
+          ? "Espace propriétaire"
+          : "Mon compte";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200/90 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
@@ -43,41 +65,13 @@ export function Header() {
 
         <nav className="hidden md:flex md:items-center md:gap-8">
           {isLoggedIn ? (
-            <>
-              <Link
-                href={hubHref}
-                className="text-sm font-semibold text-neutral-900 hover:text-emerald-700"
-              >
-                {hubLabel}
-              </Link>
-              <Link
-                href="/recherche"
-                className="text-sm font-medium text-neutral-600 hover:text-emerald-700"
-              >
-                Recherche
-              </Link>
-            </>
+            <Link href={hubHref} className="text-sm font-semibold text-neutral-900 hover:text-amber-700">
+              {hubLabel}
+            </Link>
           ) : (
-            <>
-              <Link
-                href="/recherche"
-                className="text-sm font-medium text-neutral-600 hover:text-emerald-700"
-              >
-                Recherche
-              </Link>
-              <Link
-                href="/demande"
-                className="text-sm font-medium text-neutral-600 hover:text-emerald-700"
-              >
-                Demander un trajet
-              </Link>
-              <Link
-                href="/inscription"
-                className="text-sm font-medium text-neutral-600 hover:text-emerald-700"
-              >
-                Chauffeur / Pro
-              </Link>
-            </>
+            <Link href="/faq" className="text-sm font-medium text-neutral-600 hover:text-amber-700">
+              Aide
+            </Link>
           )}
         </nav>
 
@@ -88,10 +82,10 @@ export function Header() {
             <div className="flex items-center gap-2">
               <NotificationBell userId={user.id} />
               <Link
-                href={isAdmin ? "/admin" : isPartner ? "/partenaire/profil" : isDriver ? "/chauffeur/profil" : "/compte"}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100 hover:text-primary"
+                href={hubHref}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-800">
                   <User className="h-4 w-4" />
                 </div>
                 <span className="max-w-[100px] truncate">
@@ -112,13 +106,8 @@ export function Header() {
               <Button variant="ghost" size="sm" href="/connexion" className="text-neutral-700">
                 Connexion
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                href="/inscription"
-                className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500"
-              >
-                S&apos;inscrire
+              <Button variant="primary" size="sm" href="/reserver" className="bg-amber-500 text-neutral-900 hover:bg-amber-400">
+                Réserver
               </Button>
             </>
           )}
@@ -130,91 +119,37 @@ export function Header() {
           className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
         >
-          {menuOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
+          {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
 
       {menuOpen && (
         <div className="border-t border-neutral-200 bg-white px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
+            <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-neutral-900" onClick={() => setMenuOpen(false)}>
+              Réserver
+            </Link>
             {isLoggedIn ? (
-              <>
-                <Link
-                  href={hubHref}
-                  className="rounded-lg px-3 py-2.5 font-medium text-primary"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {hubLabel}
-                </Link>
-                <Link
-                  href="/recherche"
-                  className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Recherche
-                </Link>
-              </>
+              <Link href={hubHref} className="rounded-lg px-3 py-2 font-medium text-neutral-700" onClick={() => setMenuOpen(false)}>
+                {hubLabel}
+              </Link>
             ) : (
-              <>
-                <Link
-                  href="/recherche"
-                  className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Recherche
-                </Link>
-                <Link
-                  href="/demande"
-                  className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Demander un trajet
-                </Link>
-                <Link
-                  href="/inscription"
-                  className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Chauffeur / Pro
-                </Link>
-              </>
+              <Link href="/faq" className="rounded-lg px-3 py-2 text-neutral-700" onClick={() => setMenuOpen(false)}>
+                Aide
+              </Link>
             )}
             <div className="mt-3 flex flex-col gap-2 border-t border-neutral-200 pt-3">
               {user ? (
-                <>
-                  <div className="flex items-center gap-2 px-3 py-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm font-medium text-neutral-700">
-                      {profile?.full_name || user.email?.split("@")[0]}
-                    </span>
-                  </div>
-                  <Button variant="secondary" fullWidth onClick={() => void handleSignOut()}>
-                    Déconnexion
-                  </Button>
-                </>
+                <Button variant="secondary" fullWidth onClick={() => void handleSignOut()}>
+                  Déconnexion
+                </Button>
               ) : (
                 <>
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    href="/connexion"
-                    onClick={() => setMenuOpen(false)}
-                  >
+                  <Button variant="secondary" fullWidth href="/connexion" onClick={() => setMenuOpen(false)}>
                     Se connecter
                   </Button>
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    href="/inscription"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    S&apos;inscrire
+                  <Button variant="primary" fullWidth href="/reserver" onClick={() => setMenuOpen(false)}>
+                    Réserver
                   </Button>
                 </>
               )}

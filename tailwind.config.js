@@ -4,13 +4,16 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "DM Sans", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Manrope", "sans-serif"],
       },
       colors: {
         primary: "var(--color-primary)",
         "primary-light": "var(--color-primary-light)",
         "primary-dark": "var(--color-primary-dark)",
         secondary: "var(--color-success)",
+        gold: "#d5a64a",
+        "sj-bg": "#07111f",
       },
       borderRadius: {
         button: "14px",

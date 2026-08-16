@@ -1,29 +1,22 @@
 {
-  "name": "SEN TRAJET",
-  "short_name": "SEN TRAJET",
-  "description": "Plateforme de covoiturage interurbain au Sénégal. Réservez un trajet, proposez vos services.",
+  "name": "SentraJet Premium",
+  "short_name": "SentraJet",
+  "description": "Transport avec chauffeur — réservation, dispatch et flotte SentraJet Premium",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1D4ED8",
-  "orientation": "portrait-primary",
-  "scope": "/",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
   "lang": "fr",
-  "categories": ["travel", "transportation"],
   "icons": [
     {
       "src": "/icons/app-icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "/icons/app-icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ],
-  "screenshots": [],
-  "prefer_related_applications": false
+  ]
 }

@@ -1,60 +1,106 @@
- "use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/Card";
-import { getAllRentalBookings, type RentalBooking } from "@/lib/rentals";
-import { RENTAL_STATUS_LABEL, rentalStatusStyle } from "@/lib/statusLabels";
+import Link from "next/link";
+import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
+import { BookingForm } from "@/components/sentrajet/BookingForm";
+import {
+  BOOKING_STATUS_LABEL,
+  bookingStatusTone,
+  listPlatformBookings,
+  type PlatformBooking,
+} from "@/lib/platformOps";
+import { SERVICE_TYPE_LABELS, formatFcfa, type ServiceType } from "@/lib/sentrajetPricing";
 
 export default function AdminReservationsPage() {
-  const [rows, setRows] = useState<RentalBooking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<PlatformBooking[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      setRows(await listPlatformBookings());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    }
+  }
 
   useEffect(() => {
-    getAllRentalBookings()
-      .then((data) => setRows(data))
-      .finally(() => setLoading(false));
+    void load();
   }, []);
 
   return (
     <>
-      <h1 className="text-xl font-bold text-neutral-900">Réservations</h1>
-      <p className="mt-1 text-neutral-600">Suivi des réservations location et reversements.</p>
+      <SjSectionHead
+        eyebrow="Operations"
+        title="Réservations"
+        action={
+          <button type="button" className="sj-btn sj-btn-primary" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? "Fermer" : "+ Nouvelle réservation"}
+          </button>
+        }
+      />
 
-      {loading ? (
-        <div className="mt-6 space-y-3">
-          {[1, 2, 3].map((idx) => (
-            <div key={idx} className="h-24 animate-pulse rounded-xl bg-neutral-200" />
-          ))}
+      {showForm ? (
+        <SjCard style={{ marginBottom: 16 }}>
+          <BookingForm segment="client" onCreated={() => void load()} />
+        </SjCard>
+      ) : null}
+
+      {error ? <p style={{ color: "#ff9ea5" }}>{error}</p> : null}
+
+      <SjCard>
+        <div className="sj-table-wrap">
+          <table className="sj-table">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>Client</th>
+                <th>Prestation</th>
+                <th>Date</th>
+                <th>Passagers</th>
+                <th>Chauffeur</th>
+                <th>Statut</th>
+                <th>Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <b>{r.reference || r.id.slice(0, 8)}</b>
+                  </td>
+                  <td>{r.client?.company_name || r.client?.full_name || "—"}</td>
+                  <td>
+                    {SERVICE_TYPE_LABELS[r.service_type as ServiceType] || r.service_type}
+                    <div className="sj-muted">
+                      {r.pickup} → {r.dropoff}
+                    </div>
+                  </td>
+                  <td>{new Date(r.pickup_time).toLocaleString("fr-FR")}</td>
+                  <td>{r.passengers}</td>
+                  <td>{r.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
+                  <td>
+                    <SjBadge tone={bookingStatusTone(r.status)}>
+                      {BOOKING_STATUS_LABEL[r.status] ?? r.status}
+                    </SjBadge>
+                  </td>
+                  <td>
+                    <b>{r.estimated_price != null ? formatFcfa(Number(r.estimated_price)) : "Sur devis"}</b>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : rows.length === 0 ? (
-        <Card className="mt-6">
-          <p className="text-sm text-neutral-600">Aucune réservation location enregistrée.</p>
-        </Card>
-      ) : (
-        <div className="mt-6 space-y-4">
-          {rows.map((booking) => (
-            <Card key={booking.id} className="border border-neutral-200">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-neutral-900">
-                    {booking.listing?.brand} {booking.listing?.model}
-                  </h2>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    Client: {booking.client?.full_name || "N/A"} · {booking.start_date} → {booking.end_date}
-                  </p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Total: {booking.total_fcfa.toLocaleString("fr-FR")} FCFA · Net propriétaire:{" "}
-                    {booking.owner_net_fcfa.toLocaleString("fr-FR")} FCFA
-                  </p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${rentalStatusStyle(booking.status)}`}>
-                  {RENTAL_STATUS_LABEL[booking.status] ?? booking.status}
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+        {!rows.length ? <p className="sj-muted" style={{ marginTop: 12 }}>Aucune réservation.</p> : null}
+      </SjCard>
+
+      <div style={{ marginTop: 16 }}>
+        <Link href="/admin/dispatch" className="sj-btn">
+          Aller au dispatch →
+        </Link>
+      </div>
     </>
   );
 }

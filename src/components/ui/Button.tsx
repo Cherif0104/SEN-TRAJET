@@ -15,13 +15,13 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white shadow-[0_8px_20px_rgba(5,150,105,0.22)] hover:bg-primary-dark hover:shadow-[0_10px_24px_rgba(5,150,105,0.28)] active:scale-[0.985]",
+    "bg-amber-500 text-neutral-900 shadow-[0_8px_20px_rgba(213,166,74,0.28)] hover:bg-amber-400 hover:shadow-[0_10px_24px_rgba(213,166,74,0.35)] active:scale-[0.985]",
   secondary:
     "bg-white border border-neutral-300 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400 active:scale-[0.99]",
-  tertiary: "bg-transparent text-primary hover:text-primary-dark hover:underline",
+  tertiary: "bg-transparent text-amber-800 hover:text-amber-900 hover:underline",
   ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 active:scale-[0.99]",
   outline:
-    "bg-white border border-secondary text-secondary hover:bg-secondary/10 active:scale-[0.99]",
+    "bg-transparent border border-amber-600/60 text-amber-900 hover:bg-amber-50 active:scale-[0.99]",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -47,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const classes = clsx(
-      "inline-flex items-center justify-center font-semibold transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
+      "inline-flex items-center justify-center font-semibold transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
       variantClasses[variant],
       sizeClasses[size],
       fullWidth && "w-full",
@@ -58,33 +58,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       const { onClick } = props;
       return (
         <Link
-          ref={ref as React.Ref<HTMLAnchorElement>}
           href={href}
           className={classes}
-          onClick={onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
+          onClick={onClick as React.MouseEventHandler<HTMLAnchorElement> | undefined}
         >
-          {isLoading ? (
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          ) : (
-            children
-          )}
+          {isLoading ? "…" : children}
         </Link>
       );
     }
 
     return (
-      <button
-        ref={ref}
-        type={type}
-        disabled={disabled || isLoading}
-        className={classes}
-        {...props}
-      >
-        {isLoading ? (
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        ) : (
-          children
-        )}
+      <button ref={ref} type={type} className={classes} disabled={disabled || isLoading} {...props}>
+        {isLoading ? "…" : children}
       </button>
     );
   }

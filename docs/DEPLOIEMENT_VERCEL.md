@@ -1,40 +1,50 @@
-# Deploiement continu Vercel
+# Déploiement Vercel — SentraJet Premium
 
-## 1) Depot GitHub
+## 1) Dépôt GitHub
 
-- Repository cible: `Cherif0104/SEN-TRAJET`
-- Branche de production: `main`
+- Repository : `Cherif0104/SEN-TRAJET`
+- Branche de production : `main`
 
-## 2) Secrets GitHub Actions a configurer
+## 2) Déploiement (chemin officiel)
 
-Dans **Settings > Secrets and variables > Actions**, ajouter:
+**Intégration GitHub native Vercel** sur le projet `sen-trajet` :
 
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+- chaque push / PR crée une Preview automatiquement ;
+- le merge sur `main` déploie en production.
 
-## 3) Workflow active
+Plus besoin du workflow Actions CLI (qui provoquait des emails d’échec quand `VERCEL_TOKEN` était absent).
 
-Le workflow `.github/workflows/vercel-deploy.yml`:
+## 3) CI GitHub Actions
 
-- fait `lint`
-- cree un build Vercel
-- deploie en `preview` sur Pull Request
-- deploie en `production` sur push de `main`
+Le workflow `.github/workflows/vercel-deploy.yml` (renommé logiquement « CI ») fait uniquement :
 
-## 4) Variables d'environnement Vercel
+- `npm ci`
+- `npm run lint`
+- `npm run build`
 
-Dans le dashboard Vercel du projet, configurer au minimum:
+Il ne déploie plus. Cela évite les faux échecs / emails « missing token ».
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (si necessaire cote server/API)
-- autres cles API metier selon les routes actives
+## 4) Variables d’environnement Vercel
 
-## 5) Recommandation
+Dans le dashboard Vercel du projet, configurer au minimum :
 
-Brancher egalement l'integration GitHub native de Vercel pour avoir:
+- `NEXT_PUBLIC_SUPABASE_URL` → `https://ootvzknyhkhxroadnclh.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (serveur — comptes démo, ops)
+- `WAVE_API_KEY` — checkout Wave API live (sans clé = mode simulation)
+- `GOOGLE_MAPS_API_KEY` ou `GOOGLE_MAPS_SERVER_KEY` — Places + Distance Matrix (sans clé = OSM Photon/OSRM)
+- Preview QA : `ENABLE_TEST_ACCOUNTS=true` (optionnel ; Preview autorise déjà `/comptes-test`)
 
-- preview URLs automatiques par PR
-- historique des deploiements dans Vercel
-- rollback simplifie
+## 5) Protection Preview (SSO Vercel)
+
+Si les tests API/UI Preview renvoient **401 Protected deployment** :
+
+1. Vercel → projet `sen-trajet` → **Settings** → **Deployment Protection**
+2. Désactiver **Vercel Authentication** sur les Preview, **ou**
+3. Ajouter les comptes équipe / partager un bypass
+
+Sans cela, curl et agents externes ne peuvent pas tester la Preview.
+
+## 6) Preview actuelle (branche pivot)
+
+Voir le commentaire Vercel sur la PR #1 pour l’URL Preview à jour.

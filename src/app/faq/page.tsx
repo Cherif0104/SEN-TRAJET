@@ -2,47 +2,50 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
 export const metadata = {
-  title: "FAQ — SEN TRAJET",
-  description: "Questions fréquentes sur la réservation de trajets, l’inscription chauffeur et partenaire.",
+  title: "FAQ — SentraJet Premium",
+  description: "Questions fréquentes sur la réservation de prestations SentraJet Premium.",
 };
 
 const faqItems = [
   {
-    q: "Comment réserver un trajet ?",
-    a: "Recherchez un trajet (départ, destination, date), choisissez une offre dans les résultats, puis cliquez sur « Réserver ». Renseignez le nombre de passagers et le point de rencontre, puis validez.",
+    q: "Comment réserver ?",
+    a: "Allez sur « Réserver », choisissez le type de prestation (aéroport, voyage, mise à disposition, groupe…), renseignez départ / date / passagers, consultez l’estimation, puis cliquez sur « Demander cette prestation ». SentraJet étudie et vous envoie un devis.",
   },
   {
-    q: "Puis-je annuler une réservation ?",
-    a: "Oui. Depuis « Mon compte » puis « Mes réservations », vous pouvez annuler une réservation selon les conditions définies (voir CGU). En cas de litige, contactez le support.",
+    q: "Est-ce que je choisis un chauffeur ou un véhicule ?",
+    a: "Non. Vous réservez une prestation SentraJet. Après validation et paiement, l’entreprise affecte elle-même le véhicule et le chauffeur adaptés.",
   },
   {
-    q: "Comment devenir chauffeur ?",
-    a: "Cliquez sur « Devenir Chauffeur » ou « Inscription » et choisissez le rôle Chauffeur. Complétez votre profil (véhicule, documents), rechargez des crédits, puis publiez des trajets ou répondez aux demandes.",
+    q: "Comment fonctionne le paiement ?",
+    a: "Après acceptation du devis, vous payez via Wave. Une fois le paiement confirmé, votre réservation est confirmée et le dispatch peut démarrer.",
   },
   {
-    q: "À quoi servent les crédits chauffeur ?",
-    a: "Les crédits permettent de répondre aux demandes des clients et de publier des trajets. Vous les rechargez depuis l’espace chauffeur (Crédits → Recharger).",
+    q: "Y a-t-il une réduction avec un compte ?",
+    a: "Oui : −10 % sur les tarifs client (selon règles admin). Les tarifs partenaires B2B ne s’appliquent que depuis l’espace partenaire authentifié.",
   },
   {
-    q: "Comment contacter un chauffeur ou un client ?",
-    a: "Utilisez la messagerie intégrée : depuis « Messages » ou depuis une réservation, ouvrez la conversation liée au trajet.",
+    q: "Puis-je suivre ma réservation ?",
+    a: "Oui, depuis votre espace client et via WhatsApp après confirmation.",
   },
   {
-    q: "Comment devenir partenaire ?",
-    a: "Inscrivez-vous en tant que partenaire (depuis la landing « Devenir partenaire » ou la page Inscription). Complétez l’onboarding (raison sociale, contact), puis utilisez votre lien d’invitation pour recruter des chauffeurs.",
+    q: "Comment devenir partenaire B2B ?",
+    a: "Via « Devenir partenaire » : contact WhatsApp / téléphone, puis diagnostic et certification par SentraJet. Aucun compte B2B n’est créé automatiquement. L’espace partenaire (simulations, demandes, factures) n’ouvre qu’après statut ACTIF — ce n’est pas un CRM/ERP offert aux partenaires.",
+  },
+  {
+    q: "Comment devenir chauffeur SentraJet ?",
+    a: "Les chauffeurs font partie de la flotte entreprise. L’inscription ouverte « marketplace » n’existe plus : le recrutement et l’affectation sont gérés par SentraJet.",
   },
 ];
 
 export default function FaqPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-          FAQ
-        </h1>
-        <p className="mt-2 text-neutral-600 text-sm">
-          Réponses aux questions les plus fréquentes sur SEN TRAJET.
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">SentraJet Premium</p>
+        <h1 className="mt-2 text-2xl font-bold text-neutral-900 sm:text-3xl">FAQ</h1>
+        <p className="mt-2 text-sm text-neutral-600">
+          Réponses aux questions les plus fréquentes sur le nouveau parcours entreprise.
         </p>
         <dl className="mt-8 space-y-6">
           {faqItems.map((item) => (

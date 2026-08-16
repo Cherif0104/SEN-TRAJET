@@ -35,29 +35,48 @@ function formatAuthErrorMessage(message: string | null | undefined): string {
 /** URLs internes autorisées après connexion (évite open redirect). */
 function isAllowedNext(path: string): boolean {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return false;
+  const pathname = path.split("?")[0] || path;
   const allowed = [
     "/compte",
     "/chauffeur",
     "/partenaire",
+    "/proprietaire",
     "/admin",
     "/dashboard",
-    "/location",
-    "/recherche",
-    "/demande",
-    "/trajet",
-    "/reservation",
+    "/reserver",
     "/messages",
     "/avis",
     "/",
   ];
-  return allowed.some((prefix) => path === prefix || path.startsWith(prefix + "/"));
+  return allowed.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
 function hubPathForRole(role: string | undefined): string {
   if (role === "client") return "/compte";
   if (role === "driver") return "/chauffeur";
-  if (role === "partner" || role === "partner_manager" || role === "partner_operator" || role === "rental_owner") return "/partenaire";
-  if (role === "admin" || role === "super_admin" || role === "commercial" || role === "regional_manager" || role === "trainer") return "/admin";
+  if (
+    role === "partner" ||
+    role === "partner_manager" ||
+    role === "partner_operator" ||
+    role === "rental_owner" ||
+    role === "provider"
+  ) {
+    return "/partenaire";
+  }
+  if (role === "vehicle_owner" || role === "owner") return "/proprietaire";
+  if (
+    role === "admin" ||
+    role === "super_admin" ||
+    role === "commercial" ||
+    role === "regional_manager" ||
+    role === "trainer" ||
+    role === "manager" ||
+    role === "ops" ||
+    role === "finance" ||
+    role === "fleet_manager"
+  ) {
+    return "/admin";
+  }
   return "/";
 }
 
@@ -190,7 +209,7 @@ function ConnexionPageContent() {
   return (
     <AuthPageScaffold
       title="Connexion"
-      subtitle="Réservez, publiez un trajet ou suivez vos courses depuis un seul espace."
+      subtitle="Connectez-vous pour suivre vos réservations SentraJet Premium."
     >
         <div className="mt-8 flex rounded-xl border border-slate-200/90 bg-slate-100/80 p-1">
           <button
@@ -310,9 +329,14 @@ function ConnexionPageContent() {
           Pas encore de compte ?{" "}
           <Link
             href="/inscription"
-            className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="font-semibold text-amber-800 hover:text-amber-900 hover:underline"
           >
             S&apos;inscrire
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm text-slate-500">
+          <Link href="/comptes-test" className="font-semibold text-amber-800 hover:underline">
+            Tester avec un compte démo (1 clic)
           </Link>
         </p>
     </AuthPageScaffold>
