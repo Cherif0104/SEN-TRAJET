@@ -122,6 +122,10 @@ export const fr = {
   "landing.step.confirmDetail": "SentraJet valide votre demande et votre devis.",
   "landing.step.travel": "Voyagez",
   "landing.step.travelDetail": "Votre chauffeur et votre véhicule sont affectés.",
+  "booking.step.serviceTitle": "Où allez-vous ?",
+  "booking.step.serviceSubtitle": "Choisissez une prestation, puis vos adresses GPS.",
+  "booking.service.other": "Autre / devis",
+  "booking.service.otherDetail": "Cérémonie, longue distance ou besoin spécifique",
 } as const;
 
 export type TranslationKey = keyof typeof fr;

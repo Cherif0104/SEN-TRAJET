@@ -34,14 +34,14 @@ export function HomeContinued() {
 
   return (
     <>
-      <section className="bg-neutral-50 py-16 sm:py-20">
+      <section className="bg-[var(--color-background)] py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)]">{t("landing.services")}</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
               {t("landing.servicesTitle")}
             </h2>
-            <p className="mt-3 text-neutral-600">
+            <p className="mt-3 text-[var(--color-text-secondary)]">
               {t("landing.servicesSubtitle")}
             </p>
           </div>
@@ -50,25 +50,25 @@ export function HomeContinued() {
               <Link
                 key={title}
                 href="/reserver"
-                className="rounded-2xl border border-neutral-200/80 bg-white p-6 shadow-sm transition hover:border-amber-400 hover:shadow-md"
+                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition hover:border-[var(--color-accent)] hover:shadow-md"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-neutral-900">{t(title)}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">{t(text)}</p>
+                <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-primary)]">{t(title)}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">{t(text)}</p>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="border-y border-neutral-200/80 bg-white py-16 sm:py-20">
+      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)]">{t("landing.journey")}</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900">
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
                 {t("landing.journeyTitle")}
               </h2>
             </div>
@@ -80,14 +80,14 @@ export function HomeContinued() {
             {steps.map((s) => (
               <li key={s.n} className="relative flex gap-4">
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-sm font-bold text-white"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-[var(--color-text-inverse)]"
                   aria-hidden
                 >
                   {s.n}
                 </span>
                 <div>
-                  <h3 className="font-semibold text-neutral-900">{t(s.title)}</h3>
-                  <p className="mt-1 text-sm text-neutral-600">{t(s.desc)}</p>
+                  <h3 className="font-semibold text-[var(--color-text-primary)]">{t(s.title)}</h3>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t(s.desc)}</p>
                 </div>
               </li>
             ))}

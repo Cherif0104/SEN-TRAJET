@@ -8,6 +8,8 @@ import { Footer } from "@/components/layout/Footer";
 import { AddressAutocomplete, type SelectedPlace } from "@/components/booking/AddressAutocomplete";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { useAuth } from "@/hooks/useAuth";
+import { usePreferences } from "@/providers/PreferencesProvider";
+import type { TranslationKey } from "@/i18n";
 import {
   SERVICE_TYPE_LABELS,
   TRIP_MODE_LABELS,
@@ -34,11 +36,11 @@ import {
 type Step = SimulationDraft["step"];
 
 /** Offre publique courte — le reste passe par « Autre / devis ». */
-const SERVICE_CARDS: { value: ServiceType; title: string; hint: string }[] = [
-  { value: "transfert_aibd", title: "Transfert aéroport", hint: "AIBD — dès 20 000 FCFA" },
-  { value: "interurbain", title: "Voyager", hint: "Course & interurbain — km réel" },
-  { value: "mise_a_disposition", title: "Mise à disposition", hint: "50 000 FCFA / 10 h à Dakar" },
-  { value: "autre", title: "Autre / devis", hint: "Cérémonie, longue distance, besoin spécifique" },
+const SERVICE_CARDS: { value: ServiceType; title: TranslationKey; hint: TranslationKey }[] = [
+  { value: "transfert_aibd", title: "landing.service.airport", hint: "landing.service.airportDetail" },
+  { value: "interurbain", title: "landing.service.travel", hint: "landing.service.travelDetail" },
+  { value: "mise_a_disposition", title: "landing.service.hourly", hint: "landing.service.hourlyDetail" },
+  { value: "autre", title: "booking.service.other", hint: "booking.service.otherDetail" },
 ];
 
 const PRIMARY_TRIP_MODES: TripMode[] = ["aller_simple", "aller_retour"];
@@ -97,6 +99,7 @@ function Counter({
 
 function ReserverWizard() {
   const { user, profile } = useAuth();
+  const { t } = usePreferences();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -458,7 +461,7 @@ function ReserverWizard() {
             SentraJet Premium
           </p>
           <h1 className="mt-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
-            {draft.step === "service" && "Où allez-vous ?"}
+            {draft.step === "service" && t("booking.step.serviceTitle")}
             {draft.step === "trajet" && "Itinéraire réel"}
             {draft.step === "prix" && "Votre tarif"}
             {draft.step === "compte" && "Presque prêt"}
@@ -467,7 +470,7 @@ function ReserverWizard() {
           </h1>
           <p className="mt-2 text-sm text-white/70">
             {draft.step === "service"
-              ? "Choisissez une prestation, puis vos adresses GPS."
+              ? t("booking.step.serviceSubtitle")
               : draft.step === "trajet"
                 ? "Recherchez départ et arrivée — le prix suit la distance routière réelle."
                 : draft.step === "prix"
@@ -505,10 +508,10 @@ function ReserverWizard() {
                 }
                 patch(next);
               }}
-              className="rounded-2xl border border-neutral-200 bg-neutral-50/80 px-4 py-4 text-left transition hover:border-amber-400 hover:bg-amber-50/50"
+              className="rounded-2xl border border-neutral-200 bg-neutral-50/80 px-4 py-4 text-start transition hover:border-amber-400 hover:bg-amber-50/50"
             >
-              <p className="font-semibold text-neutral-900">{s.title}</p>
-              <p className="mt-1 text-sm text-neutral-500">{s.hint}</p>
+              <p className="font-semibold text-neutral-900">{t(s.title)}</p>
+              <p className="mt-1 text-sm text-neutral-500">{t(s.hint)}</p>
             </button>
           ))}
         </div>

@@ -124,4 +124,8 @@ export const zh: Record<TranslationKey, string> = {
   "landing.step.confirmDetail": "SentraJet 确认您的需求和报价。",
   "landing.step.travel": "出发",
   "landing.step.travelDetail": "为您安排司机和车辆。",
+  "booking.step.serviceTitle": "您要去哪里？",
+  "booking.step.serviceSubtitle": "请选择服务，然后输入 GPS 地址。",
+  "booking.service.other": "其他 / 报价",
+  "booking.service.otherDetail": "活动、长途或特殊需求",
 };

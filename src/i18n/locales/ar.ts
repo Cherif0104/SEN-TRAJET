@@ -124,4 +124,8 @@ export const ar: Record<TranslationKey, string> = {
   "landing.step.confirmDetail": "تتحقق SentraJet من طلبك وعرض السعر.",
   "landing.step.travel": "سافر",
   "landing.step.travelDetail": "يتم تعيين السائق والمركبة.",
+  "booking.step.serviceTitle": "إلى أين تذهب؟",
+  "booking.step.serviceSubtitle": "اختر الخدمة ثم أدخل عناوين GPS.",
+  "booking.service.other": "خدمة أخرى / عرض سعر",
+  "booking.service.otherDetail": "مناسبة أو مسافة طويلة أو حاجة خاصة",
 };

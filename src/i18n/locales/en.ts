@@ -124,4 +124,8 @@ export const en: Record<TranslationKey, string> = {
   "landing.step.confirmDetail": "SentraJet validates your request and quote.",
   "landing.step.travel": "Travel",
   "landing.step.travelDetail": "Your driver and vehicle are assigned.",
+  "booking.step.serviceTitle": "Where are you going?",
+  "booking.step.serviceSubtitle": "Choose a service, then enter your GPS addresses.",
+  "booking.service.other": "Other / quote",
+  "booking.service.otherDetail": "Event, long distance or specific requirement",
 };
