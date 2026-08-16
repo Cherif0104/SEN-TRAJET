@@ -37,6 +37,21 @@ const roleLabelKeys: Record<AssignableRole, TranslationKey> = {
   client: "admin.users.role.client",
 };
 
+const creationErrorKeys: Partial<Record<string, TranslationKey>> = {
+  email_already_exists: "admin.users.error.duplicate",
+  invalid_email: "admin.users.error.invalidEmail",
+  password_too_short: "admin.users.error.password",
+  invalid_role: "admin.users.error.role",
+  invalid_resource_link: "admin.users.error.resourceLink",
+  authentication_required: "admin.users.error.session",
+  invalid_session: "admin.users.error.session",
+  super_admin_required: "admin.users.error.permission",
+  account_management_not_configured: "admin.users.error.service",
+  account_service_unavailable: "admin.users.error.service",
+  user_creation_failed: "admin.users.error.auth",
+  user_configuration_failed: "admin.users.error.configuration",
+};
+
 function generateTemporaryPassword(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
   const random = new Uint32Array(14);
@@ -154,7 +169,9 @@ export default function AdminUsersPage() {
         user?: ManagedUser;
         error?: string;
       };
-      if (!response.ok || !data.user) throw new Error(data.error);
+      if (!response.ok || !data.user) {
+        throw new Error(data.error || "user_creation_failed");
+      }
 
       setUsers((current) => [data.user as ManagedUser, ...current]);
       setCreatedCredentials({ email, password });
@@ -164,8 +181,9 @@ export default function AdminUsersPage() {
       setPassword("");
       setRole("client");
       setResourceLink(null);
-    } catch {
-      setError(t("admin.users.error.create"));
+    } catch (failure) {
+      const code = failure instanceof Error ? failure.message : "";
+      setError(t(creationErrorKeys[code] ?? "admin.users.error.create"));
     } finally {
       setSubmitting(false);
     }

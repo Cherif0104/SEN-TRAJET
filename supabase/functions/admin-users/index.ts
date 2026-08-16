@@ -42,6 +42,20 @@ function response(body: unknown, status = 200) {
   });
 }
 
+function failureDetail(failure: unknown) {
+  if (failure instanceof Error) {
+    return { name: failure.name, message: failure.message };
+  }
+  if (failure && typeof failure === "object") {
+    const record = failure as Record<string, unknown>;
+    return {
+      code: typeof record.code === "string" ? record.code : undefined,
+      message: typeof record.message === "string" ? record.message : "unknown_error",
+    };
+  }
+  return { message: String(failure) };
+}
+
 function profileRoleFor(role: AssignableRole): string {
   if (["manager", "ops", "finance", "rh", "fleet_manager"].includes(role)) {
     return "admin";
@@ -201,6 +215,7 @@ Deno.serve(async (request) => {
         app_metadata: { app_role: role },
       });
       if (error || !data.user) {
+        console.error("admin-users createUser failed", failureDetail(error));
         const duplicate = error?.message.toLowerCase().includes("already");
         return response(
           { error: duplicate ? "email_already_exists" : "user_creation_failed" },
@@ -230,8 +245,14 @@ Deno.serve(async (request) => {
         },
         201,
       );
-    } catch {
-      if (createdId) await admin.auth.admin.deleteUser(createdId);
+    } catch (failure) {
+      console.error("admin-users configuration failed", failureDetail(failure));
+      if (createdId) {
+        const { error: rollbackError } = await admin.auth.admin.deleteUser(createdId);
+        if (rollbackError) {
+          console.error("admin-users rollback failed", failureDetail(rollbackError));
+        }
+      }
       return response({ error: "user_configuration_failed" }, 500);
     }
   }
