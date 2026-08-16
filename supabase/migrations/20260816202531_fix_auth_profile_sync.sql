@@ -72,6 +72,10 @@ where not exists (
   select 1 from public.profiles p where p.id = u.id
 );
 
+-- Le garde-fou interdit volontairement les changements de rôle provenant d'une
+-- session utilisateur. Cette réparation administrateur est bornée à ce bloc.
+alter table public.profiles disable trigger guard_profile_role_change;
+
 update public.profiles p
 set role = coalesce(
   (
@@ -100,3 +104,5 @@ set role = coalesce(
   'client'
 )
 where p.role is null;
+
+alter table public.profiles enable trigger guard_profile_role_change;
