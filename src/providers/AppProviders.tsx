@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { AppSplashScreen } from "@/components/brand/AppSplashScreen";
 import { AuthProvider, useAuthContext, type Profile } from "@/providers/AuthProvider";
 import { PreferencesProvider, usePreferences } from "@/providers/PreferencesProvider";
+import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
 
 const MINIMUM_SPLASH_DISPLAY_MS = 1_000;
 
@@ -88,9 +89,11 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <PreferencesProvider>
-      <AuthProvider>
-        <BootstrapGate>{children}</BootstrapGate>
-      </AuthProvider>
+      <PwaInstallProvider>
+        <AuthProvider>
+          <BootstrapGate>{children}</BootstrapGate>
+        </AuthProvider>
+      </PwaInstallProvider>
     </PreferencesProvider>
   );
 }

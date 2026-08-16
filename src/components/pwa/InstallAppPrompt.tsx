@@ -4,62 +4,30 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Download, X } from "lucide-react";
 import { usePreferences } from "@/providers/PreferencesProvider";
-
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
+import { usePwaInstall } from "@/providers/PwaInstallProvider";
 
 const DISMISSED_KEY = "sentrajet-install-prompt-dismissed";
 
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
-  );
-}
-
 export function InstallAppPrompt() {
   const { t } = usePreferences();
-  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
-  const [hidden, setHidden] = useState(true);
+  const { canInstall, isInstalled, install } = usePwaInstall();
+  const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (isStandalone() || sessionStorage.getItem(DISMISSED_KEY) === "true") return;
-
-    const handlePrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as InstallPromptEvent);
-      setHidden(false);
-    };
-    const handleInstalled = () => {
-      setInstallPrompt(null);
-      setHidden(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", handlePrompt);
-    window.addEventListener("appinstalled", handleInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handlePrompt);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
+    setDismissed(sessionStorage.getItem(DISMISSED_KEY) === "true");
   }, []);
 
-  const install = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
-    setHidden(true);
+  const requestInstall = async () => {
+    await install();
+    setDismissed(true);
   };
 
   const dismiss = () => {
     sessionStorage.setItem(DISMISSED_KEY, "true");
-    setHidden(true);
+    setDismissed(true);
   };
 
-  if (hidden || !installPrompt) return null;
+  if (dismissed || isInstalled || !canInstall) return null;
 
   return (
     <aside
@@ -81,7 +49,7 @@ export function InstallAppPrompt() {
       </div>
       <button
         type="button"
-        onClick={() => void install()}
+        onClick={() => void requestInstall()}
         className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-amber-500 px-3 text-sm font-bold text-neutral-950 hover:bg-amber-400"
       >
         <Download className="h-4 w-4" />

@@ -1,6 +1,7 @@
-const CACHE_NAME = "sen-trajet-v4-design-system";
+const CACHE_NAME = "sen-trajet-v5-mobile-install";
 const STATIC_ASSETS = [
   "/",
+  "/application-mobile",
   "/manifest.json",
   "/brand/sentrajet-mark.svg",
   "/brand/sentrajet-mark-transparent.svg",
