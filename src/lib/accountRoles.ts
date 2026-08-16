@@ -9,6 +9,7 @@ export const assignableRoles = [
   "driver",
   "partner",
   "provider",
+  "asset_partner",
   "client",
 ] as const;
 

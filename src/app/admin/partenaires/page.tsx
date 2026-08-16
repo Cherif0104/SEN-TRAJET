@@ -182,7 +182,7 @@ export default function AdminPartenairesPage() {
     <>
       <SjSectionHead
         eyebrow="Réseau"
-        title="Partenaires commerciaux"
+        title="Prestataires commerciaux"
         action={
           <button className="sj-btn sj-btn-primary" type="button" onClick={() => {
             setEditingPartnerId(null);
@@ -208,7 +208,7 @@ export default function AdminPartenairesPage() {
 
       {showForm ? (
         <>
-          <SjSectionHead title={editingPartnerId ? "Modifier le partenaire" : "Nouveau prospect partenaire"} />
+          <SjSectionHead title={editingPartnerId ? "Modifier le prestataire" : "Nouveau prospect prestataire"} />
           <SjCard style={{ marginBottom: 20 }}>
             <form className="sj-form" onSubmit={submitProspect}>
               <div className="sj-form-grid">
@@ -395,6 +395,12 @@ export default function AdminPartenairesPage() {
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-2">
+                      <Link
+                        className="sj-btn sj-btn-primary"
+                        href={`/admin/partenaires/${partner.id}`}
+                      >
+                        Vue 360
+                      </Link>
                       <button className="sj-btn" type="button" onClick={() => editPartner(partner)}>
                         Modifier
                       </button>

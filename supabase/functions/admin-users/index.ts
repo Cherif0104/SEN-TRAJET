@@ -22,6 +22,7 @@ const assignableRoles = [
   "driver",
   "partner",
   "provider",
+  "asset_partner",
   "client",
 ] as const;
 
@@ -31,6 +32,7 @@ const resourceRole = {
   driver: { table: "drivers", role: "driver" },
   client: { table: "clients", role: "client" },
   partner: { table: "partner_organizations", role: "partner" },
+  asset_partner: { table: "vehicle_owners", role: "asset_partner" },
 } as const;
 
 function response(body: unknown, status = 200) {

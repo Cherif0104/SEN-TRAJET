@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import {
   bookingStatusTone,
@@ -209,6 +210,9 @@ export default function AdminVehiculesPage() {
               <b>{v.plate_number}</b>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+              <Link className="sj-btn sj-btn-primary" href={`/admin/vehicules/${v.id}`}>
+                Dossier 360
+              </Link>
               <button className="sj-btn" type="button" onClick={() => edit(v)}>Modifier</button>
               <button
                 className="sj-btn text-[var(--color-error)]"

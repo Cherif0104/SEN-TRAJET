@@ -17,6 +17,7 @@ export type AppRole =
   | "rh"
   | "fleet_manager"
   | "provider"
+  | "asset_partner"
   | "vehicle_owner"
   | "owner";
 
@@ -55,6 +56,7 @@ export function normalizeRole(role: string | null | undefined): AppRole | null {
     driver: "driver",
     partner: "partner",
     provider: "partner",
+    asset_partner: "asset_partner",
     client: "client",
     admin: "admin",
     trainer: "trainer",
@@ -85,6 +87,7 @@ export function canAccessOwnerZone(role: string | null | undefined): boolean {
   const r = normalizeRole(role) ?? role;
   return (
     r === "rental_owner" ||
+    r === "asset_partner" ||
     r === "vehicle_owner" ||
     r === "owner" ||
     r === "admin" ||
@@ -97,7 +100,9 @@ export function workspaceForRole(role: string | null | undefined): string {
   const raw = role ?? "";
   const normalized = normalizeRole(raw);
   if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
-  if (raw === "vehicle_owner" || raw === "owner") return "/proprietaire";
+  if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
+    return "/proprietaire";
+  }
   if (
     normalized === "partner" ||
     raw === "partner_manager" ||

@@ -192,6 +192,9 @@ export default function AdminChauffeursPage() {
             <div className="sj-muted">{d.phone || d.email || "—"}</div>
             <div className="sj-metric-sub">Permis : {d.license_number || "non renseigné"}</div>
             <div className="mt-4 flex flex-wrap gap-2">
+              <Link className="sj-btn sj-btn-primary" href={`/admin/chauffeurs/${d.id}`}>
+                Dossier 360
+              </Link>
               {d.license_photo_url ? (
                 <button
                   className="sj-btn"

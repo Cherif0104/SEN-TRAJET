@@ -35,6 +35,9 @@ export type PlatformVehicle = {
   photo_urls: string[];
   is_verified: boolean;
   notes: string | null;
+  service_class?: string | null;
+  air_conditioning?: boolean;
+  transport_vehicle_category?: string | null;
 };
 
 export type PlatformClient = {
@@ -47,6 +50,9 @@ export type PlatformClient = {
   user_id: string | null;
   avatar_url: string | null;
   notes: string | null;
+  matricule?: string | null;
+  whatsapp?: string | null;
+  address?: string | null;
 };
 
 export type PartnerContract = {
@@ -213,7 +219,7 @@ export async function listDrivers(): Promise<PlatformDriver[]> {
 export async function listVehicles(): Promise<PlatformVehicle[]> {
   const { data, error } = await supabase
     .from("vehicles")
-    .select("id, brand, model, plate_number, seats, status, category, driver_id, year, color, photo_url, photo_urls, is_verified, notes")
+    .select("id, brand, model, plate_number, seats, status, category, driver_id, year, color, photo_url, photo_urls, is_verified, notes, service_class, air_conditioning, transport_vehicle_category")
     .order("brand");
   if (error) throw error;
   return (data ?? []) as PlatformVehicle[];
@@ -222,7 +228,7 @@ export async function listVehicles(): Promise<PlatformVehicle[]> {
 export async function listClients(): Promise<PlatformClient[]> {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes")
+    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes, matricule, whatsapp, address")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as PlatformClient[];

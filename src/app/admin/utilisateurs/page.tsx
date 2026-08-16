@@ -20,7 +20,7 @@ type ManagedUser = {
   lastSignInAt: string | null;
 };
 
-type ResourceType = "driver" | "client" | "partner";
+type ResourceType = "driver" | "client" | "partner" | "asset_partner";
 
 const roleLabelKeys: Record<AssignableRole, TranslationKey> = {
   super_admin: "admin.users.role.superAdmin",
@@ -33,6 +33,7 @@ const roleLabelKeys: Record<AssignableRole, TranslationKey> = {
   driver: "admin.users.role.driver",
   partner: "admin.users.role.partner",
   provider: "admin.users.role.provider",
+  asset_partner: "admin.users.role.assetPartner",
   client: "admin.users.role.client",
 };
 
@@ -117,7 +118,9 @@ export default function AdminUsersPage() {
     }
     if (
       requestedResourceId &&
-      ["driver", "client", "partner"].includes(requestedResourceType ?? "")
+      ["driver", "client", "partner", "asset_partner"].includes(
+        requestedResourceType ?? "",
+      )
     ) {
       setResourceLink({
         type: requestedResourceType as ResourceType,
