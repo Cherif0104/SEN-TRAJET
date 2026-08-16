@@ -193,8 +193,14 @@ async function assignRole(
 ) {
   const { error: profileError } = await client
     .from("profiles")
-    .update({ full_name: fullName, role: profileRoleFor(role) })
-    .eq("id", userId);
+    .upsert(
+      {
+        id: userId,
+        full_name: fullName,
+        role: profileRoleFor(role),
+      },
+      { onConflict: "id" },
+    );
   if (profileError) throw profileError;
 
   const { error: deleteRoleError } = await client
