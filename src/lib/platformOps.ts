@@ -252,13 +252,74 @@ export async function ensureClientForUser(params: {
 }
 
 function formatSupabaseError(error: unknown, fallback: string): Error {
-  if (error instanceof Error) return error;
+  if (error instanceof Error) {
+    const clean = error.message.split("\n")[0]?.split(" at http")[0]?.trim() || error.message;
+    if (/failed to fetch/i.test(clean)) {
+      return new Error(
+        "Connexion impossible au serveur de réservation. Réessayez dans un instant."
+      );
+    }
+    return new Error(clean || fallback);
+  }
   if (error && typeof error === "object") {
     const e = error as { message?: string; code?: string; details?: string; hint?: string };
     const parts = [e.message, e.details, e.hint].filter(Boolean);
     if (parts.length) return new Error(parts.join(" — "));
   }
   return new Error(fallback);
+}
+
+async function createBookingViaApi(input: {
+  clientId?: string | null;
+  partnerContractId?: string | null;
+  pickup: string;
+  dropoff: string;
+  pickupTime: string;
+  serviceType: ServiceType | string;
+  passengers: number;
+  estimatedPrice: number | null;
+  pricingSegment: PricingSegment;
+  distanceKm?: number | null;
+  notes?: string | null;
+  vehiclesNeeded?: number;
+  isRoundTrip?: boolean;
+  phone?: string | null;
+  flightNumber?: string | null;
+  passengerName?: string | null;
+  luggageCount?: number | null;
+}): Promise<PlatformBooking | null> {
+  if (typeof window === "undefined") return null;
+  const res = await fetch("/api/bookings/demande", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientId: input.clientId ?? null,
+      partnerContractId: input.partnerContractId ?? null,
+      pickup: input.pickup,
+      dropoff: input.dropoff,
+      pickupTime: input.pickupTime,
+      serviceType: input.serviceType,
+      passengers: input.passengers,
+      estimatedPrice: input.estimatedPrice,
+      pricingSegment: input.pricingSegment,
+      distanceKm: input.distanceKm ?? null,
+      notes: input.notes ?? null,
+      vehiclesNeeded: input.vehiclesNeeded ?? 1,
+      isRoundTrip: input.isRoundTrip ?? false,
+      phone: input.phone ?? null,
+      flightNumber: input.flightNumber ?? null,
+      passengerName: input.passengerName ?? null,
+      luggageCount: input.luggageCount ?? null,
+    }),
+  });
+  const payload = (await res.json().catch(() => ({}))) as {
+    booking?: PlatformBooking;
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(payload.error || "Impossible d’envoyer la demande.");
+  }
+  return payload.booking ?? null;
 }
 
 export async function createPlatformBooking(input: {
@@ -280,7 +341,17 @@ export async function createPlatformBooking(input: {
   passengerName?: string | null;
   luggageCount?: number | null;
 }): Promise<PlatformBooking> {
-  // Prefer SECURITY DEFINER RPC (atomic + works for anon SELECT/RETURNING).
+  // Prefer same-origin API (évite Failed to fetch / CORS / env client incomplète).
+  try {
+    const viaApi = await createBookingViaApi(input);
+    if (viaApi) return viaApi;
+  } catch (apiErr) {
+    // Si l’API répond avec un message métier, on le remonte ; sinon fallback RPC.
+    if (apiErr instanceof Error && !/failed to fetch/i.test(apiErr.message)) {
+      throw formatSupabaseError(apiErr, "Impossible d’envoyer la demande.");
+    }
+  }
+
   const { data: rpcData, error: rpcError } = await supabase.rpc("submit_booking_demande", {
     p_pickup: input.pickup,
     p_dropoff: input.dropoff,
@@ -305,7 +376,6 @@ export async function createPlatformBooking(input: {
     return rpcData as PlatformBooking;
   }
 
-  // Fallback direct insert (RLS must allow INSERT + SELECT for demande statuses).
   const reference = makeReference();
   const { data, error } = await supabase
     .from("bookings")

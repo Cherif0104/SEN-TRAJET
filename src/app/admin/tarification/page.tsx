@@ -3,12 +3,14 @@
 import { SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 
 const publicRules = [
-  ["Transfert AIBD", "dès 20 000 FCFA (grille passagers)"],
-  ["Course ≤ 45 km", "20 000 FCFA"],
-  ["Au-delà / standard", "450 F/km ≤5 pers. · 600 F/km ≤10 pers."],
+  ["Transfert AIBD court", "forfait dès 20 000 FCFA (grille passagers)"],
+  ["Trajet au km (1–4 pers.)", "800 FCFA / km"],
+  ["Trajet au km (5–7 pers.)", "900 FCFA / km"],
+  ["Trajet au km (8–10 pers.)", "1 000 FCFA / km"],
+  ["Aller-retour", "distance aller × 2"],
+  ["Course ≤ 45 km", "minimum 20 000 FCFA si le km est inférieur"],
   ["Mise à disposition", "50 000 FCFA / 10 h à Dakar"],
   ["Cérémonies", "dès 45 000 FCFA"],
-  ["Longue distance", "cotation (distance, durée, pax, bagages)"],
   ["Attente", "30 min offertes puis 2 500 F / 30 min (hors MAD)"],
 ];
 

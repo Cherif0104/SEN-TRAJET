@@ -342,8 +342,9 @@ function ReserverWizard() {
   }
 
   async function submitDemande() {
-    if (!draft.phone.trim()) {
-      setError("Votre téléphone permet à SentraJet de vous recontacter.");
+    const phoneDigits = draft.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 9) {
+      setError("Indiquez un numéro joignable (ex. +221 77 000 00 00).");
       return;
     }
     setSaving(true);
@@ -351,12 +352,17 @@ function ReserverWizard() {
     try {
       let clientId: string | null = null;
       if (user) {
-        clientId = await ensureClientForUser({
-          userId: user.id,
-          fullName: profile?.full_name,
-          phone: draft.phone || profile?.phone,
-          email: user.email,
-        });
+        try {
+          clientId = await ensureClientForUser({
+            userId: user.id,
+            fullName: profile?.full_name,
+            phone: draft.phone || profile?.phone,
+            email: user.email,
+          });
+        } catch {
+          // Ne bloque pas l’envoi de la demande si le profil client CRM échoue.
+          clientId = null;
+        }
       }
 
       const pickupTime = new Date(`${draft.date}T${draft.time}:00`).toISOString();
@@ -409,13 +415,18 @@ function ReserverWizard() {
       clearSimulationDraft();
       patch({ step: "done" });
     } catch (err) {
-      const msg =
+      const raw =
         err instanceof Error
           ? err.message
           : err && typeof err === "object" && "message" in err
             ? String((err as { message: unknown }).message)
             : "Impossible d’envoyer la demande.";
-      setError(msg || "Impossible d’envoyer la demande.");
+      const msg = raw.split("\n")[0]?.split(" at http")[0]?.trim() || raw;
+      setError(
+        /failed to fetch/i.test(msg)
+          ? "Connexion impossible au serveur. Réessayez dans un instant."
+          : msg || "Impossible d’envoyer la demande."
+      );
     } finally {
       setSaving(false);
     }

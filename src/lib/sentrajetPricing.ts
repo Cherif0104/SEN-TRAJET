@@ -35,13 +35,12 @@ export const TRIP_MODE_LABELS: Record<TripMode, string> = {
   retour_differe: "Retour différé",
 };
 
-export type CapacityBand = "1_2" | "3_5" | "6_8" | "9_11" | "over";
+export type CapacityBand = "1_4" | "5_7" | "8_10" | "over";
 
 export function capacityBand(passengers: number): CapacityBand {
-  if (passengers <= 2) return "1_2";
-  if (passengers <= 5) return "3_5";
-  if (passengers <= 8) return "6_8";
-  if (passengers <= 11) return "9_11";
+  if (passengers <= 4) return "1_4";
+  if (passengers <= 7) return "5_7";
+  if (passengers <= 10) return "8_10";
   return "over";
 }
 
@@ -107,9 +106,46 @@ export type PriceQuote = {
   breakdown: string[];
 };
 
-function publicKmRate(passengers: number): number {
-  if (passengers <= 5) return 450;
-  return 600;
+/** Tarif public au km selon le nombre de passagers (aller = 1×, aller-retour = 2×). */
+export function publicKmRate(passengers: number): number {
+  if (passengers <= 4) return 800;
+  if (passengers <= 7) return 900;
+  if (passengers <= 10) return 1000;
+  return 0;
+}
+
+export function billableKmForTrip(oneWayKm: number, tripMode: TripMode): number {
+  const km = Math.max(0, oneWayKm);
+  return tripMode === "aller_retour" ? km * 2 : km;
+}
+
+function publicKmQuote(params: {
+  passengers: number;
+  oneWayKm: number;
+  tripMode: TripMode;
+}): { amount: number; rate: number; billableKm: number; surDevis: boolean; label: string; formula: string } {
+  const rate = publicKmRate(params.passengers);
+  const billableKm = billableKmForTrip(params.oneWayKm, params.tripMode);
+  if (!params.oneWayKm || rate <= 0) {
+    return {
+      amount: 0,
+      rate,
+      billableKm,
+      surDevis: true,
+      label: "Cotation manuelle",
+      formula: rate <= 0 ? "Plus de 10 passagers — cotation SentraJet" : "Distance requise",
+    };
+  }
+  const amount = roundFcfa(billableKm * rate);
+  const modeNote = params.tripMode === "aller_retour" ? " (aller-retour ×2)" : "";
+  return {
+    amount,
+    rate,
+    billableKm,
+    surDevis: false,
+    label: `${rate.toLocaleString("fr-FR")} F/km`,
+    formula: `${rate} FCFA/km × ${billableKm} km${modeNote}`,
+  };
 }
 
 function partnerAibdAmount(passengers: number): { amount: number; surDevis: boolean; key: string; label: string } {
@@ -222,12 +258,25 @@ export function computeSentrajetPrice(params: {
       label = r.label;
       formulaApplied = "Forfait B2B AIBD selon passagers";
     } else {
-      const r = publicAibdAmount(passengers);
-      amountBeforeDiscountFcfa = r.amount;
-      surDevis = r.amount === 0;
-      ruleKey = r.key;
-      label = r.label;
-      formulaApplied = "Forfait public AIBD (dès 20 000 FCFA)";
+      const flat = publicAibdAmount(passengers);
+      const km = publicKmQuote({ passengers, oneWayKm, tripMode });
+      // Courte navette AIBD : forfait. Trajet long : max(forfait, km × tarif).
+      if (km.amount > flat.amount && oneWayKm > 0) {
+        amountBeforeDiscountFcfa = km.amount;
+        surDevis = km.surDevis;
+        billableKm = km.billableKm;
+        ruleKey = `pub_aibd_km_${km.rate}`;
+        label = km.label;
+        formulaApplied = km.formula;
+        breakdown.push(`Distance ${oneWayKm} km${tripMode === "aller_retour" ? " × 2 (AR)" : ""}`);
+        breakdown.push(`Tarif ${km.rate} F/km (1–4 → 800 · 5–7 → 900 · 8–10 → 1000)`);
+      } else {
+        amountBeforeDiscountFcfa = flat.amount;
+        surDevis = flat.amount === 0;
+        ruleKey = flat.key;
+        label = flat.label;
+        formulaApplied = "Forfait public AIBD (dès 20 000 FCFA)";
+      }
     }
     breakdown.push(`Bande passagers : ${band.replace("_", "–")}`);
   } else if (params.serviceType === "aibd_retour") {
@@ -239,13 +288,28 @@ export function computeSentrajetPrice(params: {
       label = r.label;
       formulaApplied = "Forfait B2B récupération AIBD + retour";
     } else {
-      // Public : forfait AIBD × logique retour (~1.5) ou cotation
-      const base = publicAibdAmount(passengers);
-      amountBeforeDiscountFcfa = base.amount === 0 ? 0 : roundFcfa(base.amount * 1.5);
-      surDevis = base.amount === 0;
-      ruleKey = "pub_aibd_retour";
-      label = "AIBD + retour (estimation)";
-      formulaApplied = "Estimation publique AIBD + retour";
+      const flat = publicAibdAmount(passengers);
+      const flatRetour = flat.amount === 0 ? 0 : roundFcfa(flat.amount * 1.5);
+      const km = publicKmQuote({
+        passengers,
+        oneWayKm,
+        tripMode: tripMode === "aller_simple" ? "aller_retour" : tripMode,
+      });
+      if (km.amount > flatRetour && oneWayKm > 0) {
+        amountBeforeDiscountFcfa = km.amount;
+        surDevis = km.surDevis;
+        billableKm = km.billableKm;
+        ruleKey = `pub_aibd_retour_km_${km.rate}`;
+        label = km.label;
+        formulaApplied = km.formula;
+        breakdown.push("AIBD + retour facturé au km (double parcours si AR)");
+      } else {
+        amountBeforeDiscountFcfa = flatRetour;
+        surDevis = flat.amount === 0;
+        ruleKey = "pub_aibd_retour";
+        label = "AIBD + retour (estimation)";
+        formulaApplied = "Estimation publique AIBD + retour";
+      }
     }
   } else if (params.serviceType === "mise_a_disposition") {
     amountBeforeDiscountFcfa = 50000;
@@ -274,33 +338,44 @@ export function computeSentrajetPrice(params: {
     params.serviceType === "longue_distance" ||
     (params.serviceType === "interurbain" && oneWayKm >= longFrom)
   ) {
-    surDevis = true;
-    ruleKey = "longue_distance";
-    label = "Longue distance — cotation";
-    formulaApplied = "Selon distance, durée, passagers et bagages";
-    breakdown.push(`Distance ${oneWayKm || "?"} km — hors calcul standard`);
-    // Indication indicative au km public pour aide
-    if (oneWayKm > 0 && params.segment === "client") {
-      const rate = publicKmRate(passengers);
-      billableKm = tripMode === "aller_retour" ? oneWayKm * 2 : oneWayKm;
-      amountBeforeDiscountFcfa = roundFcfa(billableKm * rate);
-      estimatif = true;
-      breakdown.push(`Indication ${rate} F/km × ${billableKm} km (non contractuel)`);
-    } else if (oneWayKm > 0 && params.segment === "partner") {
-      billableKm = tripMode === "aller_retour" ? oneWayKm * 2 : oneWayKm;
-      amountBeforeDiscountFcfa = Math.max(30000, roundFcfa(billableKm * 700));
-      estimatif = true;
-      breakdown.push(`Indication B2B 700 F/km × ${billableKm} km (min 30 000)`);
+    if (params.segment === "partner") {
+      billableKm = billableKmForTrip(oneWayKm, tripMode);
+      if (!oneWayKm) {
+        surDevis = true;
+        label = "Indiquez la destination pour estimer";
+        formulaApplied = "Distance requise";
+      } else {
+        amountBeforeDiscountFcfa = Math.max(30000, roundFcfa(billableKm * 700));
+        ruleKey = "b2b_longue_distance";
+        label = "700 F/km (B2B)";
+        formulaApplied = "B2B longue distance : 700 F/km, min 30 000";
+        estimatif = true;
+        breakdown.push(`Distance ${oneWayKm} km${tripMode === "aller_retour" ? " × 2" : ""} = ${billableKm} km`);
+      }
+    } else {
+      const km = publicKmQuote({ passengers, oneWayKm, tripMode });
+      amountBeforeDiscountFcfa = km.amount;
+      billableKm = km.billableKm;
+      surDevis = km.surDevis;
+      estimatif = !km.surDevis;
+      ruleKey = km.surDevis ? "longue_distance_devis" : `pub_km_${km.rate}`;
+      label = km.label;
+      formulaApplied = km.formula;
+      if (oneWayKm > 0 && km.rate > 0) {
+        breakdown.push(`Distance ${oneWayKm} km${tripMode === "aller_retour" ? " × 2 (AR)" : ""} = ${billableKm} km`);
+        breakdown.push(`Tarif ${km.rate} F/km (1–4 → 800 · 5–7 → 900 · 8–10 → 1000)`);
+      } else {
+        breakdown.push(`Distance ${oneWayKm || "?"} km — cotation requise`);
+      }
     }
   } else if (params.serviceType === "interurbain") {
-    billableKm = tripMode === "aller_retour" ? oneWayKm * 2 : oneWayKm;
+    billableKm = billableKmForTrip(oneWayKm, tripMode);
     if (!oneWayKm) {
       surDevis = true;
       label = "Indiquez la destination pour estimer";
       formulaApplied = "Distance requise";
       breakdown.push("Distance routière non disponible");
     } else if (params.segment === "partner") {
-      // B2B : >50 km → 700/km min 30k ; sinon même logique min
       const rate = 700;
       const raw = roundFcfa(billableKm * rate);
       amountBeforeDiscountFcfa = Math.max(30000, raw);
@@ -313,24 +388,27 @@ export function computeSentrajetPrice(params: {
       if (amountBeforeDiscountFcfa > raw) breakdown.push("Minimum de facturation 30 000 FCFA appliqué");
       breakdown.push(`Distance aller ${oneWayKm} km${tripMode === "aller_retour" ? " × 2" : ""} = ${billableKm} km`);
     } else {
-      // Public : ≤45 km → 20 000 ; sinon au km selon pax
-      if (oneWayKm <= 45 && tripMode === "aller_simple") {
+      const km = publicKmQuote({ passengers, oneWayKm, tripMode });
+      billableKm = km.billableKm;
+      if (km.surDevis) {
+        amountBeforeDiscountFcfa = 0;
+        surDevis = true;
+        ruleKey = "pub_km_devis";
+        label = km.label;
+        formulaApplied = km.formula;
+      } else if (oneWayKm <= 45 && tripMode === "aller_simple" && km.amount < 20000) {
         amountBeforeDiscountFcfa = 20000;
         ruleKey = "pub_course_45";
         label = "Course ≤ 45 km";
-        formulaApplied = "Forfait 20 000 FCFA jusqu’à 45 km";
-        breakdown.push(`Distance ${oneWayKm} km ≤ 45 km`);
+        formulaApplied = "Forfait minimum 20 000 FCFA jusqu’à 45 km";
+        breakdown.push(`Distance ${oneWayKm} km ≤ 45 km — minimum 20 000 FCFA`);
       } else {
-        const rate = publicKmRate(passengers);
-        amountBeforeDiscountFcfa = Math.max(20000, roundFcfa(billableKm * rate));
-        ruleKey = passengers <= 5 ? "pub_km_450" : "pub_km_600";
-        label = `${rate.toLocaleString("fr-FR")} F/km`;
-        formulaApplied =
-          passengers <= 5
-            ? "450 FCFA/km jusqu’à 5 personnes"
-            : "600 FCFA/km jusqu’à 10 personnes";
+        amountBeforeDiscountFcfa = km.amount;
+        ruleKey = `pub_km_${km.rate}`;
+        label = km.label;
+        formulaApplied = km.formula;
         breakdown.push(`Distance ${oneWayKm} km${tripMode === "aller_retour" ? " × 2 (AR)" : ""} = ${billableKm} km`);
-        breakdown.push(`Tarif ${rate} F/km (bande ${band.replace("_", "–")})`);
+        breakdown.push(`Tarif ${km.rate} F/km (1–4 → 800 · 5–7 → 900 · 8–10 → 1000)`);
       }
     }
   }
