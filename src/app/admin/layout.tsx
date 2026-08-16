@@ -17,6 +17,7 @@ import {
   Landmark,
   Inbox,
   ClipboardList,
+  UserCog,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -34,6 +35,7 @@ const nav = [
   { href: "/admin/partenaires", labelKey: "nav.partners" as const, icon: Building2 },
   { href: "/admin/proprietaires", labelKey: "nav.owners" as const, icon: Landmark },
   { href: "/admin/clients", labelKey: "nav.clients" as const, icon: Contact },
+  { href: "/admin/utilisateurs", labelKey: "nav.users" as const, icon: UserCog },
   { href: "/admin/vehicules", labelKey: "nav.fleet" as const, icon: Car },
   { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
   { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },

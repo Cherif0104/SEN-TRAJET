@@ -327,11 +327,6 @@ function ConnexionPageContent() {
             S&apos;inscrire
           </Link>
         </p>
-        <p className="mt-3 text-center text-sm text-slate-500">
-          <Link href="/comptes-test" className="font-semibold text-amber-800 hover:underline">
-            Tester avec un compte démo (1 clic)
-          </Link>
-        </p>
     </AuthPageScaffold>
   );
 }

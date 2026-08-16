@@ -30,4 +30,4 @@ Date : mars 2026 — synthèse des problèmes détectés et des correctifs appli
 1. **`npm audit`** : plusieurs vulnérabilités signalées (dépendances) — à traiter selon politique projet (`npm audit fix` ou mises à jour ciblées).
 2. **`useAuth`** : en cas d’échec `fetchProfile`, prévoir un état d’erreur ou un retry pour éviter blocage prolongé sur « Redirection… » si la ligne `profiles` manque.
 3. **Middleware** : vérifier cohérence avec les gardes `layout` (chauffeur / partenaire) pour éviter doubles redirections.
-4. **Variables d’environnement** : documenter `TEST_*`, `SUPABASE_*`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` dans un `README` ou `.env.example` (sans secrets).
+4. **Variables d’environnement** : documenter `SUPABASE_*` et `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` dans un `README` ou `.env.example` (sans secrets).

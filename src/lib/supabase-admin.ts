@@ -15,3 +15,10 @@ export const supabaseAdmin: SupabaseClient = createClient(SENTRAJET_SUPABASE_URL
     autoRefreshToken: false,
   },
 });
+
+export function getSupabaseAdmin(): SupabaseClient {
+  if (!serviceRoleKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
+  }
+  return supabaseAdmin;
+}

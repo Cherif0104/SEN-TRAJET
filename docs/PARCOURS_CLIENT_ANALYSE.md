@@ -77,7 +77,7 @@ flowchart TB
 | Étape | Route / action | Existant | Remarque |
 |-------|----------------|----------|----------|
 | Clic « Connexion » | `/connexion` | Oui | Header |
-| Email / mot de passe ou OTP | Formulaire | Oui | Comptes démo disponibles |
+| Email / mot de passe ou OTP | Formulaire | Oui | Comptes gérés par l’administration |
 | Paramètre `next` | Redirection après login | Oui | Vers page demandée (ex. `/reservation?trajet=...`) |
 | Déjà connecté sur `/connexion` | Redirection hub | Oui | Évite de rester sur la page login |
 

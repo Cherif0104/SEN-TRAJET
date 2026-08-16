@@ -10,7 +10,7 @@ Verifier les flux location sans regression auth/redirection sur les roles critiq
 ## Prerequis
 
 - Migration `202604120003_location_v1.sql` appliquee
-- Comptes tests actifs (`/comptes-test`)
+- Comptes temporaires multi-rôles créés depuis `/admin/utilisateurs`
 - Au moins une offre location validee admin
 
 ## Scenarios E2E
