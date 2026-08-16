@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
   Upload,
@@ -14,7 +14,7 @@ import {
   X,
   FileText,
 } from "lucide-react";
-import { uploadDriverDocument } from "@/lib/storage";
+import { getDriverDocumentUrl, uploadDriverDocument } from "@/lib/storage";
 import { addDriverDocumentFile, deleteDriverDocumentFile } from "@/lib/profiles";
 
 type DocType = "permis" | "carte_grise" | "assurance" | "photo_identite";
@@ -48,8 +48,25 @@ export function MultiDocumentUpload({ driverId, docType, files, onChanged }: Pro
   const [success, setSuccess] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [displayUrls, setDisplayUrls] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all(
+      files.map(async (file) => [file.id, await getDriverDocumentUrl(file.file_url)] as const),
+    )
+      .then((entries) => {
+        if (active) setDisplayUrls(Object.fromEntries(entries));
+      })
+      .catch(() => {
+        if (active) setDisplayUrls({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [files]);
 
   const closePreview = useCallback(() => setPreviewIndex(null), []);
 
@@ -95,7 +112,7 @@ export function MultiDocumentUpload({ driverId, docType, files, onChanged }: Pro
 
   const openPreview = (idx: number) => setPreviewIndex(idx);
   const cur = previewIndex !== null ? files[previewIndex] : null;
-  const curUrl = cur?.file_url;
+  const curUrl = cur ? displayUrls[cur.id] : undefined;
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4">
@@ -168,9 +185,11 @@ export function MultiDocumentUpload({ driverId, docType, files, onChanged }: Pro
               >
                 {isPdfUrl(f.file_url) ? (
                   <FileText className="h-8 w-8 text-neutral-400" />
-                ) : (
+                ) : displayUrls[f.id] ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.file_url} alt="" className="h-full w-full object-cover" />
+                  <img src={displayUrls[f.id]} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Loader2 className="h-5 w-5 animate-spin text-neutral-400" />
                 )}
               </button>
               <button

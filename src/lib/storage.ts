@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
-const BUCKET = "documents";
+const MEDIA_BUCKET = "account-media";
+const DOCUMENT_BUCKET = "driver-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 Mo
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -30,16 +31,12 @@ export async function uploadDriverDocument(
   const path = `${driverId}/${docType}/${safeName}`;
 
   const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
+    .from(DOCUMENT_BUCKET)
     .upload(path, file, { upsert: true });
 
   if (uploadError) throw uploadError;
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
-  return publicUrl;
+  return path;
 }
 
 const VEHICLE_PHOTO_MAX = 5 * 1024 * 1024;
@@ -55,10 +52,10 @@ export async function uploadProfileAvatar(userId: string, file: File): Promise<s
   const ext = file.name.split(".").pop()?.toLowerCase() || "webp";
   const path = `${userId}/profile/avatar-${Date.now()}.${ext}`;
   const { error } = await supabase.storage
-    .from(BUCKET)
+    .from(MEDIA_BUCKET)
     .upload(path, file, { upsert: false });
   if (error) throw error;
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 export async function uploadManagedResourceImage(
@@ -75,9 +72,32 @@ export async function uploadManagedResourceImage(
   }
   const ext = file.name.split(".").pop()?.toLowerCase() || "webp";
   const path = `${actingUserId}/managed/${resource}/${resourceId}/${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
   if (error) throw error;
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+export async function uploadManagedDriverDocument(
+  actingUserId: string,
+  driverId: string,
+  file: File,
+): Promise<string> {
+  if (file.size > MAX_SIZE_BYTES) throw new Error("Fichier trop volumineux (max 5 Mo)");
+  if (!ALLOWED_TYPES.includes(file.type)) throw new Error("Type de fichier non autorisé");
+  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const path = `${actingUserId}/managed/drivers/${driverId}/license-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from(DOCUMENT_BUCKET).upload(path, file);
+  if (error) throw error;
+  return path;
+}
+
+export async function getDriverDocumentUrl(pathOrUrl: string): Promise<string> {
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  const { data, error } = await supabase.storage
+    .from(DOCUMENT_BUCKET)
+    .createSignedUrl(pathOrUrl, 300);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 /**
@@ -100,14 +120,14 @@ export async function uploadVehicleSlotPhoto(
   const path = `${driverId}/vehicle_photos/${vehicleId}/${safeSlot}_${safeName}`;
 
   const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
+    .from(MEDIA_BUCKET)
     .upload(path, file, { upsert: false });
 
   if (uploadError) throw uploadError;
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
 
   return publicUrl;
 }

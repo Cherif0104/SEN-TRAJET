@@ -11,7 +11,11 @@ import {
   updateDriver,
   type PlatformDriver,
 } from "@/lib/platformOps";
-import { uploadManagedResourceImage } from "@/lib/storage";
+import {
+  getDriverDocumentUrl,
+  uploadManagedDriverDocument,
+  uploadManagedResourceImage,
+} from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 
 const emptyForm = {
@@ -82,9 +86,8 @@ export default function AdminChauffeursPage() {
         updates.photo_url = await uploadManagedResourceImage(user.id, "drivers", saved.id, photo);
       }
       if (user && licensePhoto) {
-        updates.license_photo_url = await uploadManagedResourceImage(
+        updates.license_photo_url = await uploadManagedDriverDocument(
           user.id,
-          "drivers",
           saved.id,
           licensePhoto,
         );
@@ -189,6 +192,17 @@ export default function AdminChauffeursPage() {
             <div className="sj-muted">{d.phone || d.email || "—"}</div>
             <div className="sj-metric-sub">Permis : {d.license_number || "non renseigné"}</div>
             <div className="mt-4 flex flex-wrap gap-2">
+              {d.license_photo_url ? (
+                <button
+                  className="sj-btn"
+                  type="button"
+                  onClick={() => {
+                    void getDriverDocumentUrl(d.license_photo_url!).then((url) => window.open(url, "_blank", "noopener,noreferrer"));
+                  }}
+                >
+                  Voir le permis
+                </button>
+              ) : null}
               <button className="sj-btn" type="button" onClick={() => edit(d)}>Modifier</button>
               {!d.user_id && d.email ? (
                 <Link className="sj-btn" href={`/admin/utilisateurs?role=driver&resourceType=driver&resourceId=${d.id}&name=${encodeURIComponent(d.full_name)}&email=${encodeURIComponent(d.email)}`}>
