@@ -69,7 +69,7 @@ export default function MobileAppPage() {
                 <div className="overflow-hidden rounded-[2rem] bg-[var(--color-surface)]">
                   <div className="flex min-h-[510px] flex-col items-center justify-center px-7 py-12 text-center">
                     <Image
-                      src="/icons/app-icon-192.png"
+                      src="/icons/app-icon-transparent-192.png"
                       alt=""
                       width={112}
                       height={112}

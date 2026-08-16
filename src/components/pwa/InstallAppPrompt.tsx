@@ -35,7 +35,7 @@ export function InstallAppPrompt() {
       aria-label={t("install.title")}
     >
       <Image
-        src="/icons/app-icon-192.png"
+        src="/icons/app-icon-transparent-192.png"
         alt=""
         width={52}
         height={52}

@@ -25,10 +25,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/app-icon-transparent-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/app-icon-transparent-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon-v2.png", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
@@ -84,7 +84,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: preferencesInitScript }} />
         <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon-v2.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>

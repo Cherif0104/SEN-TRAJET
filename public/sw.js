@@ -1,16 +1,18 @@
-const CACHE_NAME = "sen-trajet-v5-mobile-install";
+const CACHE_NAME = "sen-trajet-v6-branded-launch";
 const STATIC_ASSETS = [
   "/",
   "/application-mobile",
   "/manifest.json",
-  "/brand/sentrajet-mark.svg",
   "/brand/sentrajet-mark-transparent.svg",
+  "/brand/sentrajet-mark-maskable.svg",
   "/brand/sentrajet-wordmark.svg",
   "/brand/sentrajet-wordmark-light.svg",
   "/brand/sentrajet-vehicle-hero.webp",
-  "/icons/app-icon-192.png",
-  "/icons/app-icon-512.png",
-  "/icons/apple-touch-icon.png",
+  "/icons/app-icon-transparent-192.png",
+  "/icons/app-icon-transparent-512.png",
+  "/icons/app-icon-maskable-192.png",
+  "/icons/app-icon-maskable-512.png",
+  "/icons/apple-touch-icon-v2.png",
   "/icons/favicon-32.png",
 ];
 
