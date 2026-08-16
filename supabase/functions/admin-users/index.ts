@@ -27,6 +27,12 @@ const assignableRoles = [
 
 type AssignableRole = (typeof assignableRoles)[number];
 
+const resourceRole = {
+  driver: { table: "drivers", role: "driver" },
+  client: { table: "clients", role: "client" },
+  partner: { table: "partner_organizations", role: "partner" },
+} as const;
+
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -162,6 +168,11 @@ Deno.serve(async (request) => {
     const password = typeof body.password === "string" ? body.password : "";
     const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
     const role = body.role;
+    const resourceType =
+      typeof body.resourceType === "string" && body.resourceType in resourceRole
+        ? (body.resourceType as keyof typeof resourceRole)
+        : null;
+    const resourceId = typeof body.resourceId === "string" ? body.resourceId : null;
     if (!email || !email.includes("@")) return response({ error: "invalid_email" }, 400);
     if (password.length < 12) return response({ error: "password_too_short" }, 400);
     if (!fullName) return response({ error: "full_name_required" }, 400);
@@ -170,6 +181,12 @@ Deno.serve(async (request) => {
       !assignableRoles.includes(role as AssignableRole)
     ) {
       return response({ error: "invalid_role" }, 400);
+    }
+    if (
+      resourceType &&
+      (!resourceId || resourceRole[resourceType].role !== role)
+    ) {
+      return response({ error: "invalid_resource_link" }, 400);
     }
 
     let createdId: string | null = null;
@@ -190,6 +207,13 @@ Deno.serve(async (request) => {
       }
       createdId = data.user.id;
       await assignRole(admin, createdId, role as AssignableRole, fullName);
+      if (resourceType && resourceId) {
+        const { error: linkError } = await admin
+          .from(resourceRole[resourceType].table)
+          .update({ user_id: createdId })
+          .eq("id", resourceId);
+        if (linkError) throw linkError;
+      }
       return response(
         {
           user: {

@@ -137,7 +137,7 @@ export default function AdminClientsPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="sj-btn" type="button" onClick={() => edit(c)}>Modifier</button>
               {!c.user_id && c.email ? (
-                <Link className="sj-btn" href={`/admin/utilisateurs?role=client&name=${encodeURIComponent(c.full_name || c.company_name || "")}&email=${encodeURIComponent(c.email)}`}>
+                <Link className="sj-btn" href={`/admin/utilisateurs?role=client&resourceType=client&resourceId=${c.id}&name=${encodeURIComponent(c.full_name || c.company_name || "")}&email=${encodeURIComponent(c.email)}`}>
                   Créer le compte
                 </Link>
               ) : null}

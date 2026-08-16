@@ -191,7 +191,7 @@ export default function AdminChauffeursPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="sj-btn" type="button" onClick={() => edit(d)}>Modifier</button>
               {!d.user_id && d.email ? (
-                <Link className="sj-btn" href={`/admin/utilisateurs?role=driver&name=${encodeURIComponent(d.full_name)}&email=${encodeURIComponent(d.email)}`}>
+                <Link className="sj-btn" href={`/admin/utilisateurs?role=driver&resourceType=driver&resourceId=${d.id}&name=${encodeURIComponent(d.full_name)}&email=${encodeURIComponent(d.email)}`}>
                   Créer le compte
                 </Link>
               ) : null}

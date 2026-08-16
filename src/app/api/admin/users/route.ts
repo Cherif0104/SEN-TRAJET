@@ -18,6 +18,12 @@ type AuthorizedAdmin = {
   client: ReturnType<typeof getSupabaseAdmin>;
 };
 
+const resourceRole = {
+  driver: { table: "drivers", role: "driver" },
+  client: { table: "clients", role: "client" },
+  partner: { table: "partner_organizations", role: "partner" },
+} as const;
+
 function errorResponse(message: string, status: number) {
   return NextResponse.json(
     { error: message },
@@ -173,12 +179,19 @@ export async function POST(request: Request) {
     password?: unknown;
     fullName?: unknown;
     role?: unknown;
+    resourceType?: unknown;
+    resourceId?: unknown;
   } | null;
 
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";
   const fullName = typeof body?.fullName === "string" ? body.fullName.trim() : "";
   const role = body?.role;
+  const resourceType =
+    typeof body?.resourceType === "string" && body.resourceType in resourceRole
+      ? (body.resourceType as keyof typeof resourceRole)
+      : null;
+  const resourceId = typeof body?.resourceId === "string" ? body.resourceId : null;
 
   if (!email || !email.includes("@")) {
     return errorResponse("invalid_email", 400);
@@ -188,6 +201,9 @@ export async function POST(request: Request) {
   }
   if (!fullName) return errorResponse("full_name_required", 400);
   if (!isAssignableRole(role)) return errorResponse("invalid_role", 400);
+  if (resourceType && (!resourceId || resourceRole[resourceType].role !== role)) {
+    return errorResponse("invalid_resource_link", 400);
+  }
 
   const { client } = authorization;
   let createdUserId: string | null = null;
@@ -211,6 +227,13 @@ export async function POST(request: Request) {
 
     createdUserId = data.user.id;
     await assignRole(client, createdUserId, role, fullName);
+    if (resourceType && resourceId) {
+      const { error: linkError } = await client
+        .from(resourceRole[resourceType].table)
+        .update({ user_id: createdUserId })
+        .eq("id", resourceId);
+      if (linkError) throw linkError;
+    }
 
     return NextResponse.json(
       {

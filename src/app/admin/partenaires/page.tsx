@@ -401,7 +401,7 @@ export default function AdminPartenairesPage() {
                       {!partner.user_id && partner.primary_contact_email ? (
                         <Link
                           className="sj-btn"
-                          href={`/admin/utilisateurs?role=partner&name=${encodeURIComponent(partner.legal_name)}&email=${encodeURIComponent(partner.primary_contact_email)}`}
+                          href={`/admin/utilisateurs?role=partner&resourceType=partner&resourceId=${partner.id}&name=${encodeURIComponent(partner.legal_name)}&email=${encodeURIComponent(partner.primary_contact_email)}`}
                         >
                           Créer le compte
                         </Link>

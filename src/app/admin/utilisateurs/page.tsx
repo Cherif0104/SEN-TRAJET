@@ -20,6 +20,8 @@ type ManagedUser = {
   lastSignInAt: string | null;
 };
 
+type ResourceType = "driver" | "client" | "partner";
+
 const roleLabelKeys: Record<AssignableRole, TranslationKey> = {
   super_admin: "admin.users.role.superAdmin",
   manager: "admin.users.role.manager",
@@ -57,6 +59,10 @@ export default function AdminUsersPage() {
   const [createdCredentials, setCreatedCredentials] = useState<{
     email: string;
     password: string;
+  } | null>(null);
+  const [resourceLink, setResourceLink] = useState<{
+    type: ResourceType;
+    id: string;
   } | null>(null);
 
   const authorization = useMemo(
@@ -98,6 +104,8 @@ export default function AdminUsersPage() {
     const requestedRole = params.get("role");
     const requestedName = params.get("name");
     const requestedEmail = params.get("email");
+    const requestedResourceType = params.get("resourceType");
+    const requestedResourceId = params.get("resourceId");
     if (requestedName) setFullName(requestedName);
     if (requestedEmail) setEmail(requestedEmail);
     if (
@@ -106,6 +114,15 @@ export default function AdminUsersPage() {
     ) {
       setRole(requestedRole as AssignableRole);
       setPassword(generateTemporaryPassword());
+    }
+    if (
+      requestedResourceId &&
+      ["driver", "client", "partner"].includes(requestedResourceType ?? "")
+    ) {
+      setResourceLink({
+        type: requestedResourceType as ResourceType,
+        id: requestedResourceId,
+      });
     }
   }, []);
 
@@ -121,7 +138,14 @@ export default function AdminUsersPage() {
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { ...authorization, "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, password, role }),
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+          role,
+          resourceType: resourceLink?.type,
+          resourceId: resourceLink?.id,
+        }),
       });
       const data = (await response.json()) as {
         user?: ManagedUser;
@@ -136,6 +160,7 @@ export default function AdminUsersPage() {
       setEmail("");
       setPassword("");
       setRole("client");
+      setResourceLink(null);
     } catch {
       setError(t("admin.users.error.create"));
     } finally {
