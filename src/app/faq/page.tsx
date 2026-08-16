@@ -29,7 +29,7 @@ const faqItems = [
   },
   {
     q: "Comment devenir partenaire B2B ?",
-    a: "Inscrivez-vous via l’espace partenaire / onboarding. Les tarifs négociés s’appliquent uniquement dans cet espace.",
+    a: "Via « Devenir partenaire » : contact WhatsApp / téléphone, puis diagnostic et certification par SentraJet. Aucun compte B2B n’est créé automatiquement. L’espace partenaire (simulations, demandes, factures) n’ouvre qu’après statut ACTIF — ce n’est pas un CRM/ERP offert aux partenaires.",
   },
   {
     q: "Comment devenir chauffeur SentraJet ?",

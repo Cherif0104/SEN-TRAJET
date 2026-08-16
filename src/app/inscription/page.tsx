@@ -13,7 +13,7 @@ import { Users, Car, ArrowLeft, Building2 } from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
-type RoleType = "client" | "partner" | "rental_owner";
+type RoleType = "client";
 
 function formatAuthErrorMessage(rawMessage: string | null | undefined, mode: AuthMode): string {
   const msg = String(rawMessage ?? "").toLowerCase();
@@ -70,13 +70,13 @@ function InscriptionPageContent() {
 
   useEffect(() => {
     const roleParam = searchParams.get("role");
-    if (roleParam === "partenaire") {
-      setRole("partner");
-      setStep("form");
+    if (roleParam === "partenaire" || roleParam === "partner") {
+      router.replace("/devenir-partenaire");
+      return;
     }
     if (roleParam === "loueur" || roleParam === "proprietaire") {
-      setRole("rental_owner");
-      setStep("form");
+      router.replace("/devenir-partenaire?profil=proprietaire");
+      return;
     }
     if (roleParam === "client") {
       setRole("client");
@@ -86,7 +86,7 @@ function InscriptionPageContent() {
       setRole("client");
       setStep("choice");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const [otp, setOtp] = useState("");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("form");
@@ -94,14 +94,9 @@ function InscriptionPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const isPartnerLikeRole = role === "partner" || role === "rental_owner";
-  const canShowForm = role === "client" || isPartnerLikeRole;
-  const signupButtonLabel =
-    role === "partner"
-      ? "S'inscrire comme partenaire"
-      : role === "rental_owner"
-        ? "S'inscrire comme propriétaire"
-        : "Créer mon compte client (−10 %)";
+  /** Inscription publique = client uniquement (OS SentraJet). */
+  const canShowForm = role === "client";
+  const signupButtonLabel = "Créer mon compte client (−10 %)";
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,9 +109,8 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role,
+            role: "client",
             phone,
-            ...(role === "partner" || role === "rental_owner" ? {} : {}),
           },
         },
       });
@@ -126,15 +120,11 @@ function InscriptionPageContent() {
         return;
       }
       setSuccess(true);
-      if (role === "client" && nextAfterAuth) {
+      if (nextAfterAuth) {
         window.location.replace(nextAfterAuth);
         return;
       }
-      if (isPartnerLikeRole) {
-        window.location.replace(role === "rental_owner" ? "/proprietaire" : "/partenaire/onboarding");
-        return;
-      }
-      router.refresh();
+      window.location.replace("/compte");
     } catch {
       setError("Une erreur inattendue s'est produite.");
     } finally {
@@ -157,7 +147,7 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role,
+            role: "client",
           },
         },
       });
@@ -195,12 +185,8 @@ function InscriptionPageContent() {
         return;
       }
       await supabase.auth.getUser();
-      if (role === "client" && nextAfterAuth) {
+      if (nextAfterAuth) {
         window.location.replace(nextAfterAuth);
-        return;
-      }
-      if (isPartnerLikeRole) {
-        window.location.replace(role === "rental_owner" ? "/proprietaire" : "/partenaire/onboarding");
         return;
       }
       window.location.replace("/compte");
@@ -214,7 +200,7 @@ function InscriptionPageContent() {
   return (
     <AuthPageScaffold
       title="Créer un compte"
-      subtitle="Créez un compte client (−10 %) ou un espace partenaire B2B."
+      subtitle="Compte client SentraJet Premium (−10 %). Partenaires : contact & certification uniquement."
     >
         {/* Étape 1 : Choix Client / Partenaire / Propriétaire */}
         {step === "choice" && (
@@ -238,30 +224,20 @@ function InscriptionPageContent() {
                   Je réserve une prestation SentraJet (−10 % avec compte)
                 </span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("partner");
-                  setStep("form");
-                  setError(null);
-                }}
+              <Link
+                href="/devenir-partenaire"
                 className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Building2 className="h-7 w-7" />
                 </div>
-                <span className="text-lg font-semibold text-slate-900">Partenaire B2B</span>
+                <span className="text-lg font-semibold text-slate-900">Professionnel ?</span>
                 <span className="text-sm text-slate-600">
-                  Hôtel, entreprise, agence — tarifs négociés
+                  Devenir partenaire — diagnostic SentraJet (pas de compte auto)
                 </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("rental_owner");
-                  setStep("form");
-                  setError(null);
-                }}
+              </Link>
+              <Link
+                href="/devenir-partenaire?profil=proprietaire"
                 className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40 sm:col-span-2"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
@@ -269,9 +245,9 @@ function InscriptionPageContent() {
                 </div>
                 <span className="text-lg font-semibold text-slate-900">Propriétaire / investisseur</span>
                 <span className="text-sm text-slate-600">
-                  Mettre un véhicule dans le réseau SentraJet
+                  Contact commercial — contrat d’actifs, pas d’inscription libre
                 </span>
-              </button>
+              </Link>
             </div>
             <p className="mt-6 text-center text-sm text-slate-500">
               Les chauffeurs sont recrutés et affectés par SentraJet — pas d’inscription marketplace ouverte.
@@ -310,9 +286,7 @@ function InscriptionPageContent() {
             <Card className="mt-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/35">
               {success && authMode === "email" && (
                 <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 ring-1 ring-emerald-200/60">
-                  {isPartnerLikeRole
-                    ? "Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous pour compléter votre espace partenaire."
-                    : "Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous."}
+                  Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous.
                 </p>
               )}
               {error && (

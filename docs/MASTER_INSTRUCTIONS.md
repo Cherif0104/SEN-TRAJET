@@ -57,4 +57,12 @@ Supabase (Auth, RLS, Realtime, Storage, Edge Functions) + moteurs métier app (`
 
 Design cible : **noir / or SentraJet Premium** (shell `.sj-app`), pas l’ancienne charte émeraude marketplace.
 
-Détail opérationnel : `docs/operations/PARCOURS_CLIENT_ENTREPRISE.md`, `docs/PIVOT_SENTRAJET_PREMIUM.md`.
+## SentraJet Operating System
+
+- Un seul back-office / CRM maître — **pas** d’ERP offert aux partenaires
+- Matricules clients `SJP-CL-*` · partenaires `SJP-PT-*` · propriétaires `SJP-OW-*`
+- Compte partenaire Auth **uniquement** après certification `ACTIF`
+- Parcours public partenaires : `/devenir-partenaire` (contact), jamais inscription auto
+
+Détail : `docs/operations/SENTRAJET_OS.md`, `docs/operations/MODELE_DONNEES.md`,  
+`docs/operations/PARCOURS_CLIENT_ENTREPRISE.md`, `docs/PIVOT_SENTRAJET_PREMIUM.md`.

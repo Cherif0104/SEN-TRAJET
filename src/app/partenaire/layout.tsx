@@ -66,7 +66,7 @@ export default function PartenaireLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <PremiumShell title="Partenaire B2B" subtitle="Tarifs négociés" nav={nav}>
+    <PremiumShell title="Espace partenaire" subtitle="Demandes · devis · factures (certifiés)" nav={nav}>
       {children}
     </PremiumShell>
   );
