@@ -190,7 +190,7 @@ export default function AdminVehicleDetailPage() {
                       </b>
                       <p className="sj-muted text-sm">{contract.terms_summary || "Exploitation"}</p>
                     </div>
-                    <SjBadge tone={contract.status === "active" ? "green" : "blue"}>
+                    <SjBadge tone={contract.status === "active" ? "success" : "info"}>
                       {contract.status}
                     </SjBadge>
                   </div>
@@ -211,7 +211,7 @@ export default function AdminVehicleDetailPage() {
                 >
                   <div className="sj-between gap-3">
                     <b>{item.service_order?.order_number || "Mission"}</b>
-                    <SjBadge tone="blue">
+                    <SjBadge tone="info">
                       {item.service_order?.status || "assignée"}
                     </SjBadge>
                   </div>

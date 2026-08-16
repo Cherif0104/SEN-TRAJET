@@ -178,7 +178,7 @@ export default function AdminAssetPartnerDetailPage() {
                           "Contrat d’exploitation"}
                       </p>
                     </div>
-                    <SjBadge tone={contract.status === "active" ? "green" : "blue"}>
+                    <SjBadge tone={contract.status === "active" ? "success" : "info"}>
                       {contract.status}
                     </SjBadge>
                   </div>

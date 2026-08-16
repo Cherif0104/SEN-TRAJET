@@ -131,7 +131,7 @@ export default function AdminClientDetailPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <SjBadge tone="blue">{booking.status}</SjBadge>
+                    <SjBadge tone="info">{booking.status}</SjBadge>
                     <p className="mt-1 text-sm font-bold">
                       {Number(
                         booking.final_amount_fcfa ?? booking.estimated_price ?? 0,
@@ -153,7 +153,7 @@ export default function AdminClientDetailPage() {
                 <div key={payment.id} className="sj-between gap-3 text-sm">
                   <span>{new Date(payment.created_at).toLocaleDateString("fr-FR")}</span>
                   <b>{Number(payment.amount_fcfa).toLocaleString("fr-FR")} FCFA</b>
-                  <SjBadge tone={payment.status === "paid" ? "green" : "blue"}>
+                  <SjBadge tone={payment.status === "paid" ? "success" : "info"}>
                     {payment.status}
                   </SjBadge>
                 </div>

@@ -151,7 +151,7 @@ export default function AdminDriverDetailPage() {
                 >
                   <div className="sj-between gap-3">
                     <b>{item.service_order?.order_number || "Mission"}</b>
-                    <SjBadge tone="blue">
+                    <SjBadge tone="info">
                       {item.service_order?.status || "assignée"}
                     </SjBadge>
                   </div>

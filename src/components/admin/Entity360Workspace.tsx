@@ -73,7 +73,7 @@ function InlineForm({
 }: {
   title: string;
   children: React.ReactNode;
-  onSubmit: (event: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   saving: boolean;
 }) {
   return (
@@ -212,7 +212,7 @@ export function Entity360Workspace({
               <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
                 {title}
               </h1>
-              {status ? <SjBadge tone="blue">{status}</SjBadge> : null}
+              {status ? <SjBadge tone="info">{status}</SjBadge> : null}
             </div>
             {subtitle ? <p className="sj-muted mt-1">{subtitle}</p> : null}
           </div>
@@ -376,7 +376,7 @@ export function Entity360Workspace({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <b>{entry.title}</b>
-                      <SjBadge tone="blue">{entry.event_type}</SjBadge>
+                      <SjBadge tone="info">{entry.event_type}</SjBadge>
                     </div>
                     {entry.description ? (
                       <p className="sj-muted mt-1 text-sm">{entry.description}</p>
@@ -467,7 +467,7 @@ export function Entity360Workspace({
               <SjCard key={item.id}>
                 <div className="sj-between gap-3">
                   <b>{item.title}</b>
-                  <SjBadge tone={item.priority === "critical" ? "red" : "blue"}>
+                  <SjBadge tone={item.priority === "critical" ? "danger" : "info"}>
                     {item.priority}
                   </SjBadge>
                 </div>
@@ -590,7 +590,7 @@ export function Entity360Workspace({
                     <b>{item.contract_number}</b>
                     <div className="sj-muted text-sm">{item.contract_type}</div>
                   </div>
-                  <SjBadge tone={item.status === "active" ? "green" : "blue"}>
+                  <SjBadge tone={item.status === "active" ? "success" : "info"}>
                     {item.status}
                   </SjBadge>
                 </div>
@@ -681,7 +681,7 @@ export function Entity360Workspace({
                     <b>{item.name}</b>
                     <div className="sj-muted text-sm">{item.document_type}</div>
                   </div>
-                  <SjBadge tone={item.status === "valid" ? "green" : "blue"}>
+                  <SjBadge tone={item.status === "valid" ? "success" : "info"}>
                     {item.status}
                   </SjBadge>
                 </div>
@@ -801,7 +801,7 @@ export function Entity360Workspace({
                   <div className="text-right">
                     <b>{formatMoney(item.amount_fcfa)}</b>
                     <div>
-                      <SjBadge tone={item.status === "paid" ? "green" : "blue"}>
+                      <SjBadge tone={item.status === "paid" ? "success" : "info"}>
                         {item.status}
                       </SjBadge>
                     </div>
@@ -916,7 +916,7 @@ export function Entity360Workspace({
                       {item.maintenance_type} · {item.service_provider || "Interne"}
                     </div>
                   </div>
-                  <SjBadge tone={item.status === "completed" ? "green" : "blue"}>
+                  <SjBadge tone={item.status === "completed" ? "success" : "info"}>
                     {item.status}
                   </SjBadge>
                 </div>

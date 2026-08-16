@@ -193,7 +193,7 @@ export default function AdminProviderDetailPage() {
                 >
                   <div className="sj-between gap-3">
                     <b>{booking.reference || booking.id.slice(0, 8)}</b>
-                    <SjBadge tone="blue">{booking.status}</SjBadge>
+                    <SjBadge tone="info">{booking.status}</SjBadge>
                   </div>
                   <p className="sj-muted mt-1 text-sm">
                     {booking.pickup} → {booking.dropoff}
@@ -212,7 +212,7 @@ export default function AdminProviderDetailPage() {
                 >
                   <div className="sj-between gap-3">
                     <b>{activity.subject || activity.motif}</b>
-                    <SjBadge tone="blue">{activity.channel}</SjBadge>
+                    <SjBadge tone="info">{activity.channel}</SjBadge>
                   </div>
                   <p className="sj-muted mt-1 text-xs">
                     {new Date(activity.occurred_at).toLocaleString("fr-FR")}
