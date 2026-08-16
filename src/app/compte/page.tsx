@@ -1,39 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
   BOOKING_STATUS_LABEL,
   bookingStatusTone,
-  ensureClientForUser,
-  listPlatformBookings,
-  type PlatformBooking,
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
+import { useClientBookings } from "@/hooks/useClientBookings";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
 
 export default function ComptePage() {
-  const { user, profile } = useAuth();
-  const [rows, setRows] = useState<PlatformBooking[]>([]);
-
-  useEffect(() => {
-    void (async () => {
-      if (!user) return;
-      try {
-        const clientId = await ensureClientForUser({
-          userId: user.id,
-          fullName: profile?.full_name,
-          phone: profile?.phone,
-          email: user.email,
-        });
-        const all = await listPlatformBookings();
-        setRows(all.filter((b) => b.client_id === clientId));
-      } catch {
-        setRows([]);
-      }
-    })();
-  }, [user, profile]);
+  const { profile } = useAuth();
+  const { rows, loading, error } = useClientBookings();
 
   const upcoming = rows.filter((b) => !["terminee", "annulee"].includes(b.status));
   const lastPrice = rows[0]?.estimated_price;
@@ -48,6 +28,12 @@ export default function ComptePage() {
           </Link>
         }
       />
+      {error ? (
+        <p role="alert" className="mb-4 text-sm text-[var(--color-error)]">
+          {error}
+        </p>
+      ) : null}
+      {loading ? <BrandedLoader /> : null}
       <div className="sj-hero">
         <section className="sj-hero-card">
           <div className="sj-hero-art" />
@@ -74,7 +60,7 @@ export default function ComptePage() {
       </div>
 
       <SjSectionHead title="Mes prochaines réservations" />
-      <div className="sj-list">
+      {!loading ? <div className="sj-list">
         {upcoming.slice(0, 5).map((b) => (
           <SjCard key={b.id}>
             <div className="sj-between">
@@ -96,7 +82,7 @@ export default function ComptePage() {
           </SjCard>
         ))}
         {!upcoming.length ? <SjCard><p className="sj-muted">Aucune réservation à venir. Lancez votre première demande.</p></SjCard> : null}
-      </div>
+      </div> : null}
     </>
   );
 }

@@ -18,6 +18,7 @@ import {
   Inbox,
   ClipboardList,
   UserCog,
+  CircleUserRound,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -40,8 +41,19 @@ const nav = [
   { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
   { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },
   { href: "/admin/rapports", labelKey: "nav.reports" as const, icon: BarChart3 },
+  { href: "/admin/profil", labelKey: "nav.profile" as const, icon: CircleUserRound },
   { href: "/admin/parametres", labelKey: "nav.settings" as const, icon: Settings },
 ];
+
+const mobileNav = nav.filter((item) =>
+  [
+    "/admin",
+    "/admin/demandes",
+    "/admin/dispatch",
+    "/admin/utilisateurs",
+    "/admin/profil",
+  ].includes(item.href),
+);
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -64,8 +76,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <BrandedLoader fullScreen />;
   }
 
+  const visibleNav =
+    profile?.role === "super_admin"
+      ? nav
+      : nav.filter((item) => item.href !== "/admin/utilisateurs");
+  const visibleMobileNav = mobileNav.filter((item) =>
+    visibleNav.some((visible) => visible.href === item.href),
+  );
+
   return (
-    <PremiumShell title={t("shell.adminTitle")} subtitle={t("shell.adminSubtitle")} nav={nav}>
+    <PremiumShell
+      title={t("shell.adminTitle")}
+      subtitle={t("shell.adminSubtitle")}
+      nav={visibleNav}
+      mobileNav={visibleMobileNav}
+    >
       {children}
     </PremiumShell>
   );
