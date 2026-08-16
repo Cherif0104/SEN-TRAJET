@@ -409,7 +409,13 @@ function ReserverWizard() {
       clearSimulationDraft();
       patch({ step: "done" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d’envoyer la demande.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "Impossible d’envoyer la demande.";
+      setError(msg || "Impossible d’envoyer la demande.");
     } finally {
       setSaving(false);
     }

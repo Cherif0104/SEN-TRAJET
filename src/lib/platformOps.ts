@@ -247,8 +247,18 @@ export async function ensureClientForUser(params: {
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw formatSupabaseError(error, "Impossible de créer le profil client.");
   return data.id as string;
+}
+
+function formatSupabaseError(error: unknown, fallback: string): Error {
+  if (error instanceof Error) return error;
+  if (error && typeof error === "object") {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    const parts = [e.message, e.details, e.hint].filter(Boolean);
+    if (parts.length) return new Error(parts.join(" — "));
+  }
+  return new Error(fallback);
 }
 
 export async function createPlatformBooking(input: {
@@ -270,6 +280,32 @@ export async function createPlatformBooking(input: {
   passengerName?: string | null;
   luggageCount?: number | null;
 }): Promise<PlatformBooking> {
+  // Prefer SECURITY DEFINER RPC (atomic + works for anon SELECT/RETURNING).
+  const { data: rpcData, error: rpcError } = await supabase.rpc("submit_booking_demande", {
+    p_pickup: input.pickup,
+    p_dropoff: input.dropoff,
+    p_pickup_time: input.pickupTime,
+    p_service_type: input.serviceType,
+    p_passengers: input.passengers,
+    p_estimated_price: input.estimatedPrice,
+    p_pricing_segment: input.pricingSegment,
+    p_distance_km: input.distanceKm ?? null,
+    p_notes: input.notes ?? null,
+    p_phone: input.phone ?? null,
+    p_flight_number: input.flightNumber ?? null,
+    p_passenger_name: input.passengerName ?? null,
+    p_luggage_count: input.luggageCount ?? null,
+    p_vehicles_needed: input.vehiclesNeeded ?? 1,
+    p_is_round_trip: input.isRoundTrip ?? false,
+    p_client_id: input.clientId ?? null,
+    p_partner_contract_id: input.partnerContractId ?? null,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as PlatformBooking;
+  }
+
+  // Fallback direct insert (RLS must allow INSERT + SELECT for demande statuses).
   const reference = makeReference();
   const { data, error } = await supabase
     .from("bookings")
@@ -296,7 +332,12 @@ export async function createPlatformBooking(input: {
     })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) {
+    throw formatSupabaseError(
+      rpcError ?? error,
+      "Impossible d’envoyer la demande (réservation refusée par la base)."
+    );
+  }
 
   const booking = data as PlatformBooking;
 

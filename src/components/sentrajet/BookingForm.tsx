@@ -133,7 +133,13 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
       setPayLink(waveUrl);
       onCreated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de créer la réservation.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "Impossible de créer la réservation.";
+      setError(msg || "Impossible de créer la réservation.");
     } finally {
       setSaving(false);
     }
