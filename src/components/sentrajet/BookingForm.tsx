@@ -21,11 +21,18 @@ type BookingFormProps = {
   clientId?: string | null;
   partnerContractId?: string | null;
   onCreated?: () => void;
+  submitDisabledReason?: string | null;
 };
 
 const SERVICES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][];
 
-export function BookingForm({ segment, clientId, partnerContractId, onCreated }: BookingFormProps) {
+export function BookingForm({
+  segment,
+  clientId,
+  partnerContractId,
+  onCreated,
+  submitDisabledReason,
+}: BookingFormProps) {
   const { t } = usePreferences();
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
   const [pickupPlace, setPickupPlace] = useState<SelectedPlace | null>(null);
@@ -120,6 +127,10 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitDisabledReason) {
+      setError(submitDisabledReason);
+      return;
+    }
     setError(null);
     setMessage(null);
     setPayLink(null);
@@ -318,7 +329,12 @@ export function BookingForm({ segment, clientId, partnerContractId, onCreated }:
         </a>
       ) : null}
 
-      <button type="submit" className="sj-btn sj-btn-primary" disabled={saving}>
+      {submitDisabledReason ? (
+        <p className="rounded-xl border border-[var(--color-warning)]/30 bg-amber-500/10 p-3 text-sm text-[var(--color-text-secondary)]">
+          {submitDisabledReason}
+        </p>
+      ) : null}
+      <button type="submit" className="sj-btn sj-btn-primary" disabled={saving || Boolean(submitDisabledReason)}>
         {saving ? "Envoi…" : "Calculer & envoyer la demande"}
       </button>
     </form>

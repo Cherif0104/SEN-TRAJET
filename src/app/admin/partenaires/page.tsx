@@ -398,7 +398,9 @@ export default function AdminPartenairesPage() {
                       <button className="sj-btn" type="button" onClick={() => editPartner(partner)}>
                         Modifier
                       </button>
-                      {!partner.user_id && partner.primary_contact_email ? (
+                      {!partner.user_id &&
+                      partner.primary_contact_email &&
+                      partner.certification_status === "actif" ? (
                         <Link
                           className="sj-btn"
                           href={`/admin/utilisateurs?role=partner&resourceType=partner&resourceId=${partner.id}&name=${encodeURIComponent(partner.legal_name)}&email=${encodeURIComponent(partner.primary_contact_email)}`}

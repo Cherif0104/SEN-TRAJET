@@ -376,9 +376,17 @@ async function createBookingViaApi(input: {
   luggageCount?: number | null;
 }): Promise<PlatformBooking | null> {
   if (typeof window === "undefined") return null;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const res = await fetch("/api/bookings/demande", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    },
     body: JSON.stringify({
       clientId: input.clientId ?? null,
       partnerContractId: input.partnerContractId ?? null,
@@ -665,7 +673,7 @@ export async function createPaymentForBooking(input: {
   providerRef?: string | null;
   status?: string;
 }) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("payments")
     .insert({
       booking_id: input.bookingId,
@@ -674,11 +682,9 @@ export async function createPaymentForBooking(input: {
       provider_ref: input.providerRef ?? null,
       provider: "wave",
       status: input.status ?? "pending",
-    })
-    .select("*")
-    .single();
+    });
   if (error) throw error;
-  return data;
+  return { booking_id: input.bookingId, status: input.status ?? "pending" };
 }
 
 export async function markBookingPaid(bookingId: string, providerRef?: string) {

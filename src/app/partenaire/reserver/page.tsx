@@ -44,6 +44,11 @@ export default function PartenaireReserverPage() {
             segment="partner"
             clientId={clientId}
             partnerContractId={contractId}
+            submitDisabledReason={
+              contractId
+                ? null
+                : "La simulation reste disponible, mais un contrat partenaire actif est requis pour envoyer la demande."
+            }
             onCreated={() => router.push("/partenaire/demandes")}
           />
         ) : (
