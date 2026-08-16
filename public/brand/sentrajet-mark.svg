@@ -12,7 +12,7 @@
       <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".15"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="96" fill="#fff"/>
+  <rect width="512" height="512" fill="#fff"/>
   <g filter="url(#shadow)">
     <path fill="url(#gold)" fill-rule="evenodd" d="M256 52c-111 0-201 90-201 201 0 139 149 214 201 251 52-37 201-112 201-251 0-111-90-201-201-201Zm0 81a120 120 0 1 0 0 240 120 120 0 0 0 0-240Z"/>
     <path fill="#050505" d="M83 363c83-103 182-158 360-181-106 55-187 131-271 268l-89-87Z"/>
