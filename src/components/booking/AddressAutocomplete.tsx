@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, Loader2, LocateFixed, MapPin, X } from "lucide-react";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 export type SelectedPlace = {
   id: string;
@@ -42,6 +43,7 @@ export function AddressAutocomplete({
   showMyLocation = false,
   accent = "pickup",
 }: Props) {
+  const { t } = usePreferences();
   const listId = useId();
   const inputId = `${listId}-input`;
   const [query, setQuery] = useState(value?.address || value?.label || textValue || "");
@@ -217,7 +219,7 @@ export function AddressAutocomplete({
             className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 disabled:opacity-50"
           >
             {geoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />}
-            {geoLoading ? "Localisation…" : "Ma position"}
+            {geoLoading ? t("address.locating") : t("address.myPosition")}
           </button>
         ) : null}
       </div>
@@ -238,7 +240,7 @@ export function AddressAutocomplete({
           name={`${accent}_address`}
           className="min-h-[52px] w-full bg-transparent px-3 py-3 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
           value={query}
-          placeholder={placeholder || "Rechercher une adresse…"}
+          placeholder={placeholder || t("address.search")}
           autoComplete="off"
           role="combobox"
           aria-expanded={open}
@@ -256,7 +258,7 @@ export function AddressAutocomplete({
         ) : value ? (
           <Check className="mr-2 h-4 w-4 shrink-0 text-emerald-600" />
         ) : query ? (
-          <button type="button" onClick={clear} className="mr-2 rounded-full p-1 text-neutral-400 hover:bg-neutral-100" aria-label="Effacer">
+          <button type="button" onClick={clear} className="mr-2 rounded-full p-1 text-neutral-400 hover:bg-neutral-100" aria-label={t("address.clear")}>
             <X className="h-4 w-4" />
           </button>
         ) : null}
@@ -264,7 +266,7 @@ export function AddressAutocomplete({
 
       {error ? <p className="mt-1.5 text-xs text-red-600">{error}</p> : null}
       {!value && query.trim().length >= 2 && !loading ? (
-        <p className="mt-1.5 text-xs text-amber-800">Touchez une suggestion pour verrouiller le GPS.</p>
+        <p className="mt-1.5 text-xs text-amber-800">{t("address.chooseSuggestion")}</p>
       ) : null}
       {value ? (
         <p className="mt-1.5 text-xs font-medium text-emerald-700">Position GPS confirmée</p>

@@ -452,6 +452,10 @@ function ReserverWizard() {
   }
 
   const livePriceReady = Boolean(draft.pickupPlace && draft.dropoffPlace && draft.distanceKm);
+  const currentServiceTitle = t(
+    SERVICE_CARDS.find((service) => service.value === draft.serviceType)?.title ??
+      "landing.service.travel"
+  );
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10">
@@ -462,17 +466,17 @@ function ReserverWizard() {
           </p>
           <h1 className="mt-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
             {draft.step === "service" && t("booking.step.serviceTitle")}
-            {draft.step === "trajet" && "Itinéraire réel"}
-            {draft.step === "prix" && "Votre tarif"}
-            {draft.step === "compte" && "Presque prêt"}
-            {draft.step === "confirm" && "Dernière étape"}
-            {draft.step === "done" && "Demande reçue"}
+            {draft.step === "trajet" && t("booking.step.journeyTitle")}
+            {draft.step === "prix" && t("booking.step.priceTitle")}
+            {draft.step === "compte" && t("booking.step.accountTitle")}
+            {draft.step === "confirm" && t("booking.step.confirmTitle")}
+            {draft.step === "done" && t("booking.step.doneTitle")}
           </h1>
           <p className="mt-2 text-sm text-white/70">
             {draft.step === "service"
               ? t("booking.step.serviceSubtitle")
               : draft.step === "trajet"
-                ? "Recherchez départ et arrivée — le prix suit la distance routière réelle."
+                ? t("booking.step.journeySubtitle")
                 : draft.step === "prix"
                   ? quote.surDevis
                     ? "Cotation manuelle SentraJet."
@@ -520,16 +524,16 @@ function ReserverWizard() {
       {draft.step === "trajet" ? (
         <div className="space-y-5">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-amber-800">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
+            <p className="text-sm font-semibold text-amber-800">{currentServiceTitle}</p>
             <button type="button" className="text-xs font-semibold text-neutral-500 underline" onClick={() => go("service")}>
-              Changer
+              {t("booking.change")}
             </button>
           </div>
 
           <div className="relative space-y-3 rounded-3xl border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4">
             <AddressAutocomplete
-              label="Départ"
-              placeholder="Tapez votre adresse ou quartier…"
+              label={t("booking.pickup")}
+              placeholder={t("booking.pickupPlaceholder")}
               value={draft.pickupPlace}
               textValue={draft.pickup}
               showMyLocation
@@ -544,16 +548,16 @@ function ReserverWizard() {
                 onClick={swapPlaces}
                 disabled={!draft.pickupPlace && !draft.dropoffPlace}
                 className="z-10 -my-1 flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-lg font-bold text-neutral-700 shadow-sm hover:border-amber-400 disabled:opacity-40"
-                title="Inverser départ / arrivée"
-                aria-label="Inverser départ et arrivée"
+                title={t("booking.swap")}
+                aria-label={t("booking.swap")}
               >
                 ↕
               </button>
             </div>
 
             <AddressAutocomplete
-              label="Destination"
-              placeholder="Tapez la destination (AIBD, Saly, Thiès…)"
+              label={t("booking.destination")}
+              placeholder={t("booking.destinationPlaceholder")}
               value={draft.dropoffPlace}
               textValue={draft.dropoff}
               accent="dropoff"
@@ -565,7 +569,7 @@ function ReserverWizard() {
           {draft.pickupPlace && draft.dropoffPlace ? (
             <div className="overflow-hidden rounded-2xl border border-neutral-200">
               <iframe
-                title="Carte du trajet"
+                title={t("booking.map")}
                 className="h-44 w-full border-0"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
@@ -582,7 +586,7 @@ function ReserverWizard() {
             }`}
           >
             {distanceLoading ? (
-              <p className="font-medium">Calcul de la distance routière…</p>
+              <p className="font-medium">{t("booking.distanceLoading")}</p>
             ) : livePriceReady ? (
               <>
                 <p className="font-semibold">
@@ -594,7 +598,7 @@ function ReserverWizard() {
                   </span>
                 </p>
                 <p className="mt-1 text-xs text-neutral-600">
-                  Prix estimé selon la distance réelle
+                  {t("booking.distanceEstimate")}
                   {draft.distanceSource === "google_distance_matrix"
                     ? " (Google Maps)"
                     : draft.distanceSource === "osrm"
@@ -604,25 +608,24 @@ function ReserverWizard() {
               </>
             ) : (
               <p>
-                Recherchez et sélectionnez le départ puis la destination. Sans suggestion GPS, pas de
-                tarif.
+                {t("booking.selectGps")}
               </p>
             )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="booking-date" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Date</label>
+              <label htmlFor="booking-date" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">{t("booking.date")}</label>
               <input id="booking-date" name="booking_date" type="date" className="input-base mt-1.5" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
             </div>
             <div>
-              <label htmlFor="booking-time" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Heure</label>
+              <label htmlFor="booking-time" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">{t("booking.time")}</label>
               <input id="booking-time" name="booking_time" type="time" className="input-base mt-1.5" value={draft.time} onChange={(e) => patch({ time: e.target.value })} />
             </div>
           </div>
 
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Type</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">{t("booking.type")}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {PRIMARY_TRIP_MODES.map((mode) => (
                 <button
@@ -635,7 +638,7 @@ function ReserverWizard() {
                       : "border-neutral-200 text-neutral-600"
                   }`}
                 >
-                  {TRIP_MODE_LABELS[mode]}
+                  {t(mode === "aller_simple" ? "booking.oneWay" : "booking.roundTrip")}
                 </button>
               ))}
             </div>
@@ -650,12 +653,12 @@ function ReserverWizard() {
                   })
                 }
               >
-                + Attente sur place
+                {t("booking.addWaiting")}
               </button>
             ) : (
               <div className="mt-3">
                 <label htmlFor="booking-waiting" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
-                  Attente (minutes)
+                  {t("booking.waitingMinutes")}
                 </label>
                 <input
                   type="number"
@@ -672,8 +675,8 @@ function ReserverWizard() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Counter label="Passagers" value={draft.passengers} min={1} max={40} onChange={(n) => patch({ passengers: n })} />
-            <Counter label="Valises" value={draft.luggage} min={0} max={30} onChange={(n) => patch({ luggage: n })} />
+            <Counter label={t("booking.passengers")} value={draft.passengers} min={1} max={40} onChange={(n) => patch({ passengers: n })} />
+            <Counter label={t("booking.luggage")} value={draft.luggage} min={0} max={30} onChange={(n) => patch({ luggage: n })} />
           </div>
 
           {quote.vehicleSuggestion.alert ? (
@@ -689,10 +692,10 @@ function ReserverWizard() {
             onClick={launchSimulation}
           >
             {distanceLoading
-              ? "Calcul en cours…"
+              ? t("booking.calculating")
               : livePriceReady
-                ? `Voir le détail · ${quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "devis"}`
-                : "Sélectionnez départ et arrivée"}
+                ? `${t("booking.details")} · ${quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : t("actions.quote")}`
+                : t("booking.selectRoute")}
           </button>
         </div>
       ) : null}
@@ -794,7 +797,7 @@ function ReserverWizard() {
       {draft.step === "confirm" ? (
         <div className="space-y-4">
           <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm">
-            <p className="font-semibold">{SERVICE_TYPE_LABELS[draft.serviceType]}</p>
+            <p className="font-semibold">{currentServiceTitle}</p>
             <p className="mt-1">{draft.pickup} → {draft.dropoff}</p>
             <p>
               {draft.date} {draft.time}

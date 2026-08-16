@@ -70,6 +70,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const syncSystemTheme = () => {
       if (theme === "system") setResolvedTheme(media.matches ? "dark" : "light");
@@ -77,9 +78,10 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     syncSystemTheme();
     media.addEventListener("change", syncSystemTheme);
     return () => media.removeEventListener("change", syncSystemTheme);
-  }, [theme]);
+  }, [ready, theme]);
 
   useEffect(() => {
+    if (!ready) return;
     const root = document.documentElement;
     root.lang = locale;
     root.dir = locale === "ar" ? "rtl" : "ltr";
@@ -94,7 +96,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       "content",
       resolvedTheme === "dark" ? "#07111f" : "#f7f8fa"
     );
-  }, [locale, resolvedTheme, theme]);
+  }, [locale, ready, resolvedTheme, theme]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
     localStorage.setItem(LOCALE_KEY, nextLocale);
