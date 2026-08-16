@@ -3,6 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
+/** URL publique du projet SEN TRAJET — fallback si env Preview incomplète. */
+const FALLBACK_SUPABASE_URL = "https://ootvzknyhkhxroadnclh.supabase.co";
+/** Clé anon JWT (publique par design) — fallback Preview uniquement. */
+const FALLBACK_ANON_JWT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vdHZ6a255aGtoeHJvYWRuY2xoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDQ4MDAsImV4cCI6MjA5NTAyMDgwMH0.8xyIiOk_VFJVGCjoZioXmmDsthvV-o3WX-QI7y1aLQc";
+
 type DemandeBody = {
   clientId?: string | null;
   partnerContractId?: string | null;
@@ -24,20 +30,29 @@ type DemandeBody = {
 };
 
 function serverSupabase() {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim() || FALLBACK_SUPABASE_URL;
   const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
   const anonKey = (
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     ""
   ).trim();
-  const key = serviceKey || anonKey;
-  if (!url || !key || url.includes("placeholder")) {
-    return null;
-  }
+  // Préférer JWT anon à la publishable key pour le REST legacy
+  const key =
+    serviceKey ||
+    (anonKey.startsWith("eyJ") ? anonKey : "") ||
+    FALLBACK_ANON_JWT;
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+function friendlyFetchError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  if (/fetch failed|failed to fetch|ECONNREFUSED|ENOTFOUND|network/i.test(msg)) {
+    return "Connexion à la base indisponible temporairement. Réessayez dans quelques secondes.";
+  }
+  return msg.split("\n")[0]?.split(" at ")[0]?.trim() || "Impossible d’enregistrer la demande.";
 }
 
 export async function POST(req: NextRequest) {
@@ -64,42 +79,34 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = serverSupabase();
-  if (!supabase) {
-    return NextResponse.json(
-      {
-        error:
-          "Configuration serveur incomplète (Supabase). Ajoutez NEXT_PUBLIC_SUPABASE_URL et une clé API sur Vercel.",
-      },
-      { status: 503 }
-    );
+
+  try {
+    const { data, error } = await supabase.rpc("submit_booking_demande", {
+      p_pickup: body.pickup.trim(),
+      p_dropoff: body.dropoff.trim(),
+      p_pickup_time: body.pickupTime,
+      p_service_type: body.serviceType,
+      p_passengers: Math.max(1, Number(body.passengers) || 1),
+      p_estimated_price: body.estimatedPrice,
+      p_pricing_segment: body.pricingSegment ?? "client",
+      p_distance_km: body.distanceKm ?? null,
+      p_notes: body.notes ?? null,
+      p_phone: body.phone?.trim() || null,
+      p_flight_number: body.flightNumber ?? null,
+      p_passenger_name: body.passengerName ?? null,
+      p_luggage_count: body.luggageCount ?? null,
+      p_vehicles_needed: body.vehiclesNeeded ?? 1,
+      p_is_round_trip: Boolean(body.isRoundTrip),
+      p_client_id: body.clientId ?? null,
+      p_partner_contract_id: body.partnerContractId ?? null,
+    });
+
+    if (error) {
+      return NextResponse.json({ error: friendlyFetchError(error.message) }, { status: 502 });
+    }
+
+    return NextResponse.json({ booking: data });
+  } catch (err) {
+    return NextResponse.json({ error: friendlyFetchError(err) }, { status: 502 });
   }
-
-  const { data, error } = await supabase.rpc("submit_booking_demande", {
-    p_pickup: body.pickup.trim(),
-    p_dropoff: body.dropoff.trim(),
-    p_pickup_time: body.pickupTime,
-    p_service_type: body.serviceType,
-    p_passengers: Math.max(1, Number(body.passengers) || 1),
-    p_estimated_price: body.estimatedPrice,
-    p_pricing_segment: body.pricingSegment ?? "client",
-    p_distance_km: body.distanceKm ?? null,
-    p_notes: body.notes ?? null,
-    p_phone: body.phone?.trim() || null,
-    p_flight_number: body.flightNumber ?? null,
-    p_passenger_name: body.passengerName ?? null,
-    p_luggage_count: body.luggageCount ?? null,
-    p_vehicles_needed: body.vehiclesNeeded ?? 1,
-    p_is_round_trip: Boolean(body.isRoundTrip),
-    p_client_id: body.clientId ?? null,
-    p_partner_contract_id: body.partnerContractId ?? null,
-  });
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message || "Impossible d’enregistrer la demande." },
-      { status: 502 }
-    );
-  }
-
-  return NextResponse.json({ booking: data });
 }

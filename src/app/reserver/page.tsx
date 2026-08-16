@@ -423,7 +423,7 @@ function ReserverWizard() {
             : "Impossible d’envoyer la demande.";
       const msg = raw.split("\n")[0]?.split(" at http")[0]?.trim() || raw;
       setError(
-        /failed to fetch/i.test(msg)
+        /failed to fetch|fetch failed/i.test(msg)
           ? "Connexion impossible au serveur. Réessayez dans un instant."
           : msg || "Impossible d’envoyer la demande."
       );
@@ -710,13 +710,39 @@ function ReserverWizard() {
               <span className="text-neutral-500">Arrivée</span> · {draft.dropoff}
             </p>
             <p className="mt-1">
-              <span className="text-neutral-500">Distance</span> ·{" "}
-              {draft.distanceKm ? `${draft.distanceKm} km` : "—"}
+              <span className="text-neutral-500">Distance routière</span> ·{" "}
+              {draft.distanceKm ? `${draft.distanceKm} km aller` : "—"}
+              {quote.returnKm ? ` · ${quote.returnKm} km retour · ${quote.billableKm} km total` : ""}
               {draft.durationMinutes ? ` · ~${draft.durationMinutes} min` : ""}
             </p>
+            {quote.ratePerKm ? (
+              <p className="mt-1">
+                <span className="text-neutral-500">Tarif/km</span> · {quote.ratePerKm} FCFA
+                {quote.tariffVersionCode ? ` · ${quote.tariffVersionCode}` : ""}
+              </p>
+            ) : null}
             <p className="mt-1">
               <span className="text-neutral-500">Passagers / valises</span> · {draft.passengers} / {draft.luggage}
             </p>
+            {quote.feeLines?.filter((l) => l.key !== "transport").length ? (
+              <ul className="mt-3 space-y-1 text-xs text-neutral-500">
+                {quote.feeLines
+                  .filter((l) => l.key !== "transport")
+                  .map((line) => (
+                    <li key={line.key}>
+                      {line.label} ·{" "}
+                      {line.status === "inclus"
+                        ? "inclus"
+                        : line.status === "exclu"
+                          ? "non inclus"
+                          : line.status === "estime"
+                            ? "estimé"
+                            : "à confirmer"}
+                      {line.amountFcfa != null ? ` · ${formatFcfa(line.amountFcfa)}` : ""}
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
             {quote.breakdown.length ? (
               <ul className="mt-3 list-disc space-y-1 pl-4 text-xs text-neutral-500">
                 {quote.breakdown.map((line) => (

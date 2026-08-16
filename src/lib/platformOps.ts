@@ -254,7 +254,7 @@ export async function ensureClientForUser(params: {
 function formatSupabaseError(error: unknown, fallback: string): Error {
   if (error instanceof Error) {
     const clean = error.message.split("\n")[0]?.split(" at http")[0]?.trim() || error.message;
-    if (/failed to fetch/i.test(clean)) {
+    if (/failed to fetch|fetch failed/i.test(clean)) {
       return new Error(
         "Connexion impossible au serveur de réservation. Réessayez dans un instant."
       );

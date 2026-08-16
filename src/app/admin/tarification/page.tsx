@@ -3,26 +3,23 @@
 import { SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 
 const publicRules = [
-  ["Transfert AIBD court", "forfait dès 20 000 FCFA (grille passagers)"],
-  ["Trajet au km (1–4 pers.)", "800 FCFA / km"],
-  ["Trajet au km (5–7 pers.)", "900 FCFA / km"],
-  ["Trajet au km (8–10 pers.)", "1 000 FCFA / km"],
-  ["Aller-retour", "distance aller × 2"],
+  ["Véhicule réf.", "Hyundai Starex — 10 places"],
+  ["Trajet 1–4 pers.", "800 FCFA / km (public)"],
+  ["Trajet 5–7 pers.", "900 FCFA / km (public)"],
+  ["Trajet 8–10 pers.", "1 200 FCFA / km (public)"],
+  ["Aller-retour", "distance routière aller + retour"],
   ["Course ≤ 45 km", "minimum 20 000 FCFA si le km est inférieur"],
-  ["Mise à disposition", "50 000 FCFA / 10 h à Dakar"],
-  ["Cérémonies", "dès 45 000 FCFA"],
+  ["MAD public Dakar", "50 000 FCFA / 10 h (frais externes exclus)"],
+  ["Cérémonies / Autre", "sur devis"],
   ["Attente", "30 min offertes puis 2 500 F / 30 min (hors MAD)"],
 ];
 
 const b2bRules = [
-  ["AIBD 1–2", "20 000 FCFA"],
-  ["AIBD 3–5", "25 000 FCFA"],
-  ["AIBD 6–8", "30 000 FCFA"],
-  ["AIBD 9–11", "40 000 FCFA"],
-  ["AIBD + retour 1–3", "30 000 FCFA"],
-  ["AIBD + retour 4–5", "cotation"],
-  ["AIBD + retour 6–8", "50 000 FCFA"],
-  ["Interurbain > 50 km", "700 F/km · min 30 000 · AR = ×2"],
+  ["MAD Dakar 10 h", "40 000 FCFA (carburant/péages/parking exclus)"],
+  ["MAD hors Dakar ≤100 km", "60 000 FCFA"],
+  ["MAD hors Dakar >100 km", "60 000 + 600 F/km au-delà"],
+  ["Interurbain", "700 F/km · min 30 000 · AR = ×2"],
+  ["Visibilité", "Espace partenaire uniquement — jamais en public"],
 ];
 
 const seedKm = [
