@@ -27,7 +27,10 @@ export default function PartenaireReserverPage() {
       });
       setClientId(id);
       const contracts = await listPartnerContracts().catch(() => []);
-      const mine = contracts.find((c) => c.partner_user_id === user.id) || contracts.find((c) => c.status === "active");
+      const mine = contracts.find(
+        (contract) =>
+          contract.partner_user_id === user.id && contract.status === "active",
+      );
       setContractId(mine?.id ?? null);
     })();
   }, [user, profile]);
