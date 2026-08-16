@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 export function HeroSection() {
+  const { t } = usePreferences();
+
   return (
     <section className="relative min-h-[min(92vh,720px)] overflow-hidden bg-[#07111f] pb-16 pt-8 sm:min-h-[min(88vh,780px)] sm:pb-20 sm:pt-12 lg:pt-16">
       <div className="absolute inset-0">
@@ -27,23 +30,22 @@ export function HeroSection() {
       />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <p className="font-display text-sm font-semibold tracking-[0.22em] text-[#f0c86b]">
-          SENTRAJET PREMIUM
+        <p className="font-display text-sm font-semibold tracking-[0.22em] text-[var(--color-accent-hover)]">
+          {t("landing.eyebrow")}
         </p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-bold tracking-tight text-white drop-shadow-md sm:text-5xl lg:text-[3.4rem] lg:leading-[1.08]">
-          SentraJet Premium
+          {t("landing.title")}
         </h1>
         <p className="mt-4 max-w-xl text-base text-white/90 drop-shadow sm:text-lg">
-          Transfert aéroport, voyage ou mise à disposition — flotte SentraJet, devis clair, véhicule
-          assigné le jour J.
+          {t("landing.subtitle")}
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/reserver"
-            className="inline-flex items-center justify-center rounded-xl bg-[#d5a64a] px-6 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"
+            className="inline-flex items-center justify-center rounded-xl bg-[var(--color-accent)] px-6 py-3.5 text-sm font-bold text-[var(--color-accent-contrast)] hover:bg-[var(--color-accent-hover)]"
           >
-            Réserver
+            {t("actions.bookNow")}
           </Link>
           <a
             href="https://wa.me/221788324069"

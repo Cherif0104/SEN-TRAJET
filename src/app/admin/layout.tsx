@@ -20,53 +20,50 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
-import { supabase } from "@/lib/supabase";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
-  { href: "/admin", label: "Vue d’ensemble", icon: LayoutDashboard },
-  { href: "/admin/demandes", label: "Demandes", icon: ClipboardList },
-  { href: "/admin/reservations", label: "Réservations", icon: Calendar },
-  { href: "/admin/dispatch", label: "Dispatch", icon: ArrowLeftRight },
-  { href: "/admin/crm", label: "CRM / pipeline", icon: Inbox },
-  { href: "/admin/chauffeurs", label: "Chauffeurs", icon: Users },
-  { href: "/admin/partenaires", label: "Partenaires", icon: Building2 },
-  { href: "/admin/proprietaires", label: "Propriétaires", icon: Landmark },
-  { href: "/admin/clients", label: "Clients", icon: Contact },
-  { href: "/admin/vehicules", label: "Flotte", icon: Car },
-  { href: "/admin/tarification", label: "Tarification", icon: BadgeDollarSign },
-  { href: "/admin/regles", label: "Règles métier", icon: SlidersHorizontal },
-  { href: "/admin/rapports", label: "Rapports", icon: BarChart3 },
-  { href: "/admin/parametres", label: "Paramètres", icon: Settings },
+  { href: "/admin", labelKey: "nav.overview" as const, icon: LayoutDashboard },
+  { href: "/admin/demandes", labelKey: "nav.requests" as const, icon: ClipboardList },
+  { href: "/admin/reservations", labelKey: "nav.reservations" as const, icon: Calendar },
+  { href: "/admin/dispatch", labelKey: "nav.dispatch" as const, icon: ArrowLeftRight },
+  { href: "/admin/crm", labelKey: "nav.crm" as const, icon: Inbox },
+  { href: "/admin/chauffeurs", labelKey: "nav.drivers" as const, icon: Users },
+  { href: "/admin/partenaires", labelKey: "nav.partners" as const, icon: Building2 },
+  { href: "/admin/proprietaires", labelKey: "nav.owners" as const, icon: Landmark },
+  { href: "/admin/clients", labelKey: "nav.clients" as const, icon: Contact },
+  { href: "/admin/vehicules", labelKey: "nav.fleet" as const, icon: Car },
+  { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
+  { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },
+  { href: "/admin/rapports", labelKey: "nav.reports" as const, icon: BarChart3 },
+  { href: "/admin/parametres", labelKey: "nav.settings" as const, icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
+  const { t } = usePreferences();
 
   useEffect(() => {
     if (loading) return;
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/connexion?next=" + encodeURIComponent(pathname));
-        return;
-      }
-      if (profile && !canAccessAdminZone(profile.role)) {
-        router.replace("/dashboard?forbidden=1");
-      }
-    })();
-  }, [loading, profile, router, pathname]);
+    if (!user) {
+      router.replace("/connexion?next=" + encodeURIComponent(pathname));
+      return;
+    }
+    if (profile && !canAccessAdminZone(profile.role)) {
+      router.replace("/dashboard?forbidden=1");
+    }
+  }, [loading, profile, router, pathname, user]);
 
-  if (!loading && profile && !canAccessAdminZone(profile.role)) {
-    return null;
+  if (loading || !user || (profile && !canAccessAdminZone(profile.role))) {
+    return <BrandedLoader fullScreen />;
   }
 
   return (
-    <PremiumShell title="Direction" subtitle="Cockpit opérations" nav={nav}>
+    <PremiumShell title={t("shell.adminTitle")} subtitle={t("shell.adminSubtitle")} nav={nav}>
       {children}
     </PremiumShell>
   );

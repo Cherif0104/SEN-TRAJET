@@ -8,6 +8,7 @@ import { AuthPageScaffold, AuthPageFallback } from "@/components/layout/AuthPage
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
@@ -195,15 +196,7 @@ function ConnexionPageContent() {
 
   // Dès qu'un utilisateur est connecté, on affiche la redirection (pas le formulaire)
   if (!authLoading && user) {
-    return (
-      <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 via-white to-neutral-100">
-        <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-4 py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          <p className="mt-3 text-sm text-slate-500">Redirection vers votre espace…</p>
-        </main>
-      </div>
-    );
+    return <BrandedLoader fullScreen />;
   }
 
   return (

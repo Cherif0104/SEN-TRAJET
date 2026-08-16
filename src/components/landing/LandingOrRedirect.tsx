@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { HomeContinued } from "@/components/landing/HomeContinued";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
 
 /**
  * Affiche la landing page pour les visiteurs non connectés.
@@ -59,10 +60,7 @@ export function LandingOrRedirect() {
       profile?.role === "trainer")
   ) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-neutral-100">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-        <p className="mt-3 text-sm text-slate-600">Redirection vers votre espace…</p>
-      </div>
+      <BrandedLoader fullScreen />
     );
   }
 

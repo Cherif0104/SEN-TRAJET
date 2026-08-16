@@ -1,57 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Route, History, User } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { canAccessDriverZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { useAuth } from "@/hooks/useAuth";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
-  { href: "/chauffeur", label: "Aujourd’hui", icon: LayoutDashboard },
-  { href: "/chauffeur/missions", label: "Mes missions", icon: Route },
-  { href: "/chauffeur/historique", label: "Historique", icon: History },
-  { href: "/chauffeur/profil", label: "Mon profil", icon: User },
+  { href: "/chauffeur", labelKey: "nav.today" as const, icon: LayoutDashboard },
+  { href: "/chauffeur/missions", labelKey: "nav.missions" as const, icon: Route },
+  { href: "/chauffeur/historique", labelKey: "nav.history" as const, icon: History },
+  { href: "/chauffeur/profil", labelKey: "nav.profile" as const, icon: User },
 ];
 
 export default function ChauffeurLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const { user, profile, loading } = useAuth();
+  const { t } = usePreferences();
 
   useEffect(() => {
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/connexion?next=" + encodeURIComponent(pathname));
-        return;
-      }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-      let role = profile?.role as string | undefined;
-      if (!role) {
-        const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1);
-        role = roles?.[0]?.role as string | undefined;
-      }
-      if (!canAccessDriverZone(role)) {
-        router.replace("/dashboard?forbidden=1");
-        return;
-      }
-      setReady(true);
-    })();
-  }, [pathname, router]);
+    if (loading) return;
+    if (!user) {
+      router.replace("/connexion?next=" + encodeURIComponent(pathname));
+      return;
+    }
+    if (profile && !canAccessDriverZone(profile.role)) {
+      router.replace("/dashboard?forbidden=1");
+    }
+  }, [loading, pathname, profile, router, user]);
 
-  if (!ready) {
-    return (
-      <div className="sj-app" style={{ display: "grid", placeItems: "center" }}>
-        <p className="sj-muted">Chargement…</p>
-      </div>
-    );
+  if (loading || !user || (profile && !canAccessDriverZone(profile.role))) {
+    return <BrandedLoader fullScreen />;
   }
 
   return (
-    <PremiumShell title="Chauffeur" subtitle="Missions flotte" nav={nav}>
+    <PremiumShell title={t("shell.driverTitle")} subtitle={t("shell.driverSubtitle")} nav={nav}>
       {children}
     </PremiumShell>
   );

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AddressAutocomplete, type SelectedPlace } from "@/components/booking/AddressAutocomplete";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { useAuth } from "@/hooks/useAuth";
 import {
   SERVICE_TYPE_LABELS,
@@ -860,7 +861,7 @@ export default function ReserverPage() {
     <div className="flex min-h-screen flex-col bg-[radial-gradient(ellipse_at_top,_#e8eef6_0%,_#f4f4f5_50%,_#eceff3_100%)]">
       <Header />
       <main className="flex-1">
-        <Suspense fallback={<div className="py-20 text-center text-sm text-neutral-500">Chargement…</div>}>
+        <Suspense fallback={<BrandedLoader />}>
           <ReserverWizard />
         </Suspense>
       </main>

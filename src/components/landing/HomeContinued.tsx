@@ -1,43 +1,48 @@
+"use client";
+
 import Link from "next/link";
 import { MapPin, Plane, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 const pillars = [
   {
     icon: Plane,
-    title: "Transfert aéroport",
-    text: "AIBD — forfaits dès 20 000 FCFA selon les passagers.",
+    title: "landing.service.airport" as const,
+    text: "landing.service.airportDetail" as const,
   },
   {
     icon: MapPin,
-    title: "Voyager",
-    text: "Course & interurbain au kilomètre réel.",
+    title: "landing.service.travel" as const,
+    text: "landing.service.travelDetail" as const,
   },
   {
     icon: Clock,
-    title: "Mise à disposition",
-    text: "50 000 FCFA / 10 h à Dakar, puis au km.",
+    title: "landing.service.hourly" as const,
+    text: "landing.service.hourlyDetail" as const,
   },
 ];
 
 const steps = [
-  { n: "1", title: "Simulez", desc: "Adresses, date, tarif estimé." },
-  { n: "2", title: "Confirmez", desc: "SentraJet valide et envoie le paiement Wave." },
-  { n: "3", title: "Roulez", desc: "Véhicule de la flotte assigné le jour J." },
+  { n: "1", title: "landing.step.simulate" as const, desc: "landing.step.simulateDetail" as const },
+  { n: "2", title: "landing.step.confirm" as const, desc: "landing.step.confirmDetail" as const },
+  { n: "3", title: "landing.step.travel" as const, desc: "landing.step.travelDetail" as const },
 ];
 
 export function HomeContinued() {
+  const { t } = usePreferences();
+
   return (
     <>
       <section className="bg-neutral-50 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-wider text-amber-700">Services</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)]">{t("landing.services")}</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
-              Trois prestations, une flotte
+              {t("landing.servicesTitle")}
             </h2>
             <p className="mt-3 text-neutral-600">
-              Vous réservez. SentraJet organise, facture et envoie le véhicule.
+              {t("landing.servicesSubtitle")}
             </p>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -50,8 +55,8 @@ export function HomeContinued() {
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-neutral-900">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">{text}</p>
+                <h3 className="mt-4 text-lg font-semibold text-neutral-900">{t(title)}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-600">{t(text)}</p>
               </Link>
             ))}
           </div>
@@ -62,13 +67,13 @@ export function HomeContinued() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-amber-700">Parcours</p>
+              <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)]">{t("landing.journey")}</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900">
-                Simulez → payez → on arrive
+                {t("landing.journeyTitle")}
               </h2>
             </div>
             <Button variant="outline" size="sm" href="/reserver" className="w-fit shrink-0">
-              Réserver
+              {t("actions.bookNow")}
             </Button>
           </div>
           <ol className="mt-12 grid gap-8 sm:grid-cols-3">
@@ -81,8 +86,8 @@ export function HomeContinued() {
                   {s.n}
                 </span>
                 <div>
-                  <h3 className="font-semibold text-neutral-900">{s.title}</h3>
-                  <p className="mt-1 text-sm text-neutral-600">{s.desc}</p>
+                  <h3 className="font-semibold text-neutral-900">{t(s.title)}</h3>
+                  <p className="mt-1 text-sm text-neutral-600">{t(s.desc)}</p>
                 </div>
               </li>
             ))}
@@ -93,9 +98,9 @@ export function HomeContinued() {
       <section className="bg-[#07111f] py-14 text-white sm:py-16">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 sm:flex-row sm:items-center sm:px-6 lg:px-8">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Prêt à partir ?</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t("landing.ready")}</h2>
             <p className="mt-2 max-w-lg text-neutral-400">
-              Estimation en ligne, paiement Wave, −10 % avec un compte.
+              {t("landing.readyDetail")}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -105,7 +110,7 @@ export function HomeContinued() {
               href="/reserver"
               className="bg-amber-500 text-neutral-900 hover:bg-amber-400 focus:ring-amber-500"
             >
-              Réserver
+              {t("actions.bookNow")}
             </Button>
             <Button
               variant="secondary"
@@ -113,7 +118,7 @@ export function HomeContinued() {
               href="/inscription"
               className="border-white/30 text-white hover:bg-white/10"
             >
-              Créer un compte
+              {t("actions.createAccount")}
             </Button>
           </div>
         </div>

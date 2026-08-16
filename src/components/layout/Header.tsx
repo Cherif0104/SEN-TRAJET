@@ -8,11 +8,14 @@ import { Logo } from "./Logo";
 import { Button } from "@/components/ui/Button";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
+import { PreferencesMenu } from "@/components/preferences/PreferencesMenu";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 export function Header() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, profile, loading, signOut } = useAuth();
+  const { resolvedTheme, t } = usePreferences();
 
   const handleSignOut = async () => {
     await signOut();
@@ -22,7 +25,7 @@ export function Header() {
   };
 
   const isDriver = profile?.role === "driver";
-  const isPartner = ["partner", "partner_manager", "partner_operator", "rental_owner", "provider"].includes(
+  const isPartner = ["partner", "partner_manager", "partner_operator", "provider"].includes(
     profile?.role ?? ""
   );
   const isAdmin = [
@@ -36,54 +39,55 @@ export function Header() {
     "finance",
     "fleet_manager",
   ].includes(profile?.role ?? "");
-  const isOwner = profile?.role === "rental_owner";
+  const isOwner = ["rental_owner", "vehicle_owner", "owner"].includes(profile?.role ?? "");
   const isLoggedIn = !!user;
 
   const hubHref = isAdmin
     ? "/admin"
-    : isPartner
-      ? "/partenaire"
-      : isDriver
-        ? "/chauffeur"
-        : isOwner
-          ? "/proprietaire"
+    : isOwner
+      ? "/proprietaire"
+      : isPartner
+        ? "/partenaire"
+        : isDriver
+          ? "/chauffeur"
           : "/compte";
   const hubLabel = isAdmin
-    ? "Administration"
-    : isPartner
-      ? "Espace partenaire"
-      : isDriver
-        ? "Missions"
-        : isOwner
-          ? "Espace propriétaire"
-          : "Mon compte";
+    ? t("nav.administration")
+    : isOwner
+      ? t("nav.owner")
+      : isPartner
+        ? t("nav.partner")
+        : isDriver
+          ? t("nav.missions")
+          : t("nav.account");
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-neutral-200/90 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
+    <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md">
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-3 sm:px-5 lg:px-7">
-        <Logo />
+        <Logo variant={resolvedTheme === "dark" ? "light" : "default"} />
 
         <nav className="hidden md:flex md:items-center md:gap-8">
           {isLoggedIn ? (
-            <Link href={hubHref} className="text-sm font-semibold text-neutral-900 hover:text-amber-700">
+            <Link href={hubHref} className="text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-accent)]">
               {hubLabel}
             </Link>
           ) : (
-            <Link href="/faq" className="text-sm font-medium text-neutral-600 hover:text-amber-700">
-              Aide
+            <Link href="/faq" className="text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]">
+              {t("nav.help")}
             </Link>
           )}
         </nav>
 
         <div className="hidden md:flex md:items-center md:gap-2">
+          <PreferencesMenu />
           {loading ? (
-            <div className="h-8 w-24 animate-pulse rounded-lg bg-neutral-200" />
+            <div className="h-8 w-24 animate-pulse rounded-lg bg-[var(--color-surface-secondary)]" />
           ) : user ? (
             <div className="flex items-center gap-2">
               <NotificationBell userId={user.id} />
               <Link
                 href={hubHref}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-secondary)]"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-800">
                   <User className="h-4 w-4" />
@@ -95,19 +99,19 @@ export function Header() {
               <button
                 type="button"
                 onClick={() => void handleSignOut()}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                title="Déconnexion"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] hover:text-[var(--color-text-primary)]"
+                title={t("actions.logout")}
               >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <>
-              <Button variant="ghost" size="sm" href="/connexion" className="text-neutral-700">
-                Connexion
+              <Button variant="ghost" size="sm" href="/connexion">
+                {t("actions.login")}
               </Button>
               <Button variant="primary" size="sm" href="/reserver" className="bg-amber-500 text-neutral-900 hover:bg-amber-400">
-                Réserver
+                {t("nav.book")}
               </Button>
             </>
           )}
@@ -115,8 +119,8 @@ export function Header() {
 
         <button
           type="button"
-          aria-label="Menu"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 md:hidden"
+          aria-label={t("header.menu")}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -124,32 +128,35 @@ export function Header() {
       </div>
 
       {menuOpen && (
-        <div className="border-t border-neutral-200 bg-white px-4 py-4 md:hidden">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
-            <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-neutral-900" onClick={() => setMenuOpen(false)}>
-              Réserver
+            <div className="mb-2 flex justify-end">
+              <PreferencesMenu compact />
+            </div>
+            <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-[var(--color-text-primary)]" onClick={() => setMenuOpen(false)}>
+              {t("nav.book")}
             </Link>
             {isLoggedIn ? (
-              <Link href={hubHref} className="rounded-lg px-3 py-2 font-medium text-neutral-700" onClick={() => setMenuOpen(false)}>
+              <Link href={hubHref} className="rounded-lg px-3 py-2 font-medium text-[var(--color-text-primary)]" onClick={() => setMenuOpen(false)}>
                 {hubLabel}
               </Link>
             ) : (
-              <Link href="/faq" className="rounded-lg px-3 py-2 text-neutral-700" onClick={() => setMenuOpen(false)}>
-                Aide
+              <Link href="/faq" className="rounded-lg px-3 py-2 text-[var(--color-text-secondary)]" onClick={() => setMenuOpen(false)}>
+                {t("nav.help")}
               </Link>
             )}
             <div className="mt-3 flex flex-col gap-2 border-t border-neutral-200 pt-3">
               {user ? (
                 <Button variant="secondary" fullWidth onClick={() => void handleSignOut()}>
-                  Déconnexion
+                  {t("actions.logout")}
                 </Button>
               ) : (
                 <>
                   <Button variant="secondary" fullWidth href="/connexion" onClick={() => setMenuOpen(false)}>
-                    Se connecter
+                    {t("actions.login")}
                   </Button>
                   <Button variant="primary" fullWidth href="/reserver" onClick={() => setMenuOpen(false)}>
-                    Réserver
+                    {t("nav.book")}
                   </Button>
                 </>
               )}

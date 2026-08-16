@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { BookingForm } from "@/components/sentrajet/BookingForm";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureClientForUser, listPartnerContracts } from "@/lib/platformOps";
 
@@ -43,7 +44,7 @@ export default function PartenaireReserverPage() {
             onCreated={() => router.push("/partenaire/demandes")}
           />
         ) : (
-          <p className="sj-muted">Chargement…</p>
+          <BrandedLoader />
         )}
       </SjCard>
     </>

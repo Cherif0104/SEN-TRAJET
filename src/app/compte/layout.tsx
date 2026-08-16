@@ -3,43 +3,39 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, CalendarCheck, User, PlusCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { useAuth } from "@/hooks/useAuth";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
-  { href: "/compte", label: "Accueil", icon: LayoutDashboard },
-  { href: "/reserver", label: "Simuler", icon: PlusCircle },
-  { href: "/compte/reservations", label: "Mes réservations", icon: CalendarCheck },
-  { href: "/compte/profil", label: "Mon profil", icon: User },
+  { href: "/compte", labelKey: "nav.home" as const, icon: LayoutDashboard },
+  { href: "/reserver", labelKey: "nav.estimate" as const, icon: PlusCircle },
+  { href: "/compte/reservations", labelKey: "nav.myReservations" as const, icon: CalendarCheck },
+  { href: "/compte/profil", labelKey: "nav.profile" as const, icon: User },
 ];
 
 export default function CompteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, profile, loading } = useAuth();
+  const { t } = usePreferences();
 
   useEffect(() => {
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/connexion?next=" + encodeURIComponent(pathname));
-        return;
-      }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-      let role = profile?.role as string | undefined;
-      if (!role) {
-        const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1);
-        role = roles?.[0]?.role as string | undefined;
-      }
-      if (role && role !== "client") {
-        router.replace("/");
-      }
-    })();
-  }, [pathname, router]);
+    if (loading) return;
+    if (!user) {
+      router.replace("/connexion?next=" + encodeURIComponent(pathname));
+      return;
+    }
+    if (profile && profile.role !== "client") router.replace("/");
+  }, [loading, pathname, profile, router, user]);
+
+  if (loading || !user || (profile && profile.role !== "client")) {
+    return <BrandedLoader fullScreen />;
+  }
 
   return (
-    <PremiumShell title="Client" subtitle="Espace voyageur" nav={nav}>
+    <PremiumShell title={t("shell.clientTitle")} subtitle={t("shell.clientSubtitle")} nav={nav}>
       {children}
     </PremiumShell>
   );

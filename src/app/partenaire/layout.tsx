@@ -1,60 +1,45 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { LayoutDashboard, PlusCircle, CalendarCheck, BadgeDollarSign, UserCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { canAccessPartnerZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { useAuth } from "@/hooks/useAuth";
+import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
-  { href: "/partenaire", label: "Accueil", icon: LayoutDashboard },
-  { href: "/partenaire/reserver", label: "Nouvelle demande", icon: PlusCircle },
-  { href: "/partenaire/demandes", label: "Demandes", icon: CalendarCheck },
-  { href: "/partenaire/tarification", label: "Ma tarification", icon: BadgeDollarSign },
-  { href: "/partenaire/profil", label: "Mon compte", icon: UserCircle },
+  { href: "/partenaire", labelKey: "nav.home" as const, icon: LayoutDashboard },
+  { href: "/partenaire/reserver", labelKey: "nav.newRequest" as const, icon: PlusCircle },
+  { href: "/partenaire/demandes", labelKey: "nav.requests" as const, icon: CalendarCheck },
+  { href: "/partenaire/tarification", labelKey: "nav.myPricing" as const, icon: BadgeDollarSign },
+  { href: "/partenaire/profil", labelKey: "nav.account" as const, icon: UserCircle },
 ];
 
 export default function PartenaireLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const { user, profile, loading } = useAuth();
+  const { t } = usePreferences();
   const isOnboarding = pathname === "/partenaire/onboarding";
 
   useEffect(() => {
-    void (async () => {
-      if (isOnboarding) {
-        setReady(true);
-        return;
-      }
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/connexion?next=" + encodeURIComponent(pathname));
-        return;
-      }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-      let role = profile?.role as string | undefined;
-      if (!role) {
-        const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1);
-        const raw = roles?.[0]?.role as string | undefined;
-        role = raw === "provider" ? "partner" : raw;
-      }
-      if (!canAccessPartnerZone(role)) {
-        router.replace("/dashboard?forbidden=1");
-        return;
-      }
-      setReady(true);
-    })();
-  }, [pathname, router, isOnboarding]);
+    if (loading || isOnboarding) return;
+    if (!user) {
+      router.replace("/connexion?next=" + encodeURIComponent(pathname));
+      return;
+    }
+    if (profile && !canAccessPartnerZone(profile.role)) {
+      router.replace("/dashboard?forbidden=1");
+    }
+  }, [pathname, router, isOnboarding, loading, profile, user]);
 
-  if (!ready) {
-    return (
-      <div className="sj-app" style={{ display: "grid", placeItems: "center" }}>
-        <p className="sj-muted">Chargement…</p>
-      </div>
-    );
+  if (
+    !isOnboarding &&
+    (loading || !user || (profile && !canAccessPartnerZone(profile.role)))
+  ) {
+    return <BrandedLoader fullScreen />;
   }
 
   if (isOnboarding) {
@@ -66,7 +51,7 @@ export default function PartenaireLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <PremiumShell title="Espace partenaire" subtitle="Demandes · devis · factures (certifiés)" nav={nav}>
+    <PremiumShell title={t("shell.partnerTitle")} subtitle={t("shell.partnerSubtitle")} nav={nav}>
       {children}
     </PremiumShell>
   );

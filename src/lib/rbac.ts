@@ -83,5 +83,11 @@ export function canAccessAdminZone(role: string | null | undefined): boolean {
 
 export function canAccessOwnerZone(role: string | null | undefined): boolean {
   const r = normalizeRole(role) ?? role;
-  return r === "vehicle_owner" || r === "owner" || r === "admin" || r === "super_admin";
+  return (
+    r === "rental_owner" ||
+    r === "vehicle_owner" ||
+    r === "owner" ||
+    r === "admin" ||
+    r === "super_admin"
+  );
 }
