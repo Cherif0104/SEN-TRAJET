@@ -1,24 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { canAccessAdminZone, canAccessDriverZone, canAccessPartnerZone } from "@/lib/rbac";
+import { getSentrajetSupabasePublicConfig } from "@/lib/supabaseConfig";
 
-const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
-const supabaseKey = (
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  ""
-).trim();
+const { url: supabaseUrl, key: supabaseKey } =
+  getSentrajetSupabasePublicConfig();
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isChauffeur = pathname.startsWith("/chauffeur");
   const isAdmin = pathname.startsWith("/admin");
   const isPartenaire = pathname.startsWith("/partenaire");
-
-  /** Sans URL + clé valides, createServerClient lève → 500 sur toute la zone. On laisse passer. */
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.next({ request });
-  }
 
   try {
     let response = NextResponse.next({ request });

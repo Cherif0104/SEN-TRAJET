@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSentrajetSupabasePublicConfig } from "@/lib/supabaseConfig";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const anonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "";
+const { url: supabaseUrl, key: anonKey } =
+  getSentrajetSupabasePublicConfig();
 
 /**
  * Confirme un paiement en mode simulation : crédite le wallet et marque l'intention comme complétée.

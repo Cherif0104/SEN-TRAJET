@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  SENTRAJET_SUPABASE_ANON_KEY,
+  SENTRAJET_SUPABASE_URL,
+} from "@/lib/supabaseConfig";
 
 export const runtime = "nodejs";
-
-/** URL publique du projet SEN TRAJET — fallback si env Preview incomplète. */
-const FALLBACK_SUPABASE_URL = "https://ootvzknyhkhxroadnclh.supabase.co";
-/** Clé anon JWT (publique par design) — fallback Preview uniquement. */
-const FALLBACK_ANON_JWT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vdHZ6a255aGtoeHJvYWRuY2xoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDQ4MDAsImV4cCI6MjA5NTAyMDgwMH0.8xyIiOk_VFJVGCjoZioXmmDsthvV-o3WX-QI7y1aLQc";
 
 type DemandeBody = {
   clientId?: string | null;
@@ -30,19 +28,9 @@ type DemandeBody = {
 };
 
 function serverSupabase() {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim() || FALLBACK_SUPABASE_URL;
-  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-  const anonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    ""
-  ).trim();
-  // Préférer JWT anon à la publishable key pour le REST legacy
-  const key =
-    serviceKey ||
-    (anonKey.startsWith("eyJ") ? anonKey : "") ||
-    FALLBACK_ANON_JWT;
-  return createClient(url, key, {
+  // Cette RPC publique possède ses propres contrôles. Une service_role Vercel
+  // obsolète ne doit ni casser la réservation ni contourner inutilement RLS.
+  return createClient(SENTRAJET_SUPABASE_URL, SENTRAJET_SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
