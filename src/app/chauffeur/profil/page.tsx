@@ -50,6 +50,8 @@ import {
 } from "@/lib/vehicleFormTaxonomy";
 import { getDriverComplianceChecks, scheduleDriverComplianceLifecycle, type ComplianceCheck } from "@/lib/compliance";
 import { createRentalListing, type TransportVehicleCategory } from "@/lib/rentals";
+import { AccountAvatarUploader } from "@/components/account/AccountAvatarUploader";
+import { AccountSecurityActions } from "@/components/account/AccountSecurityActions";
 
 type Vehicle = {
   id: string;
@@ -758,6 +760,7 @@ export default function ProfilChauffeurPage() {
       </p>
 
       <Card className="mt-6">
+        <AccountAvatarUploader />
         <form onSubmit={handleSaveProfile} className="space-y-4">
           {user?.email && (
             <div>
@@ -794,6 +797,7 @@ export default function ProfilChauffeurPage() {
           </Button>
         </form>
       </Card>
+      <AccountSecurityActions />
 
       {/* Vehicles */}
       <div className="mt-8 flex items-center justify-between">

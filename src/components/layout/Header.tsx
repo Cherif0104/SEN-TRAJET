@@ -8,7 +8,10 @@ import { Logo } from "./Logo";
 import { Button } from "@/components/ui/Button";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
-import { PreferencesMenu } from "@/components/preferences/PreferencesMenu";
+import {
+  LanguageMenu,
+  ThemeToggle,
+} from "@/components/preferences/PreferenceControls";
 import { usePreferences } from "@/providers/PreferencesProvider";
 import { workspaceForRole } from "@/lib/rbac";
 
@@ -58,7 +61,8 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex md:items-center md:gap-2">
-          <PreferencesMenu />
+          <LanguageMenu />
+          <ThemeToggle />
           {loading ? (
             <div className="h-8 w-24 animate-pulse rounded-lg bg-[var(--color-surface-secondary)]" />
           ) : user ? (
@@ -110,7 +114,10 @@ export function Header() {
         <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
             <div className="mb-2 flex justify-end">
-              <PreferencesMenu compact />
+              <div className="flex gap-2">
+                <LanguageMenu />
+                <ThemeToggle />
+              </div>
             </div>
             <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-[var(--color-text-primary)]" onClick={() => setMenuOpen(false)}>
               {t("nav.book")}

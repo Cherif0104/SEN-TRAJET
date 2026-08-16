@@ -93,6 +93,22 @@ export default function AdminUsersPage() {
     void loadUsers();
   }, [loadUsers]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedRole = params.get("role");
+    const requestedName = params.get("name");
+    const requestedEmail = params.get("email");
+    if (requestedName) setFullName(requestedName);
+    if (requestedEmail) setEmail(requestedEmail);
+    if (
+      requestedRole &&
+      assignableRoles.includes(requestedRole as AssignableRole)
+    ) {
+      setRole(requestedRole as AssignableRole);
+      setPassword(generateTemporaryPassword());
+    }
+  }, []);
+
   const createUser = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!authorization) return;

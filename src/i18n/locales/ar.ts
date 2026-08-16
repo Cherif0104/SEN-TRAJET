@@ -3,6 +3,7 @@ import type { TranslationKey } from "./fr";
 export const ar: Record<TranslationKey, string> = {
   "common.loading": "جارٍ التحميل…",
   "common.close": "إغلاق",
+  "common.more": "المزيد",
   "common.continue": "متابعة",
   "common.learnMore": "اعرف المزيد",
   "common.save": "حفظ",
@@ -231,4 +232,9 @@ export const ar: Record<TranslationKey, string> = {
   "account.passwordError": "تعذر تغيير كلمة المرور.",
   "account.passwordLength": "يجب أن تتكون كلمة المرور من 12 حرفاً على الأقل.",
   "account.passwordMismatch": "كلمتا المرور غير متطابقتين.",
+  "account.avatarTitle": "الصورة الشخصية",
+  "account.avatarHint": "JPG أو PNG أو WebP، بحد أقصى 5 ميغابايت.",
+  "account.avatarChange": "اختيار صورة",
+  "account.avatarRemove": "إزالة",
+  "account.avatarError": "تعذر تحديث الصورة الشخصية.",
 };

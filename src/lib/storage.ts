@@ -45,6 +45,41 @@ export async function uploadDriverDocument(
 const VEHICLE_PHOTO_MAX = 5 * 1024 * 1024;
 const VEHICLE_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+export async function uploadProfileAvatar(userId: string, file: File): Promise<string> {
+  if (file.size > VEHICLE_PHOTO_MAX) {
+    throw new Error("Image trop volumineuse (max 5 Mo)");
+  }
+  if (!VEHICLE_PHOTO_TYPES.includes(file.type)) {
+    throw new Error("Utilisez une image JPG, PNG ou WebP");
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() || "webp";
+  const path = `${userId}/profile/avatar-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { upsert: false });
+  if (error) throw error;
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+export async function uploadManagedResourceImage(
+  actingUserId: string,
+  resource: "drivers" | "vehicles" | "clients" | "partners",
+  resourceId: string,
+  file: File,
+): Promise<string> {
+  if (file.size > VEHICLE_PHOTO_MAX) {
+    throw new Error("Image trop volumineuse (max 5 Mo)");
+  }
+  if (!VEHICLE_PHOTO_TYPES.includes(file.type)) {
+    throw new Error("Utilisez une image JPG, PNG ou WebP");
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() || "webp";
+  const path = `${actingUserId}/managed/${resource}/${resourceId}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+  if (error) throw error;
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
 /**
  * Photo véhicule (angles multiples) — même bucket, dossier dédié pour organisation.
  */

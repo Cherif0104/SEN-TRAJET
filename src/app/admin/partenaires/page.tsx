@@ -15,6 +15,9 @@ type PartnerOrg = {
   primary_contact_name: string | null;
   primary_contact_phone: string | null;
   primary_contact_email: string | null;
+  city: string | null;
+  notes: string | null;
+  user_id: string | null;
   created_at: string;
 };
 
@@ -53,6 +56,7 @@ export default function AdminPartenairesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
 
   const [legalName, setLegalName] = useState("");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number][0]>("hotel");
@@ -63,6 +67,7 @@ export default function AdminPartenairesPage() {
   const [estimatedVolume, setEstimatedVolume] = useState("");
   const [needs, setNeeds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [certificationStatus, setCertificationStatus] = useState("prospect");
   const [nextActionAt, setNextActionAt] = useState("");
   const [nextActionLabel, setNextActionLabel] = useState("Réaliser le diagnostic partenaire");
   const [assignee, setAssignee] = useState("");
@@ -73,7 +78,7 @@ export default function AdminPartenairesPage() {
       supabase
         .from("partner_organizations")
         .select(
-          "id, matricule, legal_name, category, certification_status, primary_contact_name, primary_contact_phone, primary_contact_email, created_at"
+          "id, matricule, legal_name, category, certification_status, primary_contact_name, primary_contact_phone, primary_contact_email, city, notes, user_id, created_at"
         )
         .order("created_at", { ascending: false }),
       listCrmStaff(),
@@ -107,6 +112,24 @@ export default function AdminPartenairesPage() {
     }
     setSaving(true);
     try {
+      if (editingPartnerId) {
+        const { error: updateError } = await supabase
+          .from("partner_organizations")
+          .update({
+            legal_name: legalName.trim(),
+            category,
+            primary_contact_name: contactName.trim() || null,
+            primary_contact_phone: contactPhone.trim() || null,
+            primary_contact_email: contactEmail.trim() || null,
+            city: city.trim() || null,
+            notes: notes.trim() || null,
+            certification_status: certificationStatus,
+          })
+          .eq("id", editingPartnerId);
+        if (updateError) throw updateError;
+        setMessage("Partenaire mis à jour.");
+        setEditingPartnerId(null);
+      } else {
       const prospect = await createPartnerProspect({
         legalName,
         category,
@@ -124,6 +147,7 @@ export default function AdminPartenairesPage() {
       setMessage(
         `${prospect.matricule ?? "Prospect"} créé. Aucun compte partenaire n’a été ouvert.`
       );
+      }
       setLegalName("");
       setContactName("");
       setContactPhone("");
@@ -141,13 +165,29 @@ export default function AdminPartenairesPage() {
     }
   }
 
+  function editPartner(partner: PartnerOrg) {
+    setEditingPartnerId(partner.id);
+    setLegalName(partner.legal_name);
+    setCategory(partner.category as typeof category);
+    setContactName(partner.primary_contact_name ?? "");
+    setContactPhone(partner.primary_contact_phone ?? "");
+    setContactEmail(partner.primary_contact_email ?? "");
+    setCity(partner.city ?? "Dakar");
+    setNotes(partner.notes ?? "");
+    setCertificationStatus(partner.certification_status);
+    setShowForm(true);
+  }
+
   return (
     <>
       <SjSectionHead
         eyebrow="Réseau"
         title="Partenaires commerciaux"
         action={
-          <button className="sj-btn sj-btn-primary" type="button" onClick={() => setShowForm((v) => !v)}>
+          <button className="sj-btn sj-btn-primary" type="button" onClick={() => {
+            setEditingPartnerId(null);
+            setShowForm((v) => !v);
+          }}>
             {showForm ? "Fermer" : "+ Nouveau prospect"}
           </button>
         }
@@ -168,7 +208,7 @@ export default function AdminPartenairesPage() {
 
       {showForm ? (
         <>
-          <SjSectionHead title="Nouveau prospect partenaire" />
+          <SjSectionHead title={editingPartnerId ? "Modifier le partenaire" : "Nouveau prospect partenaire"} />
           <SjCard style={{ marginBottom: 20 }}>
             <form className="sj-form" onSubmit={submitProspect}>
               <div className="sj-form-grid">
@@ -220,6 +260,20 @@ export default function AdminPartenairesPage() {
                   <label>Ville</label>
                   <input value={city} onChange={(e) => setCity(e.target.value)} />
                 </div>
+                {editingPartnerId ? (
+                  <div className="sj-field">
+                    <label>Certification</label>
+                    <select value={certificationStatus} onChange={(e) => setCertificationStatus(e.target.value)}>
+                      <option value="prospect">Prospect</option>
+                      <option value="diagnostic">Diagnostic</option>
+                      <option value="en_verification">En vérification</option>
+                      <option value="contrat_en_attente">Contrat en attente</option>
+                      <option value="actif">Actif</option>
+                      <option value="suspendu">Suspendu</option>
+                      <option value="archive">Archivé</option>
+                    </select>
+                  </div>
+                ) : null}
                 <div className="sj-field">
                   <label>Volume mensuel estimé</label>
                   <input
@@ -294,7 +348,7 @@ export default function AdminPartenairesPage() {
               </div>
 
               <button className="sj-btn sj-btn-primary" type="submit" disabled={saving}>
-                {saving ? "Création…" : "Créer le prospect"}
+                {saving ? "Enregistrement…" : editingPartnerId ? "Enregistrer les modifications" : "Créer le prospect"}
               </button>
               <p className="sj-muted text-xs">
                 Création atomique : partenaire PROSPECT + activité CRM + audit. Aucun utilisateur Auth.
@@ -315,6 +369,7 @@ export default function AdminPartenairesPage() {
                 <th>Catégorie</th>
                 <th>Contact</th>
                 <th>Certification</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -337,6 +392,41 @@ export default function AdminPartenairesPage() {
                     <SjBadge tone={STATUS_TONE[partner.certification_status] ?? "info"}>
                       {partner.certification_status}
                     </SjBadge>
+                  </td>
+                  <td>
+                    <div className="flex flex-wrap gap-2">
+                      <button className="sj-btn" type="button" onClick={() => editPartner(partner)}>
+                        Modifier
+                      </button>
+                      {!partner.user_id && partner.primary_contact_email ? (
+                        <Link
+                          className="sj-btn"
+                          href={`/admin/utilisateurs?role=partner&name=${encodeURIComponent(partner.legal_name)}&email=${encodeURIComponent(partner.primary_contact_email)}`}
+                        >
+                          Créer le compte
+                        </Link>
+                      ) : null}
+                      <button
+                        className="sj-btn text-[var(--color-error)]"
+                        type="button"
+                        onClick={() => {
+                          if (!window.confirm("Supprimer ce partenaire ?")) return;
+                          void supabase
+                            .from("partner_organizations")
+                            .delete()
+                            .eq("id", partner.id)
+                            .then(({ error: deleteError }) => {
+                              if (deleteError) {
+                                setError(deleteError.message);
+                              } else {
+                                setRows((current) => current.filter((row) => row.id !== partner.id));
+                              }
+                            });
+                        }}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

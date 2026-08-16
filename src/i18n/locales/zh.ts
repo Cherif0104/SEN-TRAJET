@@ -3,6 +3,7 @@ import type { TranslationKey } from "./fr";
 export const zh: Record<TranslationKey, string> = {
   "common.loading": "加载中…",
   "common.close": "关闭",
+  "common.more": "更多",
   "common.continue": "继续",
   "common.learnMore": "了解更多",
   "common.save": "保存",
@@ -231,4 +232,9 @@ export const zh: Record<TranslationKey, string> = {
   "account.passwordError": "无法更改密码。",
   "account.passwordLength": "密码必须至少包含 12 个字符。",
   "account.passwordMismatch": "两次输入的密码不一致。",
+  "account.avatarTitle": "个人头像",
+  "account.avatarHint": "支持 JPG、PNG 或 WebP，最大 5 MB。",
+  "account.avatarChange": "选择照片",
+  "account.avatarRemove": "移除",
+  "account.avatarError": "无法更新个人头像。",
 };

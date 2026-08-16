@@ -10,6 +10,7 @@ import { usePreferences } from "@/providers/PreferencesProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { AccountAvatarUploader } from "@/components/account/AccountAvatarUploader";
 
 type Props = {
   roleLabel: string;
@@ -93,6 +94,7 @@ export function AccountProfilePanel({ roleLabel, canManageUsers = false }: Props
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <Card variant="elevated">
+        <AccountAvatarUploader />
         <div className="mb-5 flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
             <ShieldCheck className="h-5 w-5" />

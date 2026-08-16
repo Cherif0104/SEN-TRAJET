@@ -10,6 +10,14 @@ export type PlatformDriver = {
   phone: string | null;
   status: string;
   user_id: string | null;
+  email: string | null;
+  photo_url: string | null;
+  license_number: string | null;
+  license_photo_url: string | null;
+  license_expiry_date: string | null;
+  address: string | null;
+  emergency_contact: string | null;
+  notes: string | null;
 };
 
 export type PlatformVehicle = {
@@ -20,6 +28,13 @@ export type PlatformVehicle = {
   seats: number | null;
   status: string;
   category: string;
+  driver_id: string | null;
+  year: number | null;
+  color: string | null;
+  photo_url: string | null;
+  photo_urls: string[];
+  is_verified: boolean;
+  notes: string | null;
 };
 
 export type PlatformClient = {
@@ -30,6 +45,8 @@ export type PlatformClient = {
   email: string | null;
   client_type: string;
   user_id: string | null;
+  avatar_url: string | null;
+  notes: string | null;
 };
 
 export type PartnerContract = {
@@ -187,7 +204,7 @@ export async function listPlatformBookings(): Promise<PlatformBooking[]> {
 export async function listDrivers(): Promise<PlatformDriver[]> {
   const { data, error } = await supabase
     .from("drivers")
-    .select("id, full_name, phone, status, user_id")
+    .select("id, full_name, phone, status, user_id, email, photo_url, license_number, license_photo_url, license_expiry_date, address, emergency_contact, notes")
     .order("full_name");
   if (error) throw error;
   return (data ?? []) as PlatformDriver[];
@@ -196,7 +213,7 @@ export async function listDrivers(): Promise<PlatformDriver[]> {
 export async function listVehicles(): Promise<PlatformVehicle[]> {
   const { data, error } = await supabase
     .from("vehicles")
-    .select("id, brand, model, plate_number, seats, status, category")
+    .select("id, brand, model, plate_number, seats, status, category, driver_id, year, color, photo_url, photo_urls, is_verified, notes")
     .order("brand");
   if (error) throw error;
   return (data ?? []) as PlatformVehicle[];
@@ -205,10 +222,80 @@ export async function listVehicles(): Promise<PlatformVehicle[]> {
 export async function listClients(): Promise<PlatformClient[]> {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, full_name, company_name, phone, email, client_type, user_id")
+    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as PlatformClient[];
+}
+
+export type ManagedDriverInput = Omit<PlatformDriver, "id" | "user_id"> & {
+  user_id?: string | null;
+};
+
+export async function createDriver(input: ManagedDriverInput): Promise<PlatformDriver> {
+  const { data, error } = await supabase.from("drivers").insert(input).select("*").single();
+  if (error) throw error;
+  return data as PlatformDriver;
+}
+
+export async function updateDriver(
+  id: string,
+  input: Partial<ManagedDriverInput>,
+): Promise<PlatformDriver> {
+  const { data, error } = await supabase.from("drivers").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as PlatformDriver;
+}
+
+export async function deleteDriver(id: string): Promise<void> {
+  const { error } = await supabase.from("drivers").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type ManagedVehicleInput = Omit<PlatformVehicle, "id">;
+
+export async function createVehicle(input: ManagedVehicleInput): Promise<PlatformVehicle> {
+  const { data, error } = await supabase.from("vehicles").insert(input).select("*").single();
+  if (error) throw error;
+  return data as PlatformVehicle;
+}
+
+export async function updateManagedVehicle(
+  id: string,
+  input: Partial<ManagedVehicleInput>,
+): Promise<PlatformVehicle> {
+  const { data, error } = await supabase.from("vehicles").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as PlatformVehicle;
+}
+
+export async function deleteManagedVehicle(id: string): Promise<void> {
+  const { error } = await supabase.from("vehicles").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type ManagedClientInput = Omit<PlatformClient, "id" | "user_id"> & {
+  user_id?: string | null;
+};
+
+export async function createClient(input: ManagedClientInput): Promise<PlatformClient> {
+  const { data, error } = await supabase.from("clients").insert(input).select("*").single();
+  if (error) throw error;
+  return data as PlatformClient;
+}
+
+export async function updateClient(
+  id: string,
+  input: Partial<ManagedClientInput>,
+): Promise<PlatformClient> {
+  const { data, error } = await supabase.from("clients").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as PlatformClient;
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const { error } = await supabase.from("clients").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function listPartnerContracts(): Promise<PartnerContract[]> {

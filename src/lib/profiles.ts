@@ -4,7 +4,7 @@ import { isMissingSchemaObjectError } from "@/lib/postgrestErrors";
 export type ProfileUpdate = {
   full_name?: string;
   phone?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   city?: string;
 };
 

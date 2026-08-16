@@ -3,6 +3,7 @@ import type { TranslationKey } from "./fr";
 export const es: Record<TranslationKey, string> = {
   "common.loading": "Cargando…",
   "common.close": "Cerrar",
+  "common.more": "Más",
   "common.continue": "Continuar",
   "common.learnMore": "Más información",
   "common.save": "Guardar",
@@ -231,4 +232,9 @@ export const es: Record<TranslationKey, string> = {
   "account.passwordError": "No se puede cambiar la contraseña.",
   "account.passwordLength": "La contraseña debe tener al menos 12 caracteres.",
   "account.passwordMismatch": "Las dos contraseñas no coinciden.",
+  "account.avatarTitle": "Foto de perfil",
+  "account.avatarHint": "JPG, PNG o WebP, máximo 5 MB.",
+  "account.avatarChange": "Elegir una foto",
+  "account.avatarRemove": "Eliminar",
+  "account.avatarError": "No se puede actualizar la foto de perfil.",
 };

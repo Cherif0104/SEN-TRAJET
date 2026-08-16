@@ -1,6 +1,7 @@
 export const fr = {
   "common.loading": "Chargement…",
   "common.close": "Fermer",
+  "common.more": "Plus",
   "common.continue": "Continuer",
   "common.learnMore": "En savoir plus",
   "common.save": "Enregistrer",
@@ -229,6 +230,11 @@ export const fr = {
   "account.passwordError": "Impossible de modifier le mot de passe.",
   "account.passwordLength": "Le mot de passe doit contenir au moins 12 caractères.",
   "account.passwordMismatch": "Les deux mots de passe ne correspondent pas.",
+  "account.avatarTitle": "Photo de profil",
+  "account.avatarHint": "JPG, PNG ou WebP, 5 Mo maximum.",
+  "account.avatarChange": "Choisir une photo",
+  "account.avatarRemove": "Retirer",
+  "account.avatarError": "Impossible de modifier la photo de profil.",
 } as const;
 
 export type TranslationKey = keyof typeof fr;
