@@ -6,19 +6,6 @@ export type ProfileUpdate = {
   phone?: string;
   avatar_url?: string;
   city?: string;
-  role?:
-    | "client"
-    | "driver"
-    | "partner"
-    | "admin"
-    | "super_admin"
-    | "commercial"
-    | "trainer"
-    | "regional_manager"
-    | "partner_manager"
-    | "partner_operator"
-    | "rental_owner";
-  partner_id?: string | null;
 };
 
 export type DriverNotificationPreferences = {
