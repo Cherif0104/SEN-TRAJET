@@ -717,6 +717,60 @@ export async function listMissionsForDriverUser(userId: string): Promise<Platfor
   return all.filter((b) => b.service_order?.dispatch?.driver_id === driver.id);
 }
 
+export async function setOwnDriverStatus(userId: string, status: string): Promise<void> {
+  const { error } = await supabase.from("drivers").update({ status }).eq("user_id", userId);
+  if (error) throw error;
+}
+
+/** Statuts d'une mission que le chauffeur peut lui-même faire progresser, dans l'ordre. */
+export const MISSION_STATUS_FLOW = [
+  "chauffeur_assigne",
+  "chauffeur_en_route",
+  "chauffeur_arrive",
+  "client_pris_en_charge",
+  "en_cours",
+  "terminee",
+] as const;
+
+export const MISSION_ACTION_LABEL: Record<string, string> = {
+  chauffeur_en_route: "Je suis en route",
+  chauffeur_arrive: "Je suis arrivé",
+  client_pris_en_charge: "Client pris en charge",
+  en_cours: "Client pris en charge",
+  terminee: "Mission terminée",
+};
+
+/** Renvoie le prochain statut que le chauffeur peut déclencher, ou null si la mission est hors de son contrôle. */
+export function nextMissionStatus(current: string): string | null {
+  const idx = MISSION_STATUS_FLOW.indexOf(current as (typeof MISSION_STATUS_FLOW)[number]);
+  if (idx === -1 || idx >= MISSION_STATUS_FLOW.length - 1) return null;
+  return MISSION_STATUS_FLOW[idx + 1];
+}
+
+export async function advanceOwnMissionStatus(bookingId: string, newStatus: string): Promise<PlatformBooking> {
+  const { data, error } = await supabase.rpc("update_own_mission_status", {
+    p_booking_id: bookingId,
+    p_new_status: newStatus,
+  });
+  if (error) {
+    const messages: Record<string, string> = {
+      not_authorized: "Cette mission ne vous est pas affectée.",
+      invalid_transition: "Cette étape ne peut pas être déclenchée depuis le statut actuel.",
+    };
+    const key = Object.keys(messages).find((k) => (error.message || "").includes(k));
+    throw new Error(key ? messages[key] : "Impossible de mettre à jour cette mission.");
+  }
+  return data as PlatformBooking;
+}
+
+export async function reportMissionIssue(bookingId: string, message: string): Promise<void> {
+  const { error } = await supabase.rpc("report_mission_issue", {
+    p_booking_id: bookingId,
+    p_message: message,
+  });
+  if (error) throw new Error("Impossible d’envoyer ce signalement.");
+}
+
 export async function getBookingById(id: string): Promise<PlatformBooking | null> {
   const { data, error } = await supabase
     .from("bookings")
