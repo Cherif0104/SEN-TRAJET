@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, Car, User } from "lucide-react";
+import { LayoutDashboard, FileText, Car, User, BadgeDollarSign, FolderOpen } from "lucide-react";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
@@ -12,10 +12,14 @@ import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
   { href: "/proprietaire", labelKey: "nav.home" as const, icon: LayoutDashboard },
+  { href: "/proprietaire/vehicule", label: "Véhicules", icon: Car },
   { href: "/proprietaire/contrat", labelKey: "nav.contract" as const, icon: FileText },
-  { href: "/proprietaire/vehicule", labelKey: "nav.vehicle" as const, icon: Car },
+  { href: "/proprietaire/revenus", label: "Revenus", icon: BadgeDollarSign },
+  { href: "/proprietaire/documents", label: "Documents", icon: FolderOpen },
   { href: "/proprietaire/profil", labelKey: "nav.profile" as const, icon: User },
 ];
+
+const mobileNav = nav.slice(0, 4);
 
 export default function ProprietaireLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -44,7 +48,12 @@ export default function ProprietaireLayout({ children }: { children: React.React
   if (!canAccessOwnerZone(profile.role)) return <BrandedLoader fullScreen />;
 
   return (
-    <PremiumShell title={t("shell.ownerTitle")} subtitle={t("shell.ownerSubtitle")} nav={nav}>
+    <PremiumShell
+      title={t("shell.ownerTitle")}
+      subtitle={t("shell.ownerSubtitle")}
+      nav={nav}
+      mobileNav={mobileNav}
+    >
       {children}
     </PremiumShell>
   );
