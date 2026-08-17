@@ -123,6 +123,11 @@ export function canAccessRhZone(internalRole: string | null | undefined, role?: 
   return internalRole === "rh" || internalRole === "super_admin" || role === "super_admin";
 }
 
+/** Espace Manager dédié (Phase 10) : `manager` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessManagerZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "manager" || internalRole === "super_admin" || role === "super_admin";
+}
+
 /** Destination unique utilisée après connexion et dans tous les points d’entrée. */
 export function workspaceForRole(
   role: string | null | undefined,
@@ -134,6 +139,7 @@ export function workspaceForRole(
   if (internalRole === "finance") return "/finance";
   if (internalRole === "fleet_manager") return "/fleet";
   if (internalRole === "rh") return "/rh";
+  if (internalRole === "manager") return "/manager";
   if (normalized === "commercial") return "/commercial";
   if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
   if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
