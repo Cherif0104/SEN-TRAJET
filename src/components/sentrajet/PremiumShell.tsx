@@ -7,6 +7,7 @@ import { LayoutGrid, LogOut, UserRound, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/layout/Logo";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   LanguageMenu,
   ThemeToggle,
@@ -32,7 +33,7 @@ type PremiumShellProps = {
 export function PremiumShell({ title, subtitle, nav, mobileNav, children }: PremiumShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { resolvedTheme, t } = usePreferences();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const bottom = (mobileNav ?? nav).slice(0, 4);
@@ -96,6 +97,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
             <div className="sj-crumb">SentraJet Premium / {title}</div>
           </div>
           <div className="sj-top-actions">
+            <NotificationBell userId={user?.id ?? null} />
             <LanguageMenu />
             <ThemeToggle />
             <button
