@@ -200,7 +200,7 @@ export default function AdminDispatchPage() {
               Créneau libre (±{conflict.bufferMinutes} min).
             </p>
           ) : null}
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+          <div className="sj-toolbar mt-3.5 justify-start">
             <button
               type="button"
               className="sj-btn sj-btn-primary"

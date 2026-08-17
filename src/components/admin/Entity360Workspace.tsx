@@ -321,7 +321,7 @@ export function Entity360Workspace({
 
       {!loading && tab === "timeline" ? (
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="sj-toolbar mb-4">
             <h2 className="text-xl font-extrabold">Chronologie complète</h2>
             <button
               className="sj-btn sj-btn-primary"
@@ -399,7 +399,7 @@ export function Entity360Workspace({
 
       {!loading && tab === "cases" ? (
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="sj-toolbar mb-4">
             <h2 className="text-xl font-extrabold">Dossiers de suivi</h2>
             <button
               className="sj-btn sj-btn-primary"
@@ -505,7 +505,7 @@ export function Entity360Workspace({
 
       {!loading && tab === "contracts" ? (
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="sj-toolbar mb-4">
             <h2 className="text-xl font-extrabold">Historique contractuel</h2>
             <button
               className="sj-btn sj-btn-primary"
@@ -610,7 +610,7 @@ export function Entity360Workspace({
 
       {!loading && tab === "documents" ? (
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="sj-toolbar mb-4">
             <h2 className="text-xl font-extrabold">Documents et conformité</h2>
             <button
               className="sj-btn sj-btn-primary"
@@ -685,7 +685,7 @@ export function Entity360Workspace({
                     {item.status}
                   </SjBadge>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <span className="sj-muted text-xs">
                     Expire : {formatDate(item.expires_at)}
                   </span>
@@ -709,7 +709,7 @@ export function Entity360Workspace({
 
       {!loading && tab === "finance" ? (
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="sj-toolbar mb-4">
             <h2 className="text-xl font-extrabold">Factures et flux financiers</h2>
             <button
               className="sj-btn sj-btn-primary"
@@ -819,7 +819,7 @@ export function Entity360Workspace({
 
       {!loading && tab === "maintenance" ? (
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="sj-toolbar mb-4">
             <h2 className="text-xl font-extrabold">Cycle d’entretien</h2>
             <button
               className="sj-btn sj-btn-primary"

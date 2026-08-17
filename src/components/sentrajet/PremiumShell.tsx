@@ -36,6 +36,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
   const { resolvedTheme, t } = usePreferences();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const bottom = (mobileNav ?? nav).slice(0, 4);
+  const hasMore = nav.length > bottom.length;
   const profileHref =
     nav.find((item) => item.labelKey === "nav.profile")?.href ??
     nav.find((item) => item.labelKey === "nav.settings")?.href ??
@@ -86,6 +87,11 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
 
       <main className="sj-main">
         <header className="sj-topbar">
+          <div className="min-w-0 flex-1 sm:hidden">
+            <p className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
+              {title}
+            </p>
+          </div>
           <div className="hidden sm:block">
             <div className="sj-crumb">SentraJet Premium / {title}</div>
           </div>
@@ -150,18 +156,21 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
             return (
             <Link key={item.href} href={item.href} className={isActive(item.href) ? "active" : undefined}>
               <Icon className="mx-auto h-4 w-4" />
-              <small>{labelFor(item).split(" ")[0]}</small>
+              <small title={labelFor(item)}>{labelFor(item)}</small>
             </Link>
             );
           })}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="min-w-14 bg-transparent p-2 text-center text-[var(--color-text-secondary)]"
-          >
-            <LayoutGrid className="mx-auto h-4 w-4" />
-            <small>{t("common.more")}</small>
-          </button>
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="min-w-0 flex-1 bg-transparent p-2 text-center text-[var(--color-text-secondary)]"
+              aria-expanded={mobileMenuOpen}
+            >
+              <LayoutGrid className="mx-auto h-4 w-4" />
+              <small>{t("common.more")}</small>
+            </button>
+          ) : null}
         </nav>
         {mobileMenuOpen ? (
           <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--color-background)] md:hidden">

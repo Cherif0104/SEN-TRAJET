@@ -102,8 +102,9 @@ export default function AdminReglesPage() {
                       {rule.unit ? ` · ${rule.unit}` : ""}
                       {rule.notes ? ` · ${rule.notes}` : ""}
                     </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <div className="sj-toolbar mt-2 justify-start">
                       <input
+                        className="min-w-0 flex-1"
                         defaultValue={
                           rule.value_json === null || rule.value_json === "null"
                             ? "null"

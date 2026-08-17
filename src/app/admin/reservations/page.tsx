@@ -47,7 +47,7 @@ export default function AdminReservationsPage() {
         <SjCard style={{ marginBottom: 16 }}>
           <div className="mb-5">
             <p className="mb-2 text-sm font-bold">Base tarifaire de la simulation</p>
-            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[var(--color-surface-secondary)] p-1.5">
+            <div className="grid grid-cols-1 gap-2 rounded-2xl bg-[var(--color-surface-secondary)] p-1.5 sm:grid-cols-2">
               {(["client", "partner"] as PricingSegment[]).map((option) => (
                 <button
                   key={option}

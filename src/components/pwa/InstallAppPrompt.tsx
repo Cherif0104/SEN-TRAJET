@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Download, X } from "lucide-react";
 import { usePreferences } from "@/providers/PreferencesProvider";
 import { usePwaInstall } from "@/providers/PwaInstallProvider";
@@ -9,6 +10,7 @@ import { usePwaInstall } from "@/providers/PwaInstallProvider";
 const DISMISSED_KEY = "sentrajet-install-prompt-dismissed";
 
 export function InstallAppPrompt() {
+  const pathname = usePathname();
   const { t } = usePreferences();
   const { canInstall, isInstalled, install } = usePwaInstall();
   const [dismissed, setDismissed] = useState(true);
@@ -28,10 +30,23 @@ export function InstallAppPrompt() {
   };
 
   if (dismissed || isInstalled || !canInstall) return null;
+  const inWorkspace = [
+    "/admin",
+    "/compte",
+    "/chauffeur",
+    "/partenaire",
+    "/proprietaire",
+  ].some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 
   return (
     <aside
-      className="fixed inset-x-3 bottom-4 z-[100] mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-2xl md:bottom-6"
+      className={`fixed inset-x-3 z-[100] mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-2xl md:bottom-6 ${
+        inWorkspace
+          ? "bottom-[calc(5.25rem+env(safe-area-inset-bottom))]"
+          : "bottom-4"
+      }`}
       aria-label={t("install.title")}
     >
       <Image
