@@ -5,6 +5,7 @@ import {
   canAccessCommercialZone,
   canAccessDriverZone,
   canAccessFinanceZone,
+  canAccessFleetZone,
   canAccessOpsZone,
   canAccessOwnerZone,
   canAccessPartnerZone,
@@ -22,11 +23,12 @@ export async function middleware(request: NextRequest) {
   const isOps = pathname.startsWith("/ops");
   const isCommercial = pathname.startsWith("/commercial");
   const isFinance = pathname.startsWith("/finance");
+  const isFleet = pathname.startsWith("/fleet");
   const isPartenaire = pathname.startsWith("/partenaire");
   const isProprietaire = pathname.startsWith("/proprietaire");
   const isCompte = pathname.startsWith("/compte");
   const isProtected =
-    isChauffeur || isAdmin || isOps || isCommercial || isFinance || isPartenaire || isProprietaire || isCompte;
+    isChauffeur || isAdmin || isOps || isCommercial || isFinance || isFleet || isPartenaire || isProprietaire || isCompte;
 
   try {
     let response = NextResponse.next({ request });
@@ -80,6 +82,7 @@ export async function middleware(request: NextRequest) {
         (isOps && !canAccessOpsZone(rawRoles.includes("ops") ? "ops" : role, role)) ||
         (isCommercial && !canAccessCommercialZone(role)) ||
         (isFinance && !canAccessFinanceZone(rawRoles.includes("finance") ? "finance" : role, role)) ||
+        (isFleet && !canAccessFleetZone(rawRoles.includes("fleet_manager") ? "fleet_manager" : role, role)) ||
         (isPartenaire && !canAccessPartnerZone(role)) ||
         (isProprietaire && !canAccessOwnerZone(role)) ||
         (isCompte && normalizeRole(role) !== "client");
@@ -110,6 +113,8 @@ export const config = {
     "/commercial/:path*",
     "/finance",
     "/finance/:path*",
+    "/fleet",
+    "/fleet/:path*",
     "/partenaire",
     "/partenaire/:path*",
     "/proprietaire",

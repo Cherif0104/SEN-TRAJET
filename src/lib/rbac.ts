@@ -113,6 +113,11 @@ export function canAccessFinanceZone(internalRole: string | null | undefined, ro
   return internalRole === "finance" || internalRole === "super_admin" || role === "super_admin";
 }
 
+/** Espace Fleet Manager dédié (Phase 8) : `fleet_manager` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessFleetZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "fleet_manager" || internalRole === "super_admin" || role === "super_admin";
+}
+
 /** Destination unique utilisée après connexion et dans tous les points d’entrée. */
 export function workspaceForRole(
   role: string | null | undefined,
@@ -122,6 +127,7 @@ export function workspaceForRole(
   const normalized = normalizeRole(raw);
   if (internalRole === "ops") return "/ops";
   if (internalRole === "finance") return "/finance";
+  if (internalRole === "fleet_manager") return "/fleet";
   if (normalized === "commercial") return "/commercial";
   if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
   if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
