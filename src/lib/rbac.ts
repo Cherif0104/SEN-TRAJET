@@ -108,6 +108,11 @@ export function canAccessCommercialZone(role: string | null | undefined): boolea
   return role === "commercial" || role === "super_admin";
 }
 
+/** Espace Finance dédié (Phase 7) : `finance` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessFinanceZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "finance" || internalRole === "super_admin" || role === "super_admin";
+}
+
 /** Destination unique utilisée après connexion et dans tous les points d’entrée. */
 export function workspaceForRole(
   role: string | null | undefined,
@@ -116,6 +121,7 @@ export function workspaceForRole(
   const raw = role ?? "";
   const normalized = normalizeRole(raw);
   if (internalRole === "ops") return "/ops";
+  if (internalRole === "finance") return "/finance";
   if (normalized === "commercial") return "/commercial";
   if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
   if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
