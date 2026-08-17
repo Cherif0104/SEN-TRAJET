@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, CalendarCheck, User, PlusCircle } from "lucide-react";
+import { LayoutDashboard, CalendarCheck, User, Heart } from "lucide-react";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
@@ -11,8 +11,8 @@ import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
   { href: "/compte", labelKey: "nav.home" as const, icon: LayoutDashboard },
-  { href: "/reserver", labelKey: "nav.estimate" as const, icon: PlusCircle },
-  { href: "/compte/reservations", labelKey: "nav.myReservations" as const, icon: CalendarCheck },
+  { href: "/compte/reservations", label: "Courses", icon: CalendarCheck },
+  { href: "/compte/favoris", label: "Favoris", icon: Heart },
   { href: "/compte/profil", labelKey: "nav.profile" as const, icon: User },
 ];
 

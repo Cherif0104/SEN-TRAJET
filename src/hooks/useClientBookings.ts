@@ -11,12 +11,14 @@ import {
 export function useClientBookings() {
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<PlatformBooking[]>([]);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) {
       setRows([]);
+      setClientId(null);
       setLoading(false);
       return;
     }
@@ -24,14 +26,15 @@ export function useClientBookings() {
     setLoading(true);
     setError(null);
     try {
-      const clientId = await ensureClientForUser({
+      const id = await ensureClientForUser({
         userId: user.id,
         fullName: profile?.full_name,
         phone: profile?.phone,
         email: user.email,
       });
+      setClientId(id);
       const bookings = await listPlatformBookings();
-      setRows(bookings.filter((booking) => booking.client_id === clientId));
+      setRows(bookings.filter((booking) => booking.client_id === id));
     } catch (bookingError) {
       setRows([]);
       setError(
@@ -48,5 +51,5 @@ export function useClientBookings() {
     void refresh();
   }, [refresh]);
 
-  return { rows, loading, error, refresh };
+  return { rows, clientId, loading, error, refresh };
 }

@@ -716,3 +716,105 @@ export async function listMissionsForDriverUser(userId: string): Promise<Platfor
   const all = await listPlatformBookings();
   return all.filter((b) => b.service_order?.dispatch?.driver_id === driver.id);
 }
+
+export async function getBookingById(id: string): Promise<PlatformBooking | null> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(
+      `id, reference, client_id, lead_id, status, pickup, dropoff, pickup_time, service_type,
+       estimated_price, passengers, notes, pricing_segment, partner_contract_id, distance_km, created_at,
+       cancellation_fee_fcfa, final_amount_fcfa, phone,
+       client:clients(id, full_name, company_name, phone),
+       service_orders(id, order_number, status,
+         dispatch_assignments(id, driver_id, vehicle_id,
+           driver:drivers(id, full_name, phone, status, user_id),
+           vehicle:vehicles(id, brand, model, plate_number, seats, status, category)
+         )
+       )`
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw formatSupabaseError(error, "Impossible de charger cette réservation.");
+  if (!data) return null;
+  const r = data as Record<string, unknown>;
+  const order = firstRelation(r.service_orders as Record<string, unknown> | Record<string, unknown>[] | null);
+  const dispatchRaw = order
+    ? firstRelation(order.dispatch_assignments as Record<string, unknown> | Record<string, unknown>[] | null)
+    : null;
+  return {
+    id: String(r.id),
+    reference: (r.reference as string | null) ?? null,
+    client_id: (r.client_id as string | null) ?? null,
+    lead_id: (r.lead_id as string | null) ?? null,
+    status: String(r.status),
+    pickup: String(r.pickup),
+    dropoff: String(r.dropoff),
+    pickup_time: String(r.pickup_time),
+    service_type: String(r.service_type),
+    estimated_price: r.estimated_price == null ? null : Number(r.estimated_price),
+    passengers: Number(r.passengers ?? 1),
+    notes: (r.notes as string | null) ?? null,
+    pricing_segment: String(r.pricing_segment ?? "client"),
+    partner_contract_id: (r.partner_contract_id as string | null) ?? null,
+    distance_km: r.distance_km == null ? null : Number(r.distance_km),
+    created_at: String(r.created_at),
+    client: (firstRelation(r.client as PlatformClient | PlatformClient[] | null) as PlatformBooking["client"]) ?? null,
+    service_order: order
+      ? {
+          id: String(order.id),
+          order_number: String(order.order_number),
+          status: String(order.status),
+          dispatch: dispatchRaw
+            ? {
+                id: String(dispatchRaw.id),
+                driver_id: String(dispatchRaw.driver_id),
+                vehicle_id: String(dispatchRaw.vehicle_id),
+                driver: (firstRelation(dispatchRaw.driver as PlatformDriver | PlatformDriver[] | null) as PlatformDriver | null),
+                vehicle: (firstRelation(dispatchRaw.vehicle as PlatformVehicle | PlatformVehicle[] | null) as PlatformVehicle | null),
+              }
+            : null,
+        }
+      : null,
+  };
+}
+
+export type BookingStatusHistoryRow = {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  created_at: string;
+};
+
+export async function listBookingStatusHistory(bookingId: string): Promise<BookingStatusHistoryRow[]> {
+  const { data, error } = await supabase
+    .from("booking_status_history")
+    .select("id, from_status, to_status, note, created_at")
+    .eq("booking_id", bookingId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as BookingStatusHistoryRow[];
+}
+
+export type CancelOwnBookingResult = {
+  id: string;
+  status: string;
+  cancellation_fee_fcfa: number | null;
+  final_amount_fcfa: number | null;
+};
+
+/** Annulation client — le calcul des frais est effectué côté serveur (RPC `cancel_own_booking`). */
+export async function cancelOwnBooking(bookingId: string): Promise<CancelOwnBookingResult> {
+  const { data, error } = await supabase.rpc("cancel_own_booking", { p_booking_id: bookingId });
+  if (error) {
+    const code = error.message || "";
+    const messages: Record<string, string> = {
+      booking_not_found: "Réservation introuvable.",
+      not_authorized: "Vous ne pouvez annuler que vos propres réservations.",
+      booking_not_cancellable: "Cette réservation ne peut plus être annulée (déjà terminée, annulée ou remboursée).",
+    };
+    const key = Object.keys(messages).find((k) => code.includes(k));
+    throw new Error(key ? messages[key] : "Impossible d’annuler cette réservation.");
+  }
+  return data as CancelOwnBookingResult;
+}
