@@ -763,6 +763,26 @@ export async function advanceOwnMissionStatus(bookingId: string, newStatus: stri
   return data as PlatformBooking;
 }
 
+export type PendingPayment = {
+  id: string;
+  booking_id: string;
+  amount_fcfa: number;
+  status: string;
+  created_at: string;
+  booking_ref: string | null;
+};
+
+/** Paiements en attente de vérification (staff) — visibilité déjà couverte par la RLS interne. */
+export async function listPendingPayments(): Promise<PendingPayment[]> {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id, booking_id, amount_fcfa, status, created_at, booking_ref")
+    .in("status", ["pending", "initiated", "created"])
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as PendingPayment[];
+}
+
 export async function reportMissionIssue(bookingId: string, message: string): Promise<void> {
   const { error } = await supabase.rpc("report_mission_issue", {
     p_booking_id: bookingId,
