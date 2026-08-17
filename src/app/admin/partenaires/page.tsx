@@ -361,7 +361,7 @@ export default function AdminPartenairesPage() {
       <SjSectionHead title="Funnel de certification" />
       <SjCard>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Matricule</th>
@@ -375,25 +375,25 @@ export default function AdminPartenairesPage() {
             <tbody>
               {rows.map((partner) => (
                 <tr key={partner.id}>
-                  <td>
+                  <td data-label="Matricule">
                     <code>{partner.matricule ?? "—"}</code>
                   </td>
-                  <td>
+                  <td data-label="Organisation">
                     <b>{partner.legal_name}</b>
                   </td>
-                  <td>{CATEGORIES.find(([value]) => value === partner.category)?.[1] ?? partner.category}</td>
-                  <td>
+                  <td data-label="Catégorie">{CATEGORIES.find(([value]) => value === partner.category)?.[1] ?? partner.category}</td>
+                  <td data-label="Contact">
                     {partner.primary_contact_name ?? "—"}
                     <div className="sj-muted text-xs">
                       {partner.primary_contact_phone || partner.primary_contact_email || "—"}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Certification">
                     <SjBadge tone={STATUS_TONE[partner.certification_status] ?? "info"}>
                       {partner.certification_status}
                     </SjBadge>
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <div className="flex flex-wrap gap-2">
                       <Link
                         className="sj-btn sj-btn-primary"

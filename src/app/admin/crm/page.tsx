@@ -319,7 +319,7 @@ export default function AdminCrmPage() {
       <SjSectionHead title="Agenda CRM" />
       <SjCard style={{ marginBottom: 20 }}>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Échéance</th>
@@ -335,15 +335,15 @@ export default function AdminCrmPage() {
                   action.next_action_at && new Date(action.next_action_at).getTime() < Date.now();
                 return (
                   <tr key={action.id}>
-                    <td>
+                    <td data-label="Échéance">
                       <SjBadge tone={overdue ? "danger" : "warning"}>
                         {dateTimeFr(action.next_action_at)}
                       </SjBadge>
                     </td>
-                    <td>{crmTargetLabel(action)}</td>
-                    <td>{action.next_action_label || action.subject || action.motif}</td>
-                    <td>{staffLabel(action.next_action_assignee, staff)}</td>
-                    <td>
+                    <td data-label="Dossier">{crmTargetLabel(action)}</td>
+                    <td data-label="Action">{action.next_action_label || action.subject || action.motif}</td>
+                    <td data-label="Responsable">{staffLabel(action.next_action_assignee, staff)}</td>
+                    <td data-label="Terminer">
                       <button className="sj-btn" type="button" onClick={() => void completeAction(action.id)}>
                         Terminer
                       </button>
@@ -366,7 +366,7 @@ export default function AdminCrmPage() {
       <SjSectionHead title="Interactions récentes" />
       <SjCard style={{ marginBottom: 20 }}>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Date</th>
@@ -379,13 +379,13 @@ export default function AdminCrmPage() {
             <tbody>
               {activities.map((activity) => (
                 <tr key={activity.id}>
-                  <td>{dateTimeFr(activity.occurred_at)}</td>
-                  <td>{crmTargetLabel(activity)}</td>
-                  <td>
+                  <td data-label="Date">{dateTimeFr(activity.occurred_at)}</td>
+                  <td data-label="Dossier">{crmTargetLabel(activity)}</td>
+                  <td data-label="Canal / motif">
                     {activity.channel} · {activity.motif}
                   </td>
-                  <td>{activity.message || activity.subject || "—"}</td>
-                  <td>{staffLabel(activity.handled_by, staff)}</td>
+                  <td data-label="Compte-rendu">{activity.message || activity.subject || "—"}</td>
+                  <td data-label="Traité par">{staffLabel(activity.handled_by, staff)}</td>
                 </tr>
               ))}
               {!activities.length && !loading ? (
@@ -403,7 +403,7 @@ export default function AdminCrmPage() {
       <SjSectionHead title="Demandes non finalisées" />
       <SjCard>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Réf.</th>
@@ -415,12 +415,12 @@ export default function AdminCrmPage() {
             <tbody>
               {incomplete.slice(0, 20).map((booking) => (
                 <tr key={booking.id}>
-                  <td>{booking.reference || booking.id.slice(0, 8)}</td>
-                  <td>{booking.client?.company_name || booking.client?.full_name || "—"}</td>
-                  <td>
+                  <td data-label="Référence">{booking.reference || booking.id.slice(0, 8)}</td>
+                  <td data-label="Client">{booking.client?.company_name || booking.client?.full_name || "—"}</td>
+                  <td data-label="Trajet">
                     {booking.pickup} → {booking.dropoff}
                   </td>
-                  <td>{booking.status}</td>
+                  <td data-label="Statut">{booking.status}</td>
                 </tr>
               ))}
               {!incomplete.length ? (

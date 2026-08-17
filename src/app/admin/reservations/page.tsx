@@ -72,7 +72,7 @@ export default function AdminReservationsPage() {
 
       <SjCard>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Référence</th>
@@ -88,25 +88,25 @@ export default function AdminReservationsPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td>
+                  <td data-label="Référence">
                     <b>{r.reference || r.id.slice(0, 8)}</b>
                   </td>
-                  <td>{r.client?.company_name || r.client?.full_name || "—"}</td>
-                  <td>
+                  <td data-label="Client">{r.client?.company_name || r.client?.full_name || "—"}</td>
+                  <td data-label="Prestation">
                     {SERVICE_TYPE_LABELS[r.service_type as ServiceType] || r.service_type}
                     <div className="sj-muted">
                       {r.pickup} → {r.dropoff}
                     </div>
                   </td>
-                  <td>{new Date(r.pickup_time).toLocaleString("fr-FR")}</td>
-                  <td>{r.passengers}</td>
-                  <td>{r.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
-                  <td>
+                  <td data-label="Date">{new Date(r.pickup_time).toLocaleString("fr-FR")}</td>
+                  <td data-label="Passagers">{r.passengers}</td>
+                  <td data-label="Chauffeur">{r.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
+                  <td data-label="Statut">
                     <SjBadge tone={bookingStatusTone(r.status)}>
                       {BOOKING_STATUS_LABEL[r.status] ?? r.status}
                     </SjBadge>
                   </td>
-                  <td>
+                  <td data-label="Montant">
                     <b>{r.estimated_price != null ? formatFcfa(Number(r.estimated_price)) : "Sur devis"}</b>
                   </td>
                 </tr>

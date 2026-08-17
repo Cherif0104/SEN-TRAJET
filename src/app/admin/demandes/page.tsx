@@ -88,7 +88,7 @@ export default function AdminDemandesPage() {
 
       <SjCard>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Réf.</th>
@@ -104,26 +104,26 @@ export default function AdminDemandesPage() {
             <tbody>
               {rows.map((b) => (
                 <tr key={b.id}>
-                  <td>
+                  <td data-label="Référence">
                     <b>{b.reference || b.id.slice(0, 8)}</b>
                   </td>
-                  <td>
+                  <td data-label="Client">
                     {b.client?.full_name || b.client?.company_name || "—"}
                     <div className="sj-muted">{b.client?.phone || "—"}</div>
                   </td>
-                  <td>{b.service_type}</td>
-                  <td>
+                  <td data-label="Prestation">{b.service_type}</td>
+                  <td data-label="Trajet">
                     {b.pickup} → {b.dropoff}
                     <div className="sj-muted">{b.passengers} pax · {b.distance_km ?? "?"} km</div>
                   </td>
-                  <td>{new Date(b.pickup_time).toLocaleString("fr-FR")}</td>
-                  <td>{b.estimated_price != null ? formatFcfa(b.estimated_price) : "Sur devis"}</td>
-                  <td>
+                  <td data-label="Quand">{new Date(b.pickup_time).toLocaleString("fr-FR")}</td>
+                  <td data-label="Estimation">{b.estimated_price != null ? formatFcfa(b.estimated_price) : "Sur devis"}</td>
+                  <td data-label="Statut">
                     <SjBadge tone={bookingStatusTone(b.status)}>
                       {BOOKING_STATUS_LABEL[b.status] ?? b.status}
                     </SjBadge>
                   </td>
-                  <td>
+                  <td data-label="Action">
                     <button type="button" className="sj-btn sj-btn-primary" onClick={() => setSelected(b)}>
                       Traiter
                     </button>
