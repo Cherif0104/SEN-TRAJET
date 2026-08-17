@@ -103,6 +103,11 @@ export function canAccessOpsZone(internalRole: string | null | undefined, role?:
   return internalRole === "ops" || internalRole === "super_admin" || role === "super_admin";
 }
 
+/** Espace Commercial dédié (Phase 6) : `commercial` conserve déjà sa propre valeur de `profile.role`. */
+export function canAccessCommercialZone(role: string | null | undefined): boolean {
+  return role === "commercial" || role === "super_admin";
+}
+
 /** Destination unique utilisée après connexion et dans tous les points d’entrée. */
 export function workspaceForRole(
   role: string | null | undefined,
@@ -111,6 +116,7 @@ export function workspaceForRole(
   const raw = role ?? "";
   const normalized = normalizeRole(raw);
   if (internalRole === "ops") return "/ops";
+  if (normalized === "commercial") return "/commercial";
   if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
   if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
     return "/proprietaire";

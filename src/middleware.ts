@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import {
   canAccessAdminZone,
+  canAccessCommercialZone,
   canAccessDriverZone,
   canAccessOpsZone,
   canAccessOwnerZone,
@@ -18,11 +19,12 @@ export async function middleware(request: NextRequest) {
   const isChauffeur = pathname.startsWith("/chauffeur");
   const isAdmin = pathname.startsWith("/admin");
   const isOps = pathname.startsWith("/ops");
+  const isCommercial = pathname.startsWith("/commercial");
   const isPartenaire = pathname.startsWith("/partenaire");
   const isProprietaire = pathname.startsWith("/proprietaire");
   const isCompte = pathname.startsWith("/compte");
   const isProtected =
-    isChauffeur || isAdmin || isOps || isPartenaire || isProprietaire || isCompte;
+    isChauffeur || isAdmin || isOps || isCommercial || isPartenaire || isProprietaire || isCompte;
 
   try {
     let response = NextResponse.next({ request });
@@ -74,6 +76,7 @@ export async function middleware(request: NextRequest) {
         (isChauffeur && !canAccessDriverZone(role)) ||
         (isAdmin && !canAccessAdminZone(role)) ||
         (isOps && !canAccessOpsZone(rawRoles.includes("ops") ? "ops" : role, role)) ||
+        (isCommercial && !canAccessCommercialZone(role)) ||
         (isPartenaire && !canAccessPartnerZone(role)) ||
         (isProprietaire && !canAccessOwnerZone(role)) ||
         (isCompte && normalizeRole(role) !== "client");
@@ -100,6 +103,8 @@ export const config = {
     "/admin/:path*",
     "/ops",
     "/ops/:path*",
+    "/commercial",
+    "/commercial/:path*",
     "/partenaire",
     "/partenaire/:path*",
     "/proprietaire",
