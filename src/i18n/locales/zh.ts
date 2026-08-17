@@ -253,4 +253,7 @@ export const zh: Record<TranslationKey, string> = {
   "account.avatarChange": "选择照片",
   "account.avatarRemove": "移除",
   "account.avatarError": "无法更新个人头像。",
+  "account.accessRecovery.title": "会话已保留",
+  "account.accessRecovery.description": "您仍处于登录状态，但暂时无法加载个人资料。请检查网络后重试。",
+  "account.accessRecovery.retry": "重新加载工作区",
 };

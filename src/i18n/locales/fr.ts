@@ -251,6 +251,9 @@ export const fr = {
   "account.avatarChange": "Choisir une photo",
   "account.avatarRemove": "Retirer",
   "account.avatarError": "Impossible de modifier la photo de profil.",
+  "account.accessRecovery.title": "Connexion conservée",
+  "account.accessRecovery.description": "Votre session est toujours active, mais le profil n’a pas pu être chargé. Vérifiez le réseau puis réessayez.",
+  "account.accessRecovery.retry": "Recharger mon espace",
 } as const;
 
 export type TranslationKey = keyof typeof fr;

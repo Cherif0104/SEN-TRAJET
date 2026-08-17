@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, CalendarCheck, User, PlusCircle } from "lucide-react";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "@/providers/PreferencesProvider";
 
@@ -18,7 +19,7 @@ const nav = [
 export default function CompteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { t } = usePreferences();
 
   useEffect(() => {
@@ -28,15 +29,16 @@ export default function CompteLayout({ children }: { children: React.ReactNode }
       return;
     }
     if (!profile) {
-      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
       return;
     }
     if (profile.role !== "client") router.replace("/dashboard?forbidden=1");
-  }, [loading, pathname, profile, router, signOut, user]);
+  }, [loading, pathname, profile, router, user]);
 
-  if (loading || !user || !profile || profile.role !== "client") {
+  if (loading || !user) {
     return <BrandedLoader fullScreen />;
   }
+  if (!profile) return <ProfileAccessRecovery />;
+  if (profile.role !== "client") return <BrandedLoader fullScreen />;
 
   return (
     <PremiumShell title={t("shell.clientTitle")} subtitle={t("shell.clientSubtitle")} nav={nav}>

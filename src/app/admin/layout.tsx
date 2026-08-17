@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
 import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
@@ -58,7 +59,7 @@ const mobileNav = nav.filter((item) =>
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { t } = usePreferences();
 
   useEffect(() => {
@@ -68,17 +69,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     if (!profile) {
-      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
       return;
     }
     if (!canAccessAdminZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
-  }, [loading, profile, router, pathname, signOut, user]);
+  }, [loading, profile, router, pathname, user]);
 
-  if (loading || !user || !profile || !canAccessAdminZone(profile.role)) {
+  if (loading || !user) {
     return <BrandedLoader fullScreen />;
   }
+  if (!profile) return <ProfileAccessRecovery />;
+  if (!canAccessAdminZone(profile.role)) return <BrandedLoader fullScreen />;
 
   const visibleNav =
     profile?.role === "super_admin"

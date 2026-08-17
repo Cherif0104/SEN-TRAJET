@@ -6,6 +6,7 @@ import { LayoutDashboard, PlusCircle, CalendarCheck, BadgeDollarSign, UserCircle
 import { canAccessPartnerZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "@/providers/PreferencesProvider";
 
@@ -20,7 +21,7 @@ const nav = [
 export default function PartenaireLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { t } = usePreferences();
   const isOnboarding = pathname === "/partenaire/onboarding";
 
@@ -31,20 +32,12 @@ export default function PartenaireLayout({ children }: { children: React.ReactNo
       return;
     }
     if (!profile) {
-      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
       return;
     }
     if (!canAccessPartnerZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
-  }, [pathname, router, isOnboarding, loading, profile, signOut, user]);
-
-  if (
-    !isOnboarding &&
-    (loading || !user || !profile || !canAccessPartnerZone(profile.role))
-  ) {
-    return <BrandedLoader fullScreen />;
-  }
+  }, [pathname, router, isOnboarding, loading, profile, user]);
 
   if (isOnboarding) {
     return (
@@ -52,6 +45,12 @@ export default function PartenaireLayout({ children }: { children: React.ReactNo
         <div className="sj-content">{children}</div>
       </div>
     );
+  }
+
+  if (loading || !user) return <BrandedLoader fullScreen />;
+  if (!profile) return <ProfileAccessRecovery />;
+  if (!canAccessPartnerZone(profile.role)) {
+    return <BrandedLoader fullScreen />;
   }
 
   return (

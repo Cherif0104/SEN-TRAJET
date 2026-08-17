@@ -6,9 +6,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
 export type Profile = {
@@ -26,6 +27,7 @@ export type Profile = {
     | "partner_operator"
     | "rental_owner"
     | "vehicle_owner"
+    | "asset_partner"
     | "owner";
   full_name: string;
   phone: string | null;
@@ -47,13 +49,70 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function normalizedAppRole(user: User): Profile["role"] | null {
+  const raw = user.app_metadata?.app_role;
+  if (typeof raw !== "string") return null;
+  if (["manager", "ops", "finance", "rh", "fleet_manager"].includes(raw)) {
+    return "admin";
+  }
+  if (raw === "provider") return "partner";
+  if (raw === "asset_partner") return "asset_partner";
+  const supported: Profile["role"][] = [
+    "client",
+    "driver",
+    "admin",
+    "partner",
+    "super_admin",
+    "commercial",
+    "trainer",
+    "regional_manager",
+    "partner_manager",
+    "partner_operator",
+    "rental_owner",
+    "vehicle_owner",
+    "owner",
+  ];
+  return supported.includes(raw as Profile["role"])
+    ? (raw as Profile["role"])
+    : null;
+}
+
+function fallbackProfile(user: User): Profile | null {
+  const role = normalizedAppRole(user);
+  if (!role) return null;
+  return {
+    id: user.id,
+    role,
+    full_name:
+      typeof user.user_metadata?.full_name === "string"
+        ? user.user_metadata.full_name
+        : "",
+    phone:
+      typeof user.user_metadata?.phone === "string"
+        ? user.user_metadata.phone
+        : null,
+    avatar_url: null,
+    city: null,
+    is_verified: false,
+    average_rating: 0,
+    total_reviews: 0,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileRef = useRef<Profile | null>(null);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const storeProfile = useCallback((nextProfile: Profile | null) => {
+    profileRef.current = nextProfile;
+    setProfile(nextProfile);
+  }, []);
+
+  const fetchProfile = useCallback(async (authUser: User) => {
+    const userId = authUser.id;
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -62,11 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let role = (data as { role?: string } | null)?.role ?? null;
     if (!role) {
-      const { data: roles } = await supabase
+      const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .limit(5);
+      if (rolesError) {
+        const fallback = profileRef.current ?? fallbackProfile(authUser);
+        if (fallback) storeProfile(fallback);
+        return fallback;
+      }
       const raw = roles?.[0]?.role as string | undefined;
       if (
         raw === "manager" ||
@@ -84,8 +148,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if ((error && error.code !== "PGRST116") || (!data && !role)) {
-      setProfile(null);
-      return null;
+      const fallback = profileRef.current ?? fallbackProfile(authUser);
+      if (fallback) storeProfile(fallback);
+      return fallback;
     }
 
     const nextProfile = {
@@ -103,22 +168,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         (data as { total_reviews?: number } | null)?.total_reviews ?? 0
       ),
     } satisfies Profile;
-    setProfile(nextProfile);
+    storeProfile(nextProfile);
     return nextProfile;
-  }, []);
+  }, [storeProfile]);
 
   const synchronizeSession = useCallback(
-    async (nextSession: Session | null, validateUser: boolean) => {
-      let verifiedSession = nextSession;
-      let nextUser = nextSession?.user ?? null;
+    async (
+      nextSession: Session | null,
+      event: AuthChangeEvent | "BOOTSTRAP",
+    ) => {
+      if (!nextSession?.user) {
+        setSession(null);
+        setUser(null);
+        storeProfile(null);
+        return;
+      }
 
-      if (nextUser && validateUser) {
+      let verifiedSession = nextSession;
+      let nextUser = nextSession.user;
+
+      if (event === "BOOTSTRAP") {
         const { data, error } = await supabase.auth.getUser();
-        if (error || !data.user) {
-          await supabase.auth.signOut({ scope: "local" });
-          verifiedSession = null;
-          nextUser = null;
-        } else {
+        // Une panne réseau/PostgREST ne doit jamais détruire une session locale
+        // encore renouvelable. Supabase émettra SIGNED_OUT si le refresh token
+        // est réellement invalide.
+        if (!error && data.user) {
           nextUser = data.user;
           const current = await supabase.auth.getSession();
           verifiedSession = current.data.session ?? nextSession;
@@ -127,10 +201,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setSession(verifiedSession);
       setUser(nextUser);
-      setProfile(null);
-      if (nextUser) await fetchProfile(nextUser.id);
+      const existing = profileRef.current;
+      const shouldRefreshProfile =
+        !existing ||
+        existing.id !== nextUser.id ||
+        event === "USER_UPDATED";
+      if (shouldRefreshProfile) await fetchProfile(nextUser);
     },
-    [fetchProfile]
+    [fetchProfile, storeProfile]
   );
 
   useEffect(() => {
@@ -142,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: { session: initial },
         } = await supabase.auth.getSession();
         if (cancelled) return;
-        await synchronizeSession(initial, true);
+        await synchronizeSession(initial, "BOOTSTRAP");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -154,7 +232,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === "INITIAL_SESSION") return;
-      void synchronizeSession(nextSession, false).finally(() => {
+      const needsProfile =
+        Boolean(nextSession?.user) &&
+        (!profileRef.current ||
+          profileRef.current.id !== nextSession?.user.id);
+      if (needsProfile) setLoading(true);
+      void synchronizeSession(nextSession, event).finally(() => {
         if (!cancelled) setLoading(false);
       });
     });
@@ -169,8 +252,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
-    setProfile(null);
-  }, []);
+    storeProfile(null);
+  }, [storeProfile]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -179,7 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       loading,
       signOut,
-      refreshProfile: () => (user ? fetchProfile(user.id) : null),
+      refreshProfile: () => (user ? fetchProfile(user) : null),
     }),
     [fetchProfile, loading, profile, session, signOut, user]
   );

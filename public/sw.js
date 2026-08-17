@@ -1,4 +1,4 @@
-const CACHE_NAME = "sen-trajet-v8-always-latest";
+const CACHE_NAME = "sen-trajet-v9-session-mobile";
 const STATIC_ASSETS = [
   "/",
   "/application-mobile",
@@ -67,6 +67,41 @@ self.addEventListener("fetch", (event) => {
           (cached) => cached ?? offlineResponse("Réseau indisponible.", 503)
         )
       )
+    );
+    return;
+  }
+
+  const authenticatedPage =
+    url.origin === self.location.origin &&
+    [
+      "/admin",
+      "/compte",
+      "/chauffeur",
+      "/partenaire",
+      "/proprietaire",
+      "/dashboard",
+      "/connexion",
+    ].some(
+      (prefix) =>
+        url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)
+    );
+
+  // Les espaces connectés doivent toujours charger le shell le plus récent.
+  // Le cache ne sert que de secours hors ligne, jamais de réponse prioritaire.
+  if (request.mode === "navigate" && authenticatedPage) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then(
+            (cached) =>
+              cached ?? offlineResponse("Réseau indisponible. Rechargez la page.", 503)
+          )
+        )
     );
     return;
   }

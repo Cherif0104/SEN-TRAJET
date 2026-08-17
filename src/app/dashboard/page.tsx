@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { workspaceForRole } from "@/lib/rbac";
 
@@ -11,7 +12,7 @@ import { workspaceForRole } from "@/lib/rbac";
  */
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
@@ -20,13 +21,11 @@ export default function DashboardPage() {
       return;
     }
     if (!profile) {
-      void signOut().finally(() => {
-        router.replace("/connexion?error=profile_missing");
-      });
       return;
     }
     router.replace(workspaceForRole(profile.role));
-  }, [loading, profile, router, signOut, user]);
+  }, [loading, profile, router, user]);
 
+  if (!loading && user && !profile) return <ProfileAccessRecovery />;
   return <BrandedLoader fullScreen />;
 }

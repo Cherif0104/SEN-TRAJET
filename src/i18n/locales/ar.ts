@@ -253,4 +253,7 @@ export const ar: Record<TranslationKey, string> = {
   "account.avatarChange": "اختيار صورة",
   "account.avatarRemove": "إزالة",
   "account.avatarError": "تعذر تحديث الصورة الشخصية.",
+  "account.accessRecovery.title": "تم الاحتفاظ بالجلسة",
+  "account.accessRecovery.description": "ما زلت مسجلاً للدخول، لكن تعذر تحميل ملفك. تحقق من الاتصال ثم حاول مجدداً.",
+  "account.accessRecovery.retry": "إعادة تحميل مساحتي",
 };

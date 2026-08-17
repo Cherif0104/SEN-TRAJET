@@ -6,6 +6,7 @@ import { LayoutDashboard, Route, History, User } from "lucide-react";
 import { canAccessDriverZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "@/providers/PreferencesProvider";
 
@@ -19,7 +20,7 @@ const nav = [
 export default function ChauffeurLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { t } = usePreferences();
 
   useEffect(() => {
@@ -29,17 +30,18 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
       return;
     }
     if (!profile) {
-      void signOut().finally(() => router.replace("/connexion?error=profile_missing"));
       return;
     }
     if (!canAccessDriverZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
-  }, [loading, pathname, profile, router, signOut, user]);
+  }, [loading, pathname, profile, router, user]);
 
-  if (loading || !user || !profile || !canAccessDriverZone(profile.role)) {
+  if (loading || !user) {
     return <BrandedLoader fullScreen />;
   }
+  if (!profile) return <ProfileAccessRecovery />;
+  if (!canAccessDriverZone(profile.role)) return <BrandedLoader fullScreen />;
 
   return (
     <PremiumShell title={t("shell.driverTitle")} subtitle={t("shell.driverSubtitle")} nav={nav}>

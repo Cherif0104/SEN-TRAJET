@@ -253,4 +253,7 @@ export const es: Record<TranslationKey, string> = {
   "account.avatarChange": "Elegir una foto",
   "account.avatarRemove": "Eliminar",
   "account.avatarError": "No se puede actualizar la foto de perfil.",
+  "account.accessRecovery.title": "Sesión conservada",
+  "account.accessRecovery.description": "La sesión sigue activa, pero no se pudo cargar el perfil. Comprueba la conexión e inténtalo de nuevo.",
+  "account.accessRecovery.retry": "Recargar mi espacio",
 };

@@ -253,4 +253,7 @@ export const en: Record<TranslationKey, string> = {
   "account.avatarChange": "Choose a photo",
   "account.avatarRemove": "Remove",
   "account.avatarError": "Unable to update the profile photo.",
+  "account.accessRecovery.title": "Session preserved",
+  "account.accessRecovery.description": "You are still signed in, but your profile could not be loaded. Check your connection and try again.",
+  "account.accessRecovery.retry": "Reload my workspace",
 };
