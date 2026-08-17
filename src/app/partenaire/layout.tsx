@@ -2,7 +2,15 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { LayoutDashboard, PlusCircle, CalendarCheck, BadgeDollarSign, UserCircle } from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarCheck,
+  Contact,
+  Receipt,
+  UserCircle,
+  BadgeDollarSign,
+  FileText,
+} from "lucide-react";
 import { canAccessPartnerZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
@@ -12,11 +20,15 @@ import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
   { href: "/partenaire", labelKey: "nav.home" as const, icon: LayoutDashboard },
-  { href: "/partenaire/reserver", labelKey: "nav.newRequest" as const, icon: PlusCircle },
-  { href: "/partenaire/demandes", labelKey: "nav.requests" as const, icon: CalendarCheck },
-  { href: "/partenaire/tarification", labelKey: "nav.myPricing" as const, icon: BadgeDollarSign },
+  { href: "/partenaire/demandes", label: "Réservations", icon: CalendarCheck },
+  { href: "/partenaire/clients", labelKey: "nav.clients" as const, icon: Contact },
+  { href: "/partenaire/factures", label: "Factures", icon: Receipt },
   { href: "/partenaire/profil", labelKey: "nav.account" as const, icon: UserCircle },
+  { href: "/partenaire/tarification", labelKey: "nav.myPricing" as const, icon: BadgeDollarSign },
+  { href: "/partenaire/contrat", labelKey: "nav.contract" as const, icon: FileText },
 ];
+
+const mobileNav = nav.slice(0, 4);
 
 export default function PartenaireLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,7 +66,12 @@ export default function PartenaireLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <PremiumShell title={t("shell.partnerTitle")} subtitle={t("shell.partnerSubtitle")} nav={nav}>
+    <PremiumShell
+      title={t("shell.partnerTitle")}
+      subtitle={t("shell.partnerSubtitle")}
+      nav={nav}
+      mobileNav={mobileNav}
+    >
       {children}
     </PremiumShell>
   );
