@@ -29,16 +29,18 @@ export function Header() {
   };
 
   const isLoggedIn = !!user;
-  const hubHref = workspaceForRole(profile?.role);
+  const hubHref = workspaceForRole(profile?.role, profile?.internalRole);
   const hubLabel = hubHref === "/admin"
     ? t("nav.administration")
-    : hubHref === "/proprietaire"
-      ? t("nav.owner")
-      : hubHref === "/partenaire"
-        ? t("nav.partner")
-        : hubHref === "/chauffeur"
-          ? t("nav.missions")
-          : t("nav.account");
+    : hubHref === "/ops"
+      ? "Opérations"
+      : hubHref === "/proprietaire"
+        ? t("nav.owner")
+        : hubHref === "/partenaire"
+          ? t("nav.partner")
+          : hubHref === "/chauffeur"
+            ? t("nav.missions")
+            : t("nav.account");
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md">

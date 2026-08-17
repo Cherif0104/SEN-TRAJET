@@ -23,7 +23,7 @@ export default function DashboardPage() {
     if (!profile) {
       return;
     }
-    router.replace(workspaceForRole(profile.role));
+    router.replace(workspaceForRole(profile.role, profile.internalRole));
   }, [loading, profile, router, user]);
 
   if (!loading && user && !profile) return <ProfileAccessRecovery />;

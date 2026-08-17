@@ -95,10 +95,22 @@ export function canAccessOwnerZone(role: string | null | undefined): boolean {
   );
 }
 
+/**
+ * Espace Opérations dédié (Phase 5 du blueprint) : le rôle réel `ops` — non déductible du
+ * `role` générique regroupé sous "admin" — doit provenir de `profile.internalRole`.
+ */
+export function canAccessOpsZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "ops" || internalRole === "super_admin" || role === "super_admin";
+}
+
 /** Destination unique utilisée après connexion et dans tous les points d’entrée. */
-export function workspaceForRole(role: string | null | undefined): string {
+export function workspaceForRole(
+  role: string | null | undefined,
+  internalRole?: string | null,
+): string {
   const raw = role ?? "";
   const normalized = normalizeRole(raw);
+  if (internalRole === "ops") return "/ops";
   if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
   if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
     return "/proprietaire";

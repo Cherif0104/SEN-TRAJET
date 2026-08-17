@@ -20,7 +20,7 @@ export function LandingOrRedirect() {
 
   useEffect(() => {
     if (loading || !user) return;
-    router.replace(profile ? workspaceForRole(profile.role) : "/dashboard?forbidden=1");
+    router.replace(profile ? workspaceForRole(profile.role, profile.internalRole) : "/dashboard?forbidden=1");
   }, [user, profile, loading, router]);
 
   if (user) return <BrandedLoader fullScreen />;

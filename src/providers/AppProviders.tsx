@@ -39,8 +39,8 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
     if (user && profile && (pathname === "/" || pathname === "/connexion")) {
       const destination =
         pathname === "/connexion"
-          ? requestedInternalDestination() ?? workspaceForRole(profile.role)
-          : workspaceForRole(profile.role);
+          ? requestedInternalDestination() ?? workspaceForRole(profile.role, profile.internalRole)
+          : workspaceForRole(profile.role, profile.internalRole);
       window.location.replace(destination);
       return;
     }

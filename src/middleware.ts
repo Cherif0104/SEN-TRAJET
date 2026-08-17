@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import {
   canAccessAdminZone,
   canAccessDriverZone,
+  canAccessOpsZone,
   canAccessOwnerZone,
   canAccessPartnerZone,
   normalizeRole,
@@ -16,11 +17,12 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isChauffeur = pathname.startsWith("/chauffeur");
   const isAdmin = pathname.startsWith("/admin");
+  const isOps = pathname.startsWith("/ops");
   const isPartenaire = pathname.startsWith("/partenaire");
   const isProprietaire = pathname.startsWith("/proprietaire");
   const isCompte = pathname.startsWith("/compte");
   const isProtected =
-    isChauffeur || isAdmin || isPartenaire || isProprietaire || isCompte;
+    isChauffeur || isAdmin || isOps || isPartenaire || isProprietaire || isCompte;
 
   try {
     let response = NextResponse.next({ request });
@@ -58,18 +60,20 @@ export async function middleware(request: NextRequest) {
         .maybeSingle();
 
       let role = profile?.role as string | undefined;
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .limit(10);
+      const rawRoles = (roleRows ?? []).map((r) => String((r as { role: string }).role));
       if (!role) {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .limit(1);
-        role = roles?.[0]?.role as string | undefined;
+        role = rawRoles[0];
       }
 
       const forbidden =
         (isChauffeur && !canAccessDriverZone(role)) ||
         (isAdmin && !canAccessAdminZone(role)) ||
+        (isOps && !canAccessOpsZone(rawRoles.includes("ops") ? "ops" : role, role)) ||
         (isPartenaire && !canAccessPartnerZone(role)) ||
         (isProprietaire && !canAccessOwnerZone(role)) ||
         (isCompte && normalizeRole(role) !== "client");
@@ -94,6 +98,8 @@ export const config = {
     "/chauffeur/:path*",
     "/admin",
     "/admin/:path*",
+    "/ops",
+    "/ops/:path*",
     "/partenaire",
     "/partenaire/:path*",
     "/proprietaire",

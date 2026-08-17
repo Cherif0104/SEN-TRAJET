@@ -29,6 +29,12 @@ export type Profile = {
     | "vehicle_owner"
     | "asset_partner"
     | "owner";
+  /**
+   * Rôle réel (non regroupé) tel qu'enregistré dans `user_roles` — `role` fusionne
+   * volontairement manager/ops/finance/rh/fleet_manager sous "admin" pour le RBAC
+   * générique, mais chaque espace interne a besoin de sa propre expérience.
+   */
+  internalRole: string | null;
   full_name: string;
   phone: string | null;
   avatar_url: string | null;
@@ -37,6 +43,36 @@ export type Profile = {
   average_rating: number;
   total_reviews: number;
 };
+
+/** Rôles internes les plus prioritaires en premier — utilisé pour choisir un espace unique. */
+const INTERNAL_ROLE_PRIORITY = [
+  "super_admin",
+  "manager",
+  "ops",
+  "commercial",
+  "finance",
+  "rh",
+  "fleet_manager",
+  "trainer",
+  "regional_manager",
+  "driver",
+  "partner",
+  "provider",
+  "partner_manager",
+  "partner_operator",
+  "rental_owner",
+  "asset_partner",
+  "vehicle_owner",
+  "owner",
+  "client",
+];
+
+function pickInternalRole(rawRoles: string[]): string | null {
+  for (const candidate of INTERNAL_ROLE_PRIORITY) {
+    if (rawRoles.includes(candidate)) return candidate;
+  }
+  return rawRoles[0] ?? null;
+}
 
 type AuthContextValue = {
   session: Session | null;
@@ -80,9 +116,11 @@ function normalizedAppRole(user: User): Profile["role"] | null {
 function fallbackProfile(user: User): Profile | null {
   const role = normalizedAppRole(user);
   if (!role) return null;
+  const rawAppRole = user.app_metadata?.app_role;
   return {
     id: user.id,
     role,
+    internalRole: typeof rawAppRole === "string" ? rawAppRole : role,
     full_name:
       typeof user.user_metadata?.full_name === "string"
         ? user.user_metadata.full_name
@@ -113,37 +151,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (authUser: User) => {
     const userId = authUser.id;
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    const [{ data, error }, { data: roleRows, error: rolesError }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", userId).limit(10),
+    ]);
+
+    const rawRoles = (roleRows ?? []).map((r) => String((r as { role: string }).role));
+    const internalRole = pickInternalRole(rawRoles);
 
     let role = (data as { role?: string } | null)?.role ?? null;
     if (!role) {
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .limit(5);
       if (rolesError) {
         const fallback = profileRef.current ?? fallbackProfile(authUser);
         if (fallback) storeProfile(fallback);
         return fallback;
       }
-      const raw = roles?.[0]?.role as string | undefined;
       if (
-        raw === "manager" ||
-        raw === "ops" ||
-        raw === "finance" ||
-        raw === "rh" ||
-        raw === "fleet_manager"
+        internalRole === "manager" ||
+        internalRole === "ops" ||
+        internalRole === "finance" ||
+        internalRole === "rh" ||
+        internalRole === "fleet_manager"
       ) {
         role = "admin";
-      } else if (raw === "provider") {
+      } else if (internalRole === "provider") {
         role = "partner";
-      } else if (raw) {
-        role = raw;
+      } else if (internalRole) {
+        role = internalRole;
       }
     }
 
@@ -156,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const nextProfile = {
       id: userId,
       role: (role ?? "client") as Profile["role"],
+      internalRole: internalRole ?? role ?? null,
       full_name: (data as { full_name?: string } | null)?.full_name ?? "",
       phone: (data as { phone?: string | null } | null)?.phone ?? null,
       avatar_url: (data as { avatar_url?: string | null } | null)?.avatar_url ?? null,
