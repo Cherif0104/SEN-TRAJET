@@ -19,6 +19,7 @@ import {
   ClipboardList,
   UserCog,
   CircleUserRound,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -37,13 +38,17 @@ const nav = [
   { href: "/admin/partenaires", labelKey: "nav.partners" as const, icon: Building2 },
   { href: "/admin/proprietaires", labelKey: "nav.owners" as const, icon: Landmark },
   { href: "/admin/clients", labelKey: "nav.clients" as const, icon: Contact },
-  { href: "/admin/utilisateurs", labelKey: "nav.users" as const, icon: UserCog },
   { href: "/admin/vehicules", labelKey: "nav.fleet" as const, icon: Car },
   { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
   { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },
   { href: "/admin/rapports", labelKey: "nav.reports" as const, icon: BarChart3 },
   { href: "/admin/profil", labelKey: "nav.profile" as const, icon: CircleUserRound },
+  // Administration profonde — réservée au Super Admin, volontairement en fin de liste
+  // pour ne pas mélanger paramètres techniques et modules opérationnels.
+  { href: "/admin/utilisateurs", labelKey: "nav.users" as const, icon: UserCog },
+  { href: "/admin/roles", label: "Rôles", icon: ShieldCheck },
   { href: "/admin/parametres", labelKey: "nav.settings" as const, icon: Settings },
+  { href: "/admin/securite", label: "Sécurité", icon: ShieldCheck },
 ];
 
 const mobileNav = nav.filter((item) =>
@@ -82,10 +87,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!profile) return <ProfileAccessRecovery />;
   if (!canAccessAdminZone(profile.role)) return <BrandedLoader fullScreen />;
 
+  const superAdminOnlyHrefs = ["/admin/utilisateurs", "/admin/roles", "/admin/securite"];
   const visibleNav =
     profile?.role === "super_admin"
       ? nav
-      : nav.filter((item) => item.href !== "/admin/utilisateurs");
+      : nav.filter((item) => !superAdminOnlyHrefs.includes(item.href));
   const visibleMobileNav = mobileNav.filter((item) =>
     visibleNav.some((visible) => visible.href === item.href),
   );
