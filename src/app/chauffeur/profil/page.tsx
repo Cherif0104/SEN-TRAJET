@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
 import {
   updateProfile,
   getDriverVehicles,
@@ -15,8 +14,6 @@ import {
   deleteVehicle,
   getDriverDocuments,
   getDriverDocumentFiles,
-  getDriverNotificationPreferences,
-  upsertDriverNotificationPreferences,
   type VehicleInsert,
   type DriverDocumentFileRow,
 } from "@/lib/profiles";
@@ -49,7 +46,6 @@ import {
   type ServiceClassLevel,
 } from "@/lib/vehicleFormTaxonomy";
 import { getDriverComplianceChecks, scheduleDriverComplianceLifecycle, type ComplianceCheck } from "@/lib/compliance";
-import { createRentalListing, type TransportVehicleCategory } from "@/lib/rentals";
 import { AccountAvatarUploader } from "@/components/account/AccountAvatarUploader";
 import { AccountSecurityActions } from "@/components/account/AccountSecurityActions";
 
@@ -137,14 +133,6 @@ export default function ProfilChauffeurPage() {
   const [vehicleFormError, setVehicleFormError] = useState<string | null>(null);
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
-  const [notifyNewRequests, setNotifyNewRequests] = useState(true);
-  const [notifyMatchingTrips, setNotifyMatchingTrips] = useState(true);
-  const [digestEnabled, setDigestEnabled] = useState(true);
-  const [maxNotifsPerDay, setMaxNotifsPerDay] = useState(6);
-  const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
-  const [publishingRentalVehicleId, setPublishingRentalVehicleId] = useState<string | null>(null);
-  const [rentalFeedback, setRentalFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
-
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
@@ -160,15 +148,6 @@ export default function ProfilChauffeurPage() {
     getDriverDocumentFiles(user.id)
       .then(setDocFileRows)
       .catch(() => setDocFileRows([]));
-    getDriverNotificationPreferences(user.id)
-      .then((prefs) => {
-        if (!prefs) return;
-        setNotifyNewRequests(prefs.notify_new_requests);
-        setNotifyMatchingTrips(prefs.notify_matching_trips);
-        setDigestEnabled(prefs.digest_enabled);
-        setMaxNotifsPerDay(prefs.max_notifications_per_day);
-      })
-      .catch(() => {});
     getDriverComplianceChecks(user.id).then(async (checks) => {
       if (checks.length === 0) {
         try {
@@ -650,108 +629,6 @@ export default function ProfilChauffeurPage() {
     }
   };
 
-  const handleSaveNotificationPreferences = async () => {
-    if (!user) return;
-    setSavingNotifPrefs(true);
-    try {
-      await upsertDriverNotificationPreferences({
-        driver_id: user.id,
-        notify_new_requests: notifyNewRequests,
-        notify_matching_trips: notifyMatchingTrips,
-        digest_enabled: digestEnabled,
-        max_notifications_per_day: maxNotifsPerDay,
-      });
-    } finally {
-      setSavingNotifPrefs(false);
-    }
-  };
-
-  const canPublishVehicleToRental = (vehicle: Vehicle) => {
-    const sc = vehicle.service_class;
-    if (sc && ["confort", "confort_plus", "premium", "premium_plus"].includes(sc)) return true;
-    return vehicle.category === "confort" || vehicle.category === "premium";
-  };
-
-  const publishVehicleToRental = async (vehicle: Vehicle) => {
-    if (!user) return;
-    setRentalFeedback(null);
-    if (!profile?.city?.trim()) {
-      setRentalFeedback({
-        tone: "error",
-        message: "Renseignez d'abord votre ville dans votre profil chauffeur.",
-      });
-      return;
-    }
-    if (!canPublishVehicleToRental(vehicle)) {
-      setRentalFeedback({
-        tone: "error",
-        message:
-          "Seuls les véhicules en classe Confort, Confort+, Premium ou Premium+ peuvent être publiés en location.",
-      });
-      return;
-    }
-
-    setPublishingRentalVehicleId(vehicle.id);
-    try {
-      const { data: existing } = await supabase
-        .from("rental_listings")
-        .select("id")
-        .eq("owner_profile_id", user.id)
-        .eq("plate_number", vehicle.plate_number)
-        .maybeSingle();
-
-      if (existing?.id) {
-        setRentalFeedback({
-          tone: "success",
-          message: "Ce véhicule est déjà présent dans votre catalogue location.",
-        });
-        return;
-      }
-
-      const transportCategory: TransportVehicleCategory | undefined =
-        vehicle.transport_vehicle_category &&
-        isVehicleTypeFilterString(vehicle.transport_vehicle_category)
-          ? (vehicle.transport_vehicle_category as TransportVehicleCategory)
-          : undefined;
-      const serviceClassPublish: ServiceClassLevel =
-        vehicle.service_class &&
-        (SERVICE_CLASS_VALUES as readonly string[]).includes(vehicle.service_class)
-          ? (vehicle.service_class as ServiceClassLevel)
-          : "confort";
-
-      await createRentalListing({
-        ownerProfileId: user.id,
-        operatingMode: "marketplace_partner",
-        title: `${vehicle.brand} ${vehicle.model}`.trim(),
-        brand: vehicle.brand,
-        model: vehicle.model,
-        plateNumber: vehicle.plate_number,
-        city: profile.city.trim(),
-        dailyRateFcfa: 30000,
-        transportVehicleCategory: transportCategory,
-        serviceClass: serviceClassPublish,
-        rentalMode: "with_driver",
-        year: vehicle.year,
-        seats: vehicle.seats,
-        hasAirConditioning: vehicle.air_conditioning,
-        acOperational: vehicle.air_conditioning,
-      });
-
-      setRentalFeedback({
-        tone: "success",
-        message:
-          "Véhicule ajouté à la location (statut en revue). Vous pouvez ajuster le tarif dans l'espace partenaire/location.",
-      });
-    } catch (err) {
-      setRentalFeedback({
-        tone: "error",
-        message: err instanceof Error ? err.message : "Impossible de publier ce véhicule en location.",
-      });
-    } finally {
-      setPublishingRentalVehicleId(null);
-    }
-  };
-
   return (
     <>
       <h1 className="text-xl font-bold text-neutral-900">Mon profil</h1>
@@ -821,18 +698,6 @@ export default function ProfilChauffeurPage() {
           <Plus className="mr-1 h-4 w-4" /> Ajouter
         </Button>
       </div>
-      {rentalFeedback && (
-        <p
-          className={`mt-2 rounded-lg px-3 py-2 text-sm ${
-            rentalFeedback.tone === "success"
-              ? "bg-emerald-50 text-emerald-800"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          {rentalFeedback.message}
-        </p>
-      )}
-
       {vehicles.length === 0 && !showAddVehicle && (
         <Card className="mt-3">
           <p className="text-sm text-neutral-500">
@@ -941,19 +806,6 @@ export default function ProfilChauffeurPage() {
                 )}
                 <Button size="sm" variant="ghost" onClick={() => startEditVehicle(v)}>
                   <Pencil className="mr-1 h-3.5 w-3.5" /> Modifier
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => publishVehicleToRental(v)}
-                  disabled={publishingRentalVehicleId === v.id || !canPublishVehicleToRental(v)}
-                  title={
-                    canPublishVehicleToRental(v)
-                      ? "Publier ce véhicule en location"
-                      : "Nécessite au moins la classe Confort"
-                  }
-                >
-                  {publishingRentalVehicleId === v.id ? "..." : "Mettre en location"}
                 </Button>
                 <Button
                   size="sm"
@@ -1096,62 +948,6 @@ export default function ProfilChauffeurPage() {
         )}
       </Card>
 
-      <Card className="mt-6">
-        <h3 className="text-base font-semibold text-neutral-900">Préférences de notifications</h3>
-        <p className="mt-1 text-sm text-neutral-600">
-          Réglez les alertes ciblées et limitez le volume journalier.
-        </p>
-        <div className="mt-4 space-y-3">
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
-            Recevoir les nouvelles demandes proches
-            <input
-              type="checkbox"
-              checked={notifyNewRequests}
-              onChange={(e) => setNotifyNewRequests(e.target.checked)}
-              className="rounded border-neutral-300"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
-            Recevoir les alertes de trajets compatibles
-            <input
-              type="checkbox"
-              checked={notifyMatchingTrips}
-              onChange={(e) => setNotifyMatchingTrips(e.target.checked)}
-              className="rounded border-neutral-300"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700">
-            Digest quotidien (au lieu d&apos;alertes unitaires)
-            <input
-              type="checkbox"
-              checked={digestEnabled}
-              onChange={(e) => setDigestEnabled(e.target.checked)}
-              className="rounded border-neutral-300"
-            />
-          </label>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-800">
-              Maximum de notifications par jour
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={maxNotifsPerDay}
-              onChange={(e) => setMaxNotifsPerDay(Number(e.target.value || 1))}
-              className="w-full min-h-[44px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-        </div>
-        <Button
-          size="sm"
-          className="mt-4"
-          isLoading={savingNotifPrefs}
-          onClick={handleSaveNotificationPreferences}
-        >
-          Enregistrer les préférences
-        </Button>
-      </Card>
     </>
   );
 }
