@@ -129,6 +129,7 @@ function ReserverWizard() {
   const [error, setError] = useState<string | null>(null);
   const [doneRef, setDoneRef] = useState<string | null>(null);
   const [payLink, setPayLink] = useState<string | null>(null);
+  const [pendingResumeDraft, setPendingResumeDraft] = useState<SimulationDraft | null>(null);
 
   useEffect(() => {
     const resume = searchParams.get("resume") === "1";
@@ -166,11 +167,28 @@ function ReserverWizard() {
       if (destination && !next.dropoff) next.dropoff = destination;
       setDraft(next);
     } else if (stored && stored.step !== "done" && stored.step !== "service") {
-      setDraft(stored);
+      // Ne jamais reprendre automatiquement et silencieusement une simulation en cours :
+      // l'utilisateur doit pouvoir choisir de continuer ou de repartir de zéro.
+      setPendingResumeDraft(stored);
     }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function resumeStoredDraft() {
+    if (!pendingResumeDraft) return;
+    setDraft(pendingResumeDraft);
+    setPendingResumeDraft(null);
+  }
+
+  function startFreshDraft() {
+    clearSimulationDraft();
+    setPendingResumeDraft(null);
+    setDraft(emptyDraft());
+    setDoneRef(null);
+    setPayLink(null);
+    router.replace("/reserver");
+  }
 
   useEffect(() => {
     void listBusinessRules().then((rules) => {
@@ -471,6 +489,44 @@ function ReserverWizard() {
     );
   }
 
+  if (pendingResumeDraft) {
+    return (
+      <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10">
+        <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white p-6 shadow-[0_20px_50px_-28px_rgba(7,17,31,0.45)] sm:p-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a6a1f]">
+            SentraJet Premium
+          </p>
+          <h1 className="mt-2 font-display text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
+            Réservation en cours
+          </h1>
+          <p className="mt-2 text-sm text-neutral-600">
+            Vous avez une simulation non terminée
+            {pendingResumeDraft.pickup && pendingResumeDraft.dropoff
+              ? ` (${pendingResumeDraft.pickup} → ${pendingResumeDraft.dropoff})`
+              : ""}
+            . Voulez-vous la reprendre où vous en étiez, ou démarrer une nouvelle réservation ?
+          </p>
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              className="w-full rounded-2xl bg-[#07111f] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#0d1a2e]"
+              onClick={resumeStoredDraft}
+            >
+              Reprendre ma réservation
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-2xl border border-neutral-300 px-4 py-3.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
+              onClick={startFreshDraft}
+            >
+              Nouvelle réservation
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const livePriceReady = Boolean(draft.pickupPlace && draft.dropoffPlace && draft.distanceKm);
   const currentServiceTitle = t(
     SERVICE_CARDS.find((service) => service.value === draft.serviceType)?.title ??
@@ -512,6 +568,19 @@ function ReserverWizard() {
             <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/15">
               <div className="h-full rounded-full bg-[#d5a64a] transition-all" style={{ width: `${progress}%` }} />
             </div>
+          ) : null}
+          {draft.step !== "service" && draft.step !== "done" ? (
+            <button
+              type="button"
+              className="mt-3 text-xs font-semibold text-white/60 underline underline-offset-2 hover:text-white/90"
+              onClick={() => {
+                if (window.confirm("Recommencer une nouvelle réservation ? Les informations déjà saisies seront perdues.")) {
+                  startFreshDraft();
+                }
+              }}
+            >
+              Recommencer une nouvelle réservation
+            </button>
           ) : null}
         </div>
 
@@ -947,13 +1016,7 @@ function ReserverWizard() {
           <button
             type="button"
             className="w-full text-sm font-semibold text-amber-800"
-            onClick={() => {
-              clearSimulationDraft();
-              setDoneRef(null);
-              setPayLink(null);
-              setDraft(emptyDraft());
-              router.replace("/reserver");
-            }}
+            onClick={startFreshDraft}
           >
             Nouvelle réservation
           </button>
