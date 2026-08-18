@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, MapPin, Phone } from "lucide-react";
+import { AlertTriangle, ArrowLeft, MapPin, MessageSquareWarning, Phone, Star } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import {
   BOOKING_STATUS_LABEL,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { quoteCancellation, type CancellationQuote } from "@/lib/engines/cancellation";
+import { COMPLAINT_CATEGORIES, submitComplaint } from "@/lib/ratingsAndComplaints";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 
 const TERMINAL = ["annulee_client", "annulee_sentrajet", "terminee", "remboursee", "remboursement_en_cours", "no_show"];
@@ -32,6 +33,12 @@ export default function CompteReservationDetailPage() {
   const [preview, setPreview] = useState<CancellationQuote | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [showComplaint, setShowComplaint] = useState(false);
+  const [complaintCategory, setComplaintCategory] = useState<string>(COMPLAINT_CATEGORIES[0][0]);
+  const [complaintMessage, setComplaintMessage] = useState("");
+  const [complaintSending, setComplaintSending] = useState(false);
+  const [complaintSent, setComplaintSent] = useState(false);
+  const [complaintError, setComplaintError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -70,6 +77,26 @@ export default function CompteReservationDetailPage() {
       setCancelError(err instanceof Error ? err.message : "Impossible d’annuler cette réservation.");
     } finally {
       setCancelling(false);
+    }
+  }
+
+  async function sendComplaint(e: React.FormEvent) {
+    e.preventDefault();
+    if (!booking?.client_id || !complaintMessage.trim()) return;
+    setComplaintSending(true);
+    setComplaintError(null);
+    try {
+      await submitComplaint({
+        bookingId: booking.id,
+        clientId: booking.client_id,
+        category: complaintCategory,
+        message: complaintMessage.trim(),
+      });
+      setComplaintSent(true);
+    } catch (err) {
+      setComplaintError(err instanceof Error ? err.message : "Impossible d’envoyer votre réclamation.");
+    } finally {
+      setComplaintSending(false);
     }
   }
 
@@ -166,12 +193,55 @@ export default function CompteReservationDetailPage() {
         <a href={whatsappHref} target="_blank" rel="noreferrer" className="sj-btn">
           Contacter SentraJet
         </a>
+        {booking.status === "terminee" ? (
+          <Link href={`/avis/${booking.id}`} className="sj-btn">
+            <Star className="mr-1 inline h-4 w-4" /> Laisser un avis
+          </Link>
+        ) : null}
+        <button type="button" className="sj-btn" onClick={() => setShowComplaint(true)}>
+          <MessageSquareWarning className="mr-1 inline h-4 w-4" /> Signaler un problème
+        </button>
         {isCancellable ? (
           <button type="button" className="sj-btn" style={{ color: "var(--color-error)" }} onClick={() => void openCancelPreview()}>
             Annuler la réservation
           </button>
         ) : null}
       </div>
+
+      {showComplaint ? (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <SjCard style={{ maxWidth: 420, width: "100%" }}>
+            <h3 style={{ marginTop: 0 }}>Signaler un problème</h3>
+            {complaintSent ? (
+              <p style={{ color: "#6de0b0" }}>Réclamation envoyée. L’équipe SentraJet va l’examiner.</p>
+            ) : (
+              <form onSubmit={sendComplaint}>
+                <div className="sj-field">
+                  <label>Catégorie</label>
+                  <select value={complaintCategory} onChange={(e) => setComplaintCategory(e.target.value)}>
+                    {COMPLAINT_CATEGORIES.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sj-field">
+                  <label>Description *</label>
+                  <textarea rows={3} value={complaintMessage} onChange={(e) => setComplaintMessage(e.target.value)} required />
+                </div>
+                {complaintError ? <p style={{ color: "var(--color-error)" }}>{complaintError}</p> : null}
+                <div className="sj-toolbar" style={{ marginTop: 12 }}>
+                  <button type="button" className="sj-btn" onClick={() => setShowComplaint(false)} disabled={complaintSending}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="sj-btn sj-btn-primary" disabled={complaintSending || !complaintMessage.trim()}>
+                    {complaintSending ? "Envoi…" : "Envoyer la réclamation"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </SjCard>
+        </div>
+      ) : null}
 
       {confirming && preview ? (
         <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4 sm:items-center">

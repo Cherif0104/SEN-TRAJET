@@ -17,6 +17,7 @@ import {
   type PlatformDriver,
   type PlatformVehicle,
 } from "@/lib/platformOps";
+import { listAllComplaints } from "@/lib/ratingsAndComplaints";
 import { supabase } from "@/lib/supabase";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
@@ -33,6 +34,7 @@ export default function OpsHomePage() {
   const [vehicles, setVehicles] = useState<PlatformVehicle[]>([]);
   const [payments, setPayments] = useState<PendingPayment[]>([]);
   const [incidents, setIncidents] = useState<IncidentRow[]>([]);
+  const [openComplaints, setOpenComplaints] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function OpsHomePage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [b, d, v, p, notif] = await Promise.all([
+        const [b, d, v, p, notif, complaints] = await Promise.all([
           listPlatformBookings().catch(() => []),
           listDrivers().catch(() => []),
           listVehicles().catch(() => []),
@@ -52,12 +54,14 @@ export default function OpsHomePage() {
             .ilike("subject", "%Incident%")
             .order("created_at", { ascending: false })
             .limit(5),
+          listAllComplaints().catch(() => []),
         ]);
         setBookings(b);
         setDrivers(d);
         setVehicles(v);
         setPayments(p);
         setIncidents((notif.data ?? []) as IncidentRow[]);
+        setOpenComplaints(complaints.filter((c) => c.status === "ouverte" || c.status === "en_cours").length);
       } finally {
         setLoading(false);
       }
@@ -109,7 +113,10 @@ export default function OpsHomePage() {
 
       {incidents.length ? (
         <>
-          <SjSectionHead title="Incidents signalés" />
+          <SjSectionHead
+            title="Incidents signalés"
+            action={<Link href="/ops/reclamations" className="sj-btn sj-btn-ghost">Réclamations →</Link>}
+          />
           <div className="sj-list">
             {incidents.map((i) => (
               <SjCard key={i.id}>
@@ -125,6 +132,17 @@ export default function OpsHomePage() {
             ))}
           </div>
         </>
+      ) : null}
+
+      {openComplaints ? (
+        <Link href="/ops/reclamations">
+          <SjCard style={{ marginTop: 16, borderColor: "var(--color-warning)" }}>
+            <div className="sj-between">
+              <span>⚠ {openComplaints} réclamation{openComplaints !== 1 ? "s" : ""} client à traiter</span>
+              <span className="sj-gold">Traiter →</span>
+            </div>
+          </SjCard>
+        </Link>
       ) : null}
 
       <SjSectionHead

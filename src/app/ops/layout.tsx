@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, ArrowLeftRight, Route, Car } from "lucide-react";
+import { LayoutDashboard, ClipboardList, ArrowLeftRight, Route, Car, MessageSquareWarning } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessOpsZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
@@ -15,7 +15,10 @@ const nav = [
   { href: "/ops/dispatch", label: "Dispatch", icon: ArrowLeftRight },
   { href: "/ops/missions", label: "Missions", icon: Route },
   { href: "/ops/flotte", label: "Flotte", icon: Car },
+  { href: "/ops/reclamations", label: "Réclamations", icon: MessageSquareWarning },
 ];
+
+const mobileNav = nav.slice(0, 4);
 
 export default function OpsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -39,7 +42,7 @@ export default function OpsLayout({ children }: { children: React.ReactNode }) {
   if (!canAccessOpsZone(profile.internalRole, profile.role)) return <BrandedLoader fullScreen />;
 
   return (
-    <PremiumShell title="Opérations" subtitle="Cockpit opérationnel SentraJet Premium" nav={nav}>
+    <PremiumShell title="Opérations" subtitle="Cockpit opérationnel SentraJet Premium" nav={nav} mobileNav={mobileNav}>
       {children}
     </PremiumShell>
   );
