@@ -11,13 +11,16 @@ import {
   type PlatformBooking,
 } from "@/lib/platformOps";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { BookingLiveMap } from "@/components/map/BookingLiveMap";
 
 const ONGOING_STATUSES = ["chauffeur_assigne", "chauffeur_en_route", "chauffeur_arrive", "client_pris_en_charge", "en_cours"];
+const LIVE_TRACKING_STATUSES = ["chauffeur_en_route", "chauffeur_arrive", "client_pris_en_charge", "en_cours"];
 
 export default function OpsMissionsPage() {
   const [bookings, setBookings] = useState<PlatformBooking[]>([]);
   const [payments, setPayments] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedMapId, setExpandedMapId] = useState<string | null>(null);
 
   useEffect(() => {
     void Promise.all([listPlatformBookings().catch(() => []), listPendingPayments().catch(() => [])])
@@ -47,6 +50,23 @@ export default function OpsMissionsPage() {
               </div>
               <SjBadge tone={bookingStatusTone(b.status)}>{BOOKING_STATUS_LABEL[b.status] ?? b.status}</SjBadge>
             </div>
+            {LIVE_TRACKING_STATUSES.includes(b.status) ? (
+              <>
+                <button
+                  type="button"
+                  className="sj-btn sj-btn-ghost"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setExpandedMapId((cur) => (cur === b.id ? null : b.id))}
+                >
+                  {expandedMapId === b.id ? "Masquer la carte" : "Voir sur la carte"}
+                </button>
+                {expandedMapId === b.id ? (
+                  <div style={{ marginTop: 8 }}>
+                    <BookingLiveMap bookingId={b.id} userRole="client" trackingEnabled={false} />
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </SjCard>
         ))}
         {!bookings.length ? <SjCard><p className="sj-muted">Aucune mission en cours actuellement.</p></SjCard> : null}

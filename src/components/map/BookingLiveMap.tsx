@@ -3,38 +3,39 @@
 import { useEffect, useRef, useState } from "react";
 import { Map } from "./Map";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { useTripLocations } from "@/hooks/useTripLocations";
-import { pushTripLocation } from "@/lib/tripLocations";
+import { useBookingLocations } from "@/hooks/useBookingLocations";
+import { pushBookingLocation } from "@/lib/bookingLocations";
 import { MapPin, Navigation } from "lucide-react";
 import type { MapMarker } from "./Map";
 import { computeDistanceKm } from "@/lib/geo";
 
-interface TripLiveMapProps {
-  tripId: string;
+interface BookingLiveMapProps {
+  bookingId: string;
   fromCity?: string;
   toCity?: string;
-  /** Rôle: client partage sa position, driver partage la sienne */
+  /** Rôle : le client partage sa position, le chauffeur partage la sienne. */
   userRole?: "client" | "driver";
-  /** Active/désactive le tracking live automatique */
+  /** Active/désactive le partage automatique de la position de l'utilisateur courant. */
   trackingEnabled?: boolean;
   className?: string;
 }
 
-const POSITION_PUSH_INTERVAL_MS = 10000;
+const POSITION_PUSH_INTERVAL_MS = 15000;
 
-export function TripLiveMap({
-  tripId,
+export function BookingLiveMap({
+  bookingId,
   fromCity,
   toCity,
   userRole = "client",
   trackingEnabled = true,
   className = "",
-}: TripLiveMapProps) {
+}: BookingLiveMapProps) {
   const [trackingReady, setTrackingReady] = useState(false);
-  const { position: myPosition, getPosition, startWatching, stopWatching } =
-    useGeolocation({ enableHighAccuracy: true, timeout: 10000 });
-  const { clientPosition, driverPosition, loading } =
-    useTripLocations(tripId);
+  const { position: myPosition, getPosition, startWatching, stopWatching } = useGeolocation({
+    enableHighAccuracy: true,
+    timeout: 10000,
+  });
+  const { clientPosition, driverPosition, loading } = useBookingLocations(bookingId);
   const pushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const markers: MapMarker[] = [];
@@ -50,12 +51,8 @@ export function TripLiveMap({
       : driverPosition
         ? { lat: driverPosition.lat, lng: driverPosition.lng, label: "Chauffeur" }
         : null;
-  if (clientCoords) {
-    markers.push({ ...clientCoords, type: "depart" });
-  }
-  if (driverCoords) {
-    markers.push({ ...driverCoords, type: "arrival" });
-  }
+  if (clientCoords) markers.push({ ...clientCoords, type: "depart" });
+  if (driverCoords) markers.push({ ...driverCoords, type: "arrival" });
 
   const driverToClientKm =
     clientCoords && driverCoords
@@ -66,10 +63,10 @@ export function TripLiveMap({
       : null;
 
   useEffect(() => {
-    if (!trackingEnabled || !trackingReady || !tripId || !myPosition) return;
+    if (!trackingEnabled || !trackingReady || !bookingId || !myPosition) return;
 
     const push = async () => {
-      await pushTripLocation(tripId, userRole, {
+      await pushBookingLocation(bookingId, userRole, {
         lat: myPosition.lat,
         lng: myPosition.lng,
         accuracy: myPosition.accuracy,
@@ -78,7 +75,7 @@ export function TripLiveMap({
       });
     };
 
-    push();
+    void push();
     pushIntervalRef.current = setInterval(push, POSITION_PUSH_INTERVAL_MS);
     return () => {
       if (pushIntervalRef.current) {
@@ -86,7 +83,7 @@ export function TripLiveMap({
         pushIntervalRef.current = null;
       }
     };
-  }, [tripId, trackingEnabled, trackingReady, userRole, myPosition]);
+  }, [bookingId, trackingEnabled, trackingReady, userRole, myPosition]);
 
   useEffect(() => {
     if (!trackingEnabled) {
@@ -108,43 +105,36 @@ export function TripLiveMap({
 
   return (
     <div className={className}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm text-neutral-600">
-          {trackingEnabled && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-emerald-800">
-              <Navigation className="h-3.5 w-3.5" />
-              Suivi live auto
-            </span>
-          )}
-          {clientPosition && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary">
-              <MapPin className="h-3.5 w-3.5" />
-              Client localisé
-            </span>
-          )}
-          {driverPosition && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2 py-1 text-secondary">
-              <Navigation className="h-3.5 w-3.5" />
-              Chauffeur en route
-            </span>
-          )}
-          {loading && (
-            <span className="text-neutral-500">Chargement des positions…</span>
-          )}
-          {driverToClientKm != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-1 text-sky-800">
-              Distance client/chauffeur: {driverToClientKm.toFixed(1)} km
-            </span>
-          )}
-        </div>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        {trackingEnabled ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">
+            <Navigation className="h-3.5 w-3.5" /> Suivi live actif
+          </span>
+        ) : null}
+        {driverPosition ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">
+            <MapPin className="h-3.5 w-3.5" /> Chauffeur localisé
+          </span>
+        ) : null}
+        {loading ? <span className="text-xs text-neutral-500">Chargement de la position…</span> : null}
+        {driverToClientKm != null ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-1 text-xs text-sky-800">
+            Distance : {driverToClientKm.toFixed(1)} km
+          </span>
+        ) : null}
       </div>
       <Map
-        height="280px"
+        height="240px"
         markers={markers.length > 0 ? markers : undefined}
         fromCity={fromCity}
         toCity={toCity}
         zoom={markers.length >= 2 ? 12 : 10}
       />
+      {!driverPosition && !loading ? (
+        <p className="mt-2 text-xs text-neutral-500">
+          Position du chauffeur pas encore disponible — elle apparaît dès qu&apos;il active le suivi.
+        </p>
+      ) : null}
     </div>
   );
 }

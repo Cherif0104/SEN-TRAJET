@@ -2,35 +2,27 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchLatestBookingLocations, type BookingLocationRow } from "@/lib/bookingLocations";
 
 const realtimeOff =
-  typeof process !== "undefined" &&
-  process.env.NEXT_PUBLIC_SUPABASE_REALTIME === "false";
-import {
-  fetchLatestTripLocations,
-  type TripLocationRow,
-} from "@/lib/tripLocations";
+  typeof process !== "undefined" && process.env.NEXT_PUBLIC_SUPABASE_REALTIME === "false";
 
-interface UseTripLocationsResult {
-  clientPosition: TripLocationRow | null;
-  driverPosition: TripLocationRow | null;
+interface UseBookingLocationsResult {
+  clientPosition: BookingLocationRow | null;
+  driverPosition: BookingLocationRow | null;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
 
-export function useTripLocations(tripId: string | null): UseTripLocationsResult {
-  const [clientPosition, setClientPosition] = useState<TripLocationRow | null>(
-    null
-  );
-  const [driverPosition, setDriverPosition] = useState<TripLocationRow | null>(
-    null
-  );
+export function useBookingLocations(bookingId: string | null): UseBookingLocationsResult {
+  const [clientPosition, setClientPosition] = useState<BookingLocationRow | null>(null);
+  const [driverPosition, setDriverPosition] = useState<BookingLocationRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
-    if (!tripId) {
+    if (!bookingId) {
       setClientPosition(null);
       setDriverPosition(null);
       setLoading(false);
@@ -39,35 +31,35 @@ export function useTripLocations(tripId: string | null): UseTripLocationsResult 
     setLoading(true);
     setError(null);
     try {
-      const { client, driver } = await fetchLatestTripLocations(tripId);
+      const { client, driver } = await fetchLatestBookingLocations(bookingId);
       setClientPosition(client);
       setDriverPosition(driver);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur chargement");
+      setError(err instanceof Error ? err.message : "Erreur de chargement de la position.");
     } finally {
       setLoading(false);
     }
-  }, [tripId]);
+  }, [bookingId]);
 
   useEffect(() => {
-    refetch();
+    void refetch();
   }, [refetch]);
 
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
 
   useEffect(() => {
-    if (!tripId || realtimeOff) return;
+    if (!bookingId || realtimeOff) return;
 
     const channel = supabase
-      .channel(`trip_locations:${tripId}`)
+      .channel(`booking_locations:${bookingId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "trip_locations",
-          filter: `trip_id=eq.${tripId}`,
+          table: "booking_locations",
+          filter: `booking_id=eq.${bookingId}`,
         },
         () => {
           void refetchRef.current();
@@ -82,13 +74,7 @@ export function useTripLocations(tripId: string | null): UseTripLocationsResult 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tripId]);
+  }, [bookingId]);
 
-  return {
-    clientPosition,
-    driverPosition,
-    loading,
-    error,
-    refetch,
-  };
+  return { clientPosition, driverPosition, loading, error, refetch };
 }

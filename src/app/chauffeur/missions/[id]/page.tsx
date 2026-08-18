@@ -16,9 +16,11 @@ import {
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { BookingLiveMap } from "@/components/map/BookingLiveMap";
 
 const ISSUE_PRESETS = ["Retard", "Client absent", "Problème véhicule", "Autre"];
 const TERMINAL = ["terminee", "annulee_client", "annulee_sentrajet", "no_show"];
+const LIVE_TRACKING_STATUSES = ["chauffeur_en_route", "chauffeur_arrive", "client_pris_en_charge", "en_cours"];
 
 export default function ChauffeurMissionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -138,6 +140,13 @@ export default function ChauffeurMissionDetailPage() {
           ) : null}
         </div>
       </SjCard>
+
+      {LIVE_TRACKING_STATUSES.includes(booking.status) ? (
+        <SjCard style={{ marginTop: 16 }}>
+          <div className="sj-muted" style={{ marginBottom: 8 }}>Partage de votre position</div>
+          <BookingLiveMap bookingId={booking.id} userRole="driver" trackingEnabled />
+        </SjCard>
+      ) : null}
 
       <div style={{ marginTop: 16 }}>
         {next && !isDone ? (

@@ -18,8 +18,10 @@ import { formatFcfa } from "@/lib/sentrajetPricing";
 import { quoteCancellation, type CancellationQuote } from "@/lib/engines/cancellation";
 import { COMPLAINT_CATEGORIES, submitComplaint } from "@/lib/ratingsAndComplaints";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { BookingLiveMap } from "@/components/map/BookingLiveMap";
 
 const TERMINAL = ["annulee_client", "annulee_sentrajet", "terminee", "remboursee", "remboursement_en_cours", "no_show"];
+const LIVE_TRACKING_STATUSES = ["chauffeur_en_route", "chauffeur_arrive", "client_pris_en_charge", "en_cours"];
 const WHATSAPP_PHONE = "221788324069";
 
 export default function CompteReservationDetailPage() {
@@ -175,6 +177,15 @@ export default function CompteReservationDetailPage() {
           <p className="sj-muted">En cours d’affectation par l’équipe SentraJet.</p>
         )}
       </SjCard>
+
+      {driver && LIVE_TRACKING_STATUSES.includes(booking.status) ? (
+        <>
+          <SjSectionHead title="Suivi en direct" />
+          <SjCard>
+            <BookingLiveMap bookingId={booking.id} userRole="client" trackingEnabled={false} />
+          </SjCard>
+        </>
+      ) : null}
 
       <SjSectionHead title="Suivi de la réservation" />
       <SjCard>
