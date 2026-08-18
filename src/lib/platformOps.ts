@@ -679,7 +679,7 @@ export async function createPaymentForBooking(input: {
   providerRef?: string | null;
   status?: string;
 }) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("payments")
     .insert({
       booking_id: input.bookingId,
@@ -688,9 +688,41 @@ export async function createPaymentForBooking(input: {
       provider_ref: input.providerRef ?? null,
       provider: "wave",
       status: input.status ?? "pending",
-    });
+    })
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
-  return { booking_id: input.bookingId, status: input.status ?? "pending" };
+  // maybeSingle() peut ne rien renvoyer pour une réservation anonyme (RLS ne permet pas la
+  // relecture immédiate sans compte lié) — ce n'est pas une erreur, seul le lien de paiement
+  // Wave dédié ne pourra pas être généré, avec repli automatique sur le lien marchand générique.
+  return { id: data?.id as string | undefined, booking_id: input.bookingId, status: input.status ?? "pending" };
+}
+
+/**
+ * Tente de créer une session de paiement Wave réelle pour ce paiement de réservation.
+ * Si aucune clé Wave n'est configurée côté serveur (mode simulation), renvoie null pour que
+ * l'appelant puisse retomber sur le lien Wave marchand générique déjà en place.
+ */
+export async function createBookingWaveCheckout(paymentId: string): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/checkout/wave/booking", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ paymentId }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { checkout_url?: string | null; simulation?: boolean };
+    if (!res.ok || !data.checkout_url) return null;
+    return data.checkout_url;
+  } catch {
+    return null;
+  }
 }
 
 export async function markBookingPaid(bookingId: string, providerRef?: string) {

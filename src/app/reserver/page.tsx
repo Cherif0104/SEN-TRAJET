@@ -20,6 +20,7 @@ import {
 } from "@/lib/sentrajetPricing";
 import { listBusinessRules, ruleNumber, ruleString } from "@/lib/engines/businessRules";
 import {
+  createBookingWaveCheckout,
   createPaymentForBooking,
   createPlatformBooking,
   ensureClientForUser,
@@ -113,6 +114,7 @@ function ReserverWizard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [doneRef, setDoneRef] = useState<string | null>(null);
+  const [payLink, setPayLink] = useState<string | null>(null);
 
   useEffect(() => {
     const resume = searchParams.get("resume") === "1";
@@ -407,12 +409,16 @@ function ReserverWizard() {
       }
 
       if (quote.amountFcfa > 0) {
-        await createPaymentForBooking({
+        const payment = await createPaymentForBooking({
           bookingId: booking.id,
           amountFcfa: quote.amountFcfa,
           bookingRef: booking.reference,
           status: "pending",
         }).catch(() => null);
+        if (payment?.id) {
+          const checkoutUrl = await createBookingWaveCheckout(payment.id).catch(() => null);
+          if (checkoutUrl) setPayLink(checkoutUrl);
+        }
       }
 
       setDoneRef(booking.reference || booking.id.slice(0, 8));
@@ -828,6 +834,16 @@ function ReserverWizard() {
           <p className="text-sm text-neutral-600">
             Réf. <strong>{doneRef}</strong> — SentraJet vous recontacte pour valider le devis et le paiement.
           </p>
+          {payLink ? (
+            <a
+              href={payLink}
+              target="_blank"
+              rel="noreferrer"
+              className="flex w-full items-center justify-center rounded-2xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-white"
+            >
+              Payer maintenant via Wave
+            </a>
+          ) : null}
           <a
             href={waHref}
             target="_blank"
@@ -836,20 +852,23 @@ function ReserverWizard() {
           >
             Continuer sur WhatsApp
           </a>
-          <a
-            href={waveUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-center text-sm font-semibold text-neutral-600 underline"
-          >
-            Payer via Wave (si devis déjà validé)
-          </a>
+          {!payLink ? (
+            <a
+              href={waveUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center text-sm font-semibold text-neutral-600 underline"
+            >
+              Payer via Wave (si devis déjà validé)
+            </a>
+          ) : null}
           <button
             type="button"
             className="w-full text-sm font-semibold text-amber-800"
             onClick={() => {
               clearSimulationDraft();
               setDoneRef(null);
+              setPayLink(null);
               setDraft(emptyDraft());
               router.replace("/reserver");
             }}

@@ -8,7 +8,7 @@ import {
   type PricingSegment,
   type ServiceType,
 } from "@/lib/sentrajetPricing";
-import { createPaymentForBooking, createPlatformBooking } from "@/lib/platformOps";
+import { createBookingWaveCheckout, createPaymentForBooking, createPlatformBooking } from "@/lib/platformOps";
 import { listBusinessRules, ruleString } from "@/lib/engines/businessRules";
 import {
   AddressAutocomplete,
@@ -165,19 +165,23 @@ export function BookingForm({
         luggageCount: luggageCount === "" ? null : Number(luggageCount),
       });
 
+      let checkoutUrl: string | null = null;
       if (!quote.surDevis && quote.amountFcfa > 0) {
-        await createPaymentForBooking({
+        const payment = await createPaymentForBooking({
           bookingId: booking.id,
           amountFcfa: quote.amountFcfa,
           bookingRef: booking.reference,
           status: "pending",
         });
+        if (payment.id) {
+          checkoutUrl = await createBookingWaveCheckout(payment.id).catch(() => null);
+        }
       }
 
       setMessage(
         `Demande ${booking.reference ?? booking.id.slice(0, 8)} bien prise en compte. SentraJet confirme le devis puis assigne un véhicule de la flotte.`
       );
-      setPayLink(waveUrl);
+      setPayLink(checkoutUrl || waveUrl);
       onCreated?.();
     } catch (err) {
       const msg =

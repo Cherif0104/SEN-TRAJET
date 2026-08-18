@@ -97,6 +97,57 @@ export async function POST(request: NextRequest) {
   const succeeded =
     status === "succeeded" || status === "complete";
 
+  // Un même endpoint reçoit deux familles de paiements Wave : les crédits chauffeur
+  // (payment_intents, flux historique ci-dessous) et les paiements de réservation client/
+  // partenaire (payments). On tente d'abord payment_intents pour ne rien changer au
+  // comportement existant, puis on bascule sur payments si la référence ne correspond pas.
+  const { data: bookingPayment, error: bookingPaymentErr } = await supabaseAdmin
+    .from("payments")
+    .select("id, booking_id, status")
+    .eq("id", ref)
+    .maybeSingle();
+
+  if (!bookingPaymentErr && bookingPayment) {
+    if (["pending", "initiated", "created"].includes(bookingPayment.status)) {
+      if (succeeded) {
+        await supabaseAdmin
+          .from("payments")
+          .update({ status: "paid", paid_at: new Date().toISOString() })
+          .eq("id", bookingPayment.id);
+
+        const { data: booking } = await supabaseAdmin
+          .from("bookings")
+          .select("status")
+          .eq("id", bookingPayment.booking_id)
+          .maybeSingle();
+
+        const prePaymentStatuses = [
+          "demande_recue",
+          "demande",
+          "info_demandee",
+          "devis_envoye",
+          "devis_accepte",
+          "en_attente_de_paiement",
+        ];
+        if (booking && prePaymentStatuses.includes(booking.status)) {
+          await supabaseAdmin
+            .from("bookings")
+            .update({ status: "chauffeur_a_assigner", updated_at: new Date().toISOString() })
+            .eq("id", bookingPayment.booking_id);
+          await supabaseAdmin.from("booking_status_history").insert({
+            booking_id: bookingPayment.booking_id,
+            from_status: booking.status,
+            to_status: "chauffeur_a_assigner",
+            note: "Paiement Wave confirmé automatiquement (webhook)",
+          });
+        }
+      } else {
+        await supabaseAdmin.from("payments").update({ status: "failed" }).eq("id", bookingPayment.id);
+      }
+    }
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
   const { data: intent, error: fetchErr } = await supabaseAdmin
     .from("payment_intents")
     .select("id, driver_id, package_id, amount_fcfa, status")
