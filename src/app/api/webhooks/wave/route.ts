@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { computeCreditPurchaseCommission, createPartnerCommission } from "@/lib/commissions";
-import { getWaveApiKey, getWaveWebhookSecret, timingSafeEqual } from "@/lib/wave";
+import { getWaveWebhookSecret, timingSafeEqual } from "@/lib/wave";
 
 async function verifyWaveSignature(request: NextRequest, rawBody: string): Promise<boolean> {
   const secret = getWaveWebhookSecret();
@@ -14,61 +13,15 @@ async function verifyWaveSignature(request: NextRequest, rawBody: string): Promi
   return timingSafeEqual(signature, expected);
 }
 
-async function tryWavePayout(params: {
-  partnerId: string;
-  amountFcfa: number;
-  reference: string;
-}): Promise<{ ok: true; payoutId?: string } | { ok: false; error: string }> {
-  const apiKey = getWaveApiKey();
-  if (!apiKey) return { ok: false, error: "wave_api_key_missing" };
-
-  const { data: partner, error: partnerErr } = await supabaseAdmin
-    .from("partners")
-    .select("wave_payout_enabled, wave_payout_mobile, wave_payout_name, wave_aggregated_merchant_id")
-    .eq("id", params.partnerId)
-    .maybeSingle();
-  if (partnerErr || !partner) return { ok: false, error: "partner_not_found" };
-  if (!partner.wave_payout_enabled) return { ok: false, error: "payout_disabled" };
-  if (!partner.wave_payout_mobile) return { ok: false, error: "missing_mobile" };
-
-  const idempotencyKey = `partner_commission_${params.reference}`;
-  const body: Record<string, unknown> = {
-    currency: "XOF",
-    receive_amount: String(Math.max(0, Math.round(params.amountFcfa))),
-    mobile: partner.wave_payout_mobile,
-    name: partner.wave_payout_name ?? undefined,
-    client_reference: params.reference,
-    aggregated_merchant_id: partner.wave_aggregated_merchant_id ?? undefined,
-    payment_reason: "Commission partenaire (SEN TRAJET)",
-  };
-
-  const waveRes = await fetch("https://api.wave.com/v1/payout", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      "Idempotency-Key": idempotencyKey,
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await waveRes.json().catch(() => ({}));
-  if (!waveRes.ok) {
-    return { ok: false, error: typeof data?.message === "string" ? data.message : "wave_payout_failed" };
-  }
-  return { ok: true, payoutId: typeof data?.id === "string" ? data.id : undefined };
-}
-
 /**
- * Webhook Wave : appelé par Wave quand un paiement est complété (ou échoué).
- * Vérifier dans le portail Wave la forme exacte du body et la signature.
- * Ici on suppose que le body contient client_reference (id payment_intent) et
+ * Webhook Wave : appelé par Wave quand le paiement d'une réservation (client ou partenaire)
+ * est complété ou échoue. Le body contient client_reference (id de la ligne `payments`) et
  * un statut (checkout_status ou payment_status).
  */
 export async function POST(request: NextRequest) {
   const rawBody = await request.text().catch(() => "");
   const signatureOk = await verifyWaveSignature(request, rawBody);
   if (!signatureOk) {
-    // Ne pas accuser réception si la signature est invalide : protège des injections de crédits.
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
   if (process.env.NODE_ENV === "production" && !getWaveWebhookSecret()) {
@@ -92,130 +45,55 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  const status =
-    body.payment_status ?? body.checkout_status ?? "";
-  const succeeded =
-    status === "succeeded" || status === "complete";
+  const status = body.payment_status ?? body.checkout_status ?? "";
+  const succeeded = status === "succeeded" || status === "complete";
 
-  // Un même endpoint reçoit deux familles de paiements Wave : les crédits chauffeur
-  // (payment_intents, flux historique ci-dessous) et les paiements de réservation client/
-  // partenaire (payments). On tente d'abord payment_intents pour ne rien changer au
-  // comportement existant, puis on bascule sur payments si la référence ne correspond pas.
   const { data: bookingPayment, error: bookingPaymentErr } = await supabaseAdmin
     .from("payments")
     .select("id, booking_id, status")
     .eq("id", ref)
     .maybeSingle();
 
-  if (!bookingPaymentErr && bookingPayment) {
-    if (["pending", "initiated", "created"].includes(bookingPayment.status)) {
-      if (succeeded) {
+  if (bookingPaymentErr || !bookingPayment) {
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  if (["pending", "initiated", "created"].includes(bookingPayment.status)) {
+    if (succeeded) {
+      await supabaseAdmin
+        .from("payments")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .eq("id", bookingPayment.id);
+
+      const { data: booking } = await supabaseAdmin
+        .from("bookings")
+        .select("status")
+        .eq("id", bookingPayment.booking_id)
+        .maybeSingle();
+
+      const prePaymentStatuses = [
+        "demande_recue",
+        "demande",
+        "info_demandee",
+        "devis_envoye",
+        "devis_accepte",
+        "en_attente_de_paiement",
+      ];
+      if (booking && prePaymentStatuses.includes(booking.status)) {
         await supabaseAdmin
-          .from("payments")
-          .update({ status: "paid", paid_at: new Date().toISOString() })
-          .eq("id", bookingPayment.id);
-
-        const { data: booking } = await supabaseAdmin
           .from("bookings")
-          .select("status")
-          .eq("id", bookingPayment.booking_id)
-          .maybeSingle();
-
-        const prePaymentStatuses = [
-          "demande_recue",
-          "demande",
-          "info_demandee",
-          "devis_envoye",
-          "devis_accepte",
-          "en_attente_de_paiement",
-        ];
-        if (booking && prePaymentStatuses.includes(booking.status)) {
-          await supabaseAdmin
-            .from("bookings")
-            .update({ status: "chauffeur_a_assigner", updated_at: new Date().toISOString() })
-            .eq("id", bookingPayment.booking_id);
-          await supabaseAdmin.from("booking_status_history").insert({
-            booking_id: bookingPayment.booking_id,
-            from_status: booking.status,
-            to_status: "chauffeur_a_assigner",
-            note: "Paiement Wave confirmé automatiquement (webhook)",
-          });
-        }
-      } else {
-        await supabaseAdmin.from("payments").update({ status: "failed" }).eq("id", bookingPayment.id);
-      }
-    }
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  const { data: intent, error: fetchErr } = await supabaseAdmin
-    .from("payment_intents")
-    .select("id, driver_id, package_id, amount_fcfa, status")
-    .eq("id", ref)
-    .single();
-
-  if (fetchErr || !intent || intent.status !== "pending") {
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  if (succeeded) {
-    const { data: pkg } = await supabaseAdmin
-      .from("credit_packages")
-      .select("credits")
-      .eq("id", intent.package_id)
-      .single();
-
-    const credits = pkg?.credits ?? 0;
-    if (credits > 0) {
-      await supabaseAdmin.rpc("credit_recharge", {
-        driver_id: intent.driver_id,
-        credits,
-        reference: ref,
-      });
-    }
-
-    await supabaseAdmin
-      .from("payment_intents")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", ref);
-
-    // Partner commission (best-effort). Never block webhook response.
-    try {
-      const computed = await computeCreditPurchaseCommission({
-        driverId: intent.driver_id,
-        amountFcfa: intent.amount_fcfa ?? 0,
-        reference: ref,
-      });
-      if (computed.eligible) {
-        const row = await createPartnerCommission({
-          partnerId: computed.partnerId,
-          driverId: intent.driver_id,
-          amountFcfa: computed.amountFcfa,
-          reference: ref,
+          .update({ status: "chauffeur_a_assigner", updated_at: new Date().toISOString() })
+          .eq("id", bookingPayment.booking_id);
+        await supabaseAdmin.from("booking_status_history").insert({
+          booking_id: bookingPayment.booking_id,
+          from_status: booking.status,
+          to_status: "chauffeur_a_assigner",
+          note: "Paiement Wave confirmé automatiquement (webhook)",
         });
-        const payout = await tryWavePayout({
-          partnerId: computed.partnerId,
-          amountFcfa: computed.amountFcfa,
-          reference: row.id,
-        });
-        if (payout.ok) {
-          await supabaseAdmin
-            .from("partner_commissions")
-            .update({ status: "paid", paid_at: new Date().toISOString() })
-            .eq("id", row.id);
-        }
       }
-    } catch {
-      // ignore commission errors
+    } else {
+      await supabaseAdmin.from("payments").update({ status: "failed" }).eq("id", bookingPayment.id);
     }
-  } else {
-    await supabaseAdmin
-      .from("payment_intents")
-      .update({ status: "failed" })
-      .eq("id", ref);
   }
 
   return NextResponse.json({ received: true }, { status: 200 });
