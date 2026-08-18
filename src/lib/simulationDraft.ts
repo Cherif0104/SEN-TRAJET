@@ -4,7 +4,7 @@ import type { SelectedPlace } from "@/components/booking/AddressAutocomplete";
 export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v3";
 
 export type SimulationDraft = {
-  step: "service" | "trajet" | "prix" | "compte" | "confirm" | "done";
+  step: "service" | "trajet" | "vehicule" | "prix" | "compte" | "confirm" | "done";
   serviceType: ServiceType;
   tripMode: TripMode;
   pickupPlace: SelectedPlace | null;
