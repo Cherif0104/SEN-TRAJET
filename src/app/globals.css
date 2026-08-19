@@ -507,6 +507,13 @@
   display: grid;
   gap: 10px;
 }
+/* Espaces professionnels (tout sauf Client) : pensés desktop-first — les listes de cartes
+   exploitent la largeur d'écran en colonnes multiples au lieu de s'empiler verticalement.
+   L'espace Client reste volontairement en colonne unique (mobile-first) à toutes les tailles. */
+.sj-app--pro .sj-list {
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  align-items: start;
+}
 .sj-row {
   display: flex;
   align-items: center;
@@ -631,7 +638,8 @@
   .sj-grid-4,
   .sj-grid-3,
   .sj-grid-2,
-  .sj-form-grid {
+  .sj-form-grid,
+  .sj-app--pro .sj-list {
     grid-template-columns: 1fr;
   }
   .sj-hero h1 {
