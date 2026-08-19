@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, FileText, Activity, User } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Activity, CalendarDays, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessRhZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
@@ -12,6 +12,7 @@ import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecover
 const nav = [
   { href: "/rh", label: "Accueil", icon: LayoutDashboard },
   { href: "/rh/chauffeurs", label: "Chauffeurs", icon: Users },
+  { href: "/rh/planning", label: "Planning", icon: CalendarDays },
   { href: "/rh/documents", label: "Documents", icon: FileText },
   { href: "/rh/suivi", label: "Suivi", icon: Activity },
   { href: "/rh/profil", label: "Profil", icon: User },

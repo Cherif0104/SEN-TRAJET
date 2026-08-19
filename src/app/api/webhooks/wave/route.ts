@@ -57,6 +57,29 @@ async function tryAlloDakarDriverPayout(params: {
 }
 
 /**
+ * Dispatch automatique (véhicule puis chauffeur disponibles) dès confirmation de paiement.
+ * Best-effort : ne bloque jamais la réponse du webhook. Si l'interrupteur business_rules
+ * est désactivé, ou si aucun véhicule/chauffeur ne correspond, la course reste visible
+ * dans /ops/dispatch pour une affectation manuelle.
+ */
+async function tryAutoDispatch(bookingId: string): Promise<void> {
+  try {
+    const { data: rule } = await supabaseAdmin
+      .from("business_rules")
+      .select("value_json")
+      .eq("category", "dispatch")
+      .eq("rule_key", "auto_dispatch_actif")
+      .maybeSingle();
+    const active = rule ? rule.value_json === true || rule.value_json === "true" : true;
+    if (!active) return;
+
+    await supabaseAdmin.rpc("auto_dispatch_booking", { p_booking_id: bookingId });
+  } catch {
+    // best-effort : la course reste "chauffeur_a_assigner" pour une affectation manuelle côté Ops.
+  }
+}
+
+/**
  * Webhook Wave : appelé par Wave quand le paiement d'une réservation (client ou partenaire)
  * est complété ou échoue. Le body contient client_reference (id de la ligne `payments`) et
  * un statut (checkout_status ou payment_status).
@@ -175,6 +198,8 @@ export async function POST(request: NextRequest) {
           to_status: "chauffeur_a_assigner",
           note: "Paiement Wave confirmé automatiquement (webhook)",
         });
+
+        await tryAutoDispatch(bookingPayment.booking_id);
       }
     } else {
       await supabaseAdmin.from("payments").update({ status: "failed" }).eq("id", bookingPayment.id);

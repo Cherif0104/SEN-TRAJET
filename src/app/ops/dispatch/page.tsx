@@ -14,6 +14,7 @@ import {
   type PlatformVehicle,
 } from "@/lib/platformOps";
 import { checkVehicleConflict, type ConflictCheck } from "@/lib/engines/dispatchConflict";
+import { triggerAutoDispatch } from "@/lib/rosterOps";
 
 export default function OpsDispatchPage() {
   const [bookings, setBookings] = useState<PlatformBooking[]>([]);
@@ -27,6 +28,7 @@ export default function OpsDispatchPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoDispatchingId, setAutoDispatchingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const [b, d, v] = await Promise.all([listPlatformBookings(), listDrivers(), listVehicles()]);
@@ -74,6 +76,33 @@ export default function OpsDispatchPage() {
     setVehicleId(firstVehicle);
   }
 
+  async function handleAutoDispatch(bookingId: string) {
+    setAutoDispatchingId(bookingId);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await triggerAutoDispatch(bookingId);
+      if (result.ok) {
+        setMessage("Véhicule et chauffeur affectés automatiquement.");
+        await reload();
+      } else if (result.reason === "no_match") {
+        setError(
+          `Aucun véhicule/chauffeur disponible ne correspond automatiquement (mini ${result.min_seats ?? "?"} places) — affectez manuellement ci-dessous.`
+        );
+        selectBooking(bookingId);
+      } else if (result.reason === "already_dispatched") {
+        setMessage("Cette course est déjà affectée.");
+        await reload();
+      } else {
+        setError("Dispatch automatique impossible pour cette course.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Dispatch automatique impossible");
+    } finally {
+      setAutoDispatchingId(null);
+    }
+  }
+
   async function confirmAssign() {
     if (!selectedBooking || !driverId || !vehicleId) return;
     if (conflict?.hasConflict) {
@@ -98,7 +127,9 @@ export default function OpsDispatchPage() {
     <>
       <SjSectionHead eyebrow="Dispatch" title="Affectation rapide" />
       <p className="sj-muted" style={{ marginTop: -8, marginBottom: 16 }}>
-        Missions triées par heure de départ — anti-conflit actif (±90 min autour du créneau).
+        Missions triées par heure de départ — anti-conflit actif (±90 min autour du créneau). Le dispatch automatique
+        s&apos;exécute déjà à la confirmation de paiement ; utilisez « Dispatch auto » pour relancer une course restée
+        sans affectation, ou affectez manuellement si aucune correspondance n&apos;est trouvée.
       </p>
 
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
@@ -114,9 +145,19 @@ export default function OpsDispatchPage() {
                   <b>{b.reference || b.id.slice(0, 8)} · {b.pickup} → {b.dropoff}</b>
                   <div className="sj-muted">{new Date(b.pickup_time).toLocaleString("fr-FR")} · {b.passengers} passagers</div>
                 </div>
-                <button type="button" className="sj-btn sj-btn-primary" onClick={() => selectBooking(b.id)}>
-                  Affecter
-                </button>
+                <div className="sj-toolbar" style={{ justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className="sj-btn"
+                    disabled={autoDispatchingId === b.id}
+                    onClick={() => void handleAutoDispatch(b.id)}
+                  >
+                    {autoDispatchingId === b.id ? "…" : "Dispatch auto"}
+                  </button>
+                  <button type="button" className="sj-btn sj-btn-primary" onClick={() => selectBooking(b.id)}>
+                    Affecter
+                  </button>
+                </div>
               </div>
             ))}
             {!toAssign.length ? <div className="sj-muted">Aucune course à assigner.</div> : null}
