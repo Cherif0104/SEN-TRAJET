@@ -175,6 +175,30 @@ export async function registerAlloDakarDriver(input: {
   return data as AlloDakarDriver;
 }
 
+/** Création directe d'un chauffeur par le staff SentraJet (sans auto-inscription) — utile pour
+ * les chauffeurs sans smartphone/compte propre. Statut actif d'emblée, contrairement à
+ * l'auto-inscription (en_attente) — le staff qui saisit assume la vérification. */
+export async function createAlloDakarDriverByStaff(input: {
+  fullName: string;
+  phone: string;
+  idCardNumber?: string | null;
+  garageId?: string | null;
+}): Promise<AlloDakarDriver> {
+  const { data, error } = await supabase
+    .from("allo_dakar_drivers")
+    .insert({
+      full_name: input.fullName.trim(),
+      phone: input.phone.trim(),
+      id_card_number: input.idCardNumber ?? null,
+      garage_id: input.garageId ?? null,
+      status: "actif",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as AlloDakarDriver;
+}
+
 export async function setAlloDakarDriverStatus(id: string, status: AlloDakarDriver["status"]): Promise<void> {
   const { error } = await supabase.from("allo_dakar_drivers").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
@@ -212,6 +236,30 @@ export async function registerGarage(input: {
     .single();
   if (error) throw error;
   return data as AlloDakarGarage;
+}
+
+/** Création staff : compte de connexion + garage en un seul geste (activation immédiate). */
+export async function createGarageWithManager(input: {
+  email: string;
+  password: string;
+  fullName: string;
+  garageName: string;
+  phone: string;
+  city?: string | null;
+}): Promise<void> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch("/api/admin/allo-dakar/create-garage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? "Impossible de créer le garage.");
 }
 
 export async function listAllGarages(): Promise<AlloDakarGarage[]> {
