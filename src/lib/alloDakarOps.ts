@@ -321,10 +321,31 @@ export async function setAlloDakarSubscriptionStatus(id: string, status: AlloDak
 }
 
 export function hasActiveSubscription(subscriptions: AlloDakarSubscription[], corridorId: string): boolean {
+  return getActiveSubscription(subscriptions, corridorId) != null;
+}
+
+/** Renvoie l'abonnement actif (non expiré) le plus récent pour ce corridor, s'il existe. */
+export function getActiveSubscription(
+  subscriptions: AlloDakarSubscription[],
+  corridorId: string
+): AlloDakarSubscription | null {
   const now = Date.now();
-  return subscriptions.some(
+  const active = subscriptions.filter(
     (s) => s.corridor_id === corridorId && s.status === "actif" && new Date(s.ends_at).getTime() > now
   );
+  if (!active.length) return null;
+  return active.sort((a, b) => new Date(b.ends_at).getTime() - new Date(a.ends_at).getTime())[0];
+}
+
+const PLAN_LABEL: Record<AlloDakarSubscription["plan"], string> = {
+  essai_gratuit: "Essai gratuit",
+  hebdomadaire: "Hebdomadaire",
+  mensuel: "Mensuel",
+};
+
+export function formatSubscriptionPeriod(sub: AlloDakarSubscription): string {
+  const end = new Date(sub.ends_at).toLocaleDateString("fr-FR");
+  return `${PLAN_LABEL[sub.plan]} · jusqu’au ${end}`;
 }
 
 // ---------------------------------------------------------------------------

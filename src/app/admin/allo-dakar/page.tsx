@@ -7,8 +7,9 @@ import { formatFcfa } from "@/lib/sentrajetPricing";
 import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
 import {
   createAlloDakarCorridor,
+  formatSubscriptionPeriod,
+  getActiveSubscription,
   grantAlloDakarSubscription,
-  hasActiveSubscription,
   listAllAlloDakarBookings,
   listAllAlloDakarDepartures,
   listAllGarages,
@@ -246,12 +247,12 @@ export default function AdminAlloDakarPage() {
                 <div className="sj-muted" style={{ marginTop: 10 }}>Accès par corridor</div>
                 <div className="sj-list" style={{ marginTop: 6 }}>
                   {corridors.map((c) => {
-                    const active = hasActiveSubscription(driverSubs, c.id);
+                    const active = getActiveSubscription(driverSubs, c.id);
                     return (
                       <div key={c.id} className="sj-row">
                         <span>{c.origin_city} → {c.destination_city}</span>
                         {active ? (
-                          <SjBadge tone="success">Accès actif</SjBadge>
+                          <SjBadge tone="success">{formatSubscriptionPeriod(active)}</SjBadge>
                         ) : (
                           <div className="sj-toolbar">
                             <button type="button" className="sj-btn sj-btn-ghost" onClick={() => void grantAccess(d.id, c.id, "essai_gratuit")}>

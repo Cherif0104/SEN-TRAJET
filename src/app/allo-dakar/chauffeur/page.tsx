@@ -9,6 +9,8 @@ import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
   addAlloDakarVehicle,
   cancelAlloDakarDeparture,
+  formatSubscriptionPeriod,
+  getActiveSubscription,
   getMyAlloDakarDriver,
   hasActiveSubscription,
   listAlloDakarCorridors,
@@ -236,14 +238,17 @@ export default function AlloDakarDriverSpace() {
 
       <h2 className="mt-8 text-base font-bold text-neutral-900">Mes accès corridors</h2>
       <div className="mt-3 space-y-2">
-        {corridors.map((c) => (
-          <div key={c.id} className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-3 text-sm">
-            <span>{c.origin_city} → {c.destination_city}</span>
-            <span className={hasActiveSubscription(subscriptions, c.id) ? "font-semibold text-emerald-700" : "text-neutral-400"}>
-              {hasActiveSubscription(subscriptions, c.id) ? "Accès actif" : "Pas d’accès — contactez SentraJet"}
-            </span>
-          </div>
-        ))}
+        {corridors.map((c) => {
+          const active = getActiveSubscription(subscriptions, c.id);
+          return (
+            <div key={c.id} className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-3 text-sm">
+              <span>{c.origin_city} → {c.destination_city}</span>
+              <span className={active ? "font-semibold text-emerald-700" : "text-neutral-400"}>
+                {active ? formatSubscriptionPeriod(active) : "Pas d’accès — contactez SentraJet"}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {driver.status === "actif" && vehicles.length > 0 ? (
