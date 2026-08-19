@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, MapPin, Phone } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MapPin, Navigation, Phone } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import {
   BOOKING_STATUS_LABEL,
@@ -44,6 +44,11 @@ export default function ChauffeurMissionDetailPage() {
 
   const next = useMemo(() => (booking ? nextMissionStatus(booking.status) : null), [booking]);
   const isDone = booking ? TERMINAL.includes(booking.status) || booking.status === "terminee" : false;
+  const headingToPickup = booking ? ["chauffeur_assigne", "chauffeur_en_route"].includes(booking.status) : false;
+  const navDestination = booking ? (headingToPickup ? booking.pickup : booking.dropoff) : null;
+  const navigateUrl = navDestination
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navDestination)}&travelmode=driving`
+    : null;
 
   async function trigger(status: string) {
     if (!booking) return;
@@ -125,6 +130,17 @@ export default function ChauffeurMissionDetailPage() {
           <span>Heure</span><b>{new Date(booking.pickup_time).toLocaleString("fr-FR")}</b>
         </div>
         <div className="sj-row"><span>Passagers</span><b>{booking.passengers}</b></div>
+        {navigateUrl ? (
+          <a
+            href={navigateUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="sj-btn sj-btn-primary"
+            style={{ width: "100%", marginTop: 12, display: "flex", justifyContent: "center", alignItems: "center", gap: 6 }}
+          >
+            <Navigation className="h-4 w-4" /> Naviguer vers {headingToPickup ? "le point de départ" : "la destination"}
+          </a>
+        ) : null}
       </SjCard>
 
       <SjCard style={{ marginTop: 16 }}>
