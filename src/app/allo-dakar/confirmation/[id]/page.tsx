@@ -3,21 +3,19 @@
 import { Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { AlloDakarShell } from "@/components/allo-dakar/AlloDakarShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { CheckCircle, XCircle } from "lucide-react";
 
-function IntercityConfirmationContent() {
+function AlloDakarConfirmationContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const wave = searchParams.get("wave");
   const success = wave !== "cancel";
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50">
-      <Header />
-      <main className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center sm:px-6">
+    <AlloDakarShell>
+      <div className="mx-auto w-full max-w-md px-4 py-16 text-center sm:px-6">
         {success ? (
           <CheckCircle className="mx-auto h-16 w-16 text-emerald-500" />
         ) : (
@@ -29,19 +27,18 @@ function IntercityConfirmationContent() {
         <p className="mt-2 text-sm text-neutral-600">
           Réservation {params.id.slice(0, 8)} — {success ? "votre place est réservée." : "vous pourrez réessayer ou payer le chauffeur directement."}
         </p>
-        <Link href="/intercite" className="mt-6 inline-block rounded-2xl bg-[#07111f] px-6 py-3 text-sm font-bold text-white">
-          Retour à SentraJet Intercité
+        <Link href="/allo-dakar" className="mt-6 inline-block rounded-2xl bg-[#1f6b4a] px-6 py-3 text-sm font-bold text-white">
+          Retour à Allo Dakar
         </Link>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </AlloDakarShell>
   );
 }
 
-export default function IntercityConfirmationPage() {
+export default function AlloDakarConfirmationPage() {
   return (
     <Suspense fallback={<BrandedLoader fullScreen />}>
-      <IntercityConfirmationContent />
+      <AlloDakarConfirmationContent />
     </Suspense>
   );
 }

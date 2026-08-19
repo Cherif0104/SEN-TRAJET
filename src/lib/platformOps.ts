@@ -106,6 +106,17 @@ export const BOOKING_STATUS_LABEL: Record<string, string> = new Proxy(
   }
 );
 
+/** Statuts terminaux "réussis" (course effectuée) — utilisés pour l'onglet Passées côté client. */
+export const CLIENT_TERMINAL_STATUSES = ["terminee"];
+/** Statuts terminaux "annulés" (quelle que soit la cause) — utilisés pour l'onglet Annulées. */
+export const CLIENT_CANCELLED_STATUSES = [
+  "annulee_client",
+  "annulee_sentrajet",
+  "remboursee",
+  "remboursement_en_cours",
+  "no_show",
+];
+
 export function bookingStatusTone(status: string): "success" | "warning" | "info" | "danger" {
   const s = normalizeBookingStatus(status);
   if (["confirmee", "terminee", "payee", "remboursee", "available", "active", "Disponible"].includes(s)) {

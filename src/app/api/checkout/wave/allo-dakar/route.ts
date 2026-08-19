@@ -16,7 +16,7 @@ function getAppBaseUrl(request: NextRequest): string {
 }
 
 /**
- * Crée une session de paiement Wave pour une réservation de place Intercité.
+ * Crée une session de paiement Wave pour une réservation de place Allo Dakar.
  * Même logique que /api/checkout/wave/booking (réservations Premium), en mode simulation si
  * aucune clé Wave n'est configurée.
  */
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   });
 
   const { data: booking, error } = await supabase
-    .from("intercity_bookings")
+    .from("allo_dakar_bookings")
     .select("id, departure_id, amount_fcfa, payment_status")
     .eq("id", bookingId)
     .maybeSingle();
@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
     body: JSON.stringify({
       amount: String(Math.max(0, Math.round(Number(booking.amount_fcfa) || 0))),
       currency: "XOF",
-      client_reference: `intercity:${booking.id}`,
-      success_url: `${base}/intercite/confirmation/${booking.id}?wave=success`,
-      error_url: `${base}/intercite/confirmation/${booking.id}?wave=cancel`,
+      client_reference: `alloDakar:${booking.id}`,
+      success_url: `${base}/allo-dakar/confirmation/${booking.id}?wave=success`,
+      error_url: `${base}/allo-dakar/confirmation/${booking.id}?wave=cancel`,
     }),
   });
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (session.id) {
-    await supabaseAdmin.from("intercity_bookings").update({ payment_provider_ref: session.id }).eq("id", booking.id);
+    await supabaseAdmin.from("allo_dakar_bookings").update({ payment_provider_ref: session.id }).eq("id", booking.id);
   }
 
   return NextResponse.json({ simulation: false, checkout_url: session.wave_launch_url });

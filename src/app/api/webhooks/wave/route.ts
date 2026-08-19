@@ -14,12 +14,12 @@ async function verifyWaveSignature(request: NextRequest, rawBody: string): Promi
 }
 
 /**
- * Reversement au chauffeur intercité (best-effort, ne bloque jamais la confirmation du
- * paiement client). La commission a déjà été retenue au moment de book_intercity_seats — on ne
+ * Reversement au chauffeur Allo Dakar (best-effort, ne bloque jamais la confirmation du
+ * paiement client). La commission a déjà été retenue au moment de book_allo_dakar_seats — on ne
  * reverse ici que driver_payout_fcfa, jamais le montant total.
  */
-async function tryIntercityDriverPayout(params: {
-  intercityDriverId: string;
+async function tryAlloDakarDriverPayout(params: {
+  alloDakarDriverId: string;
   amountFcfa: number;
   reference: string;
 }): Promise<{ ok: boolean; error?: string }> {
@@ -27,9 +27,9 @@ async function tryIntercityDriverPayout(params: {
   if (!apiKey || params.amountFcfa <= 0) return { ok: false, error: "not_configured" };
 
   const { data: driver } = await supabaseAdmin
-    .from("intercity_drivers")
+    .from("allo_dakar_drivers")
     .select("wave_payout_mobile, wave_payout_name")
-    .eq("id", params.intercityDriverId)
+    .eq("id", params.alloDakarDriverId)
     .maybeSingle();
   if (!driver?.wave_payout_mobile) return { ok: false, error: "missing_mobile" };
 
@@ -39,7 +39,7 @@ async function tryIntercityDriverPayout(params: {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "Idempotency-Key": `intercity_payout_${params.reference}`,
+        "Idempotency-Key": `allo_dakar_payout_${params.reference}`,
       },
       body: JSON.stringify({
         currency: "XOF",
@@ -47,7 +47,7 @@ async function tryIntercityDriverPayout(params: {
         mobile: driver.wave_payout_mobile,
         name: driver.wave_payout_name ?? undefined,
         client_reference: params.reference,
-        payment_reason: "Reversement course Intercité SentraJet",
+        payment_reason: "Reversement course Allo Dakar SentraJet",
       }),
     });
     return { ok: res.ok };
@@ -91,12 +91,12 @@ export async function POST(request: NextRequest) {
   const status = body.payment_status ?? body.checkout_status ?? "";
   const succeeded = status === "succeeded" || status === "complete";
 
-  if (ref.startsWith("intercity:")) {
-    const intercityBookingId = ref.slice("intercity:".length);
+  if (ref.startsWith("alloDakar:")) {
+    const alloDakarBookingId = ref.slice("alloDakar:".length);
     const { data: booking, error: bookingErr } = await supabaseAdmin
-      .from("intercity_bookings")
+      .from("allo_dakar_bookings")
       .select("id, departure_id, payment_status, driver_payout_fcfa")
-      .eq("id", intercityBookingId)
+      .eq("id", alloDakarBookingId)
       .maybeSingle();
 
     if (bookingErr || !booking || booking.payment_status !== "pending") {
@@ -105,20 +105,20 @@ export async function POST(request: NextRequest) {
 
     if (succeeded) {
       await supabaseAdmin
-        .from("intercity_bookings")
+        .from("allo_dakar_bookings")
         .update({ payment_status: "paid" })
         .eq("id", booking.id);
 
       // Reversement chauffeur (best-effort, ne bloque jamais la réponse du webhook).
       try {
         const { data: departure } = await supabaseAdmin
-          .from("intercity_departures")
-          .select("intercity_driver_id")
+          .from("allo_dakar_departures")
+          .select("allo_dakar_driver_id")
           .eq("id", booking.departure_id)
           .maybeSingle();
-        if (departure?.intercity_driver_id) {
-          await tryIntercityDriverPayout({
-            intercityDriverId: departure.intercity_driver_id,
+        if (departure?.allo_dakar_driver_id) {
+          await tryAlloDakarDriverPayout({
+            alloDakarDriverId: departure.allo_dakar_driver_id,
             amountFcfa: booking.driver_payout_fcfa,
             reference: booking.id,
           });
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         // ignore, le reversement pourra être déclenché manuellement depuis l'admin
       }
     } else {
-      await supabaseAdmin.from("intercity_bookings").update({ payment_status: "failed" }).eq("id", booking.id);
+      await supabaseAdmin.from("allo_dakar_bookings").update({ payment_status: "failed" }).eq("id", booking.id);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
