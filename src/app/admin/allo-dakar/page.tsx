@@ -6,25 +6,34 @@ import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
 import {
-  createIntercityCorridor,
-  grantIntercitySubscription,
+  createAlloDakarCorridor,
+  grantAlloDakarSubscription,
   hasActiveSubscription,
-  listAllIntercityBookings,
-  listAllIntercityDepartures,
-  listIntercityCorridors,
-  listIntercityDrivers,
-  listIntercitySubscriptions,
-  setIntercityCorridorActive,
-  setIntercityDriverStatus,
-  cancelIntercityDeparture,
-  type IntercityBooking,
-  type IntercityCorridor,
-  type IntercityDeparture,
-  type IntercityDriver,
-  type IntercitySubscription,
-} from "@/lib/intercityOps";
+  listAllAlloDakarBookings,
+  listAllAlloDakarDepartures,
+  listAllGarages,
+  listAlloDakarCorridors,
+  listAlloDakarDrivers,
+  listAlloDakarSubscriptions,
+  setAlloDakarCorridorActive,
+  setAlloDakarDriverStatus,
+  setGarageStatus,
+  cancelAlloDakarDeparture,
+  type AlloDakarBooking,
+  type AlloDakarCorridor,
+  type AlloDakarDeparture,
+  type AlloDakarDriver,
+  type AlloDakarGarage,
+  type AlloDakarSubscription,
+} from "@/lib/alloDakarOps";
 
-type Tab = "corridors" | "chauffeurs" | "departs" | "reservations";
+type Tab = "corridors" | "chauffeurs" | "garages" | "departs" | "reservations";
+
+const GARAGE_STATUS_LABEL: Record<string, string> = {
+  en_attente: "En attente",
+  actif: "Actif",
+  suspendu: "Suspendu",
+};
 
 const DRIVER_STATUS_LABEL: Record<string, string> = {
   en_attente: "En attente",
@@ -39,13 +48,14 @@ function driverStatusTone(status: string): "success" | "warning" | "danger" | "i
   return "warning";
 }
 
-export default function AdminIntercitePage() {
+export default function AdminAlloDakarPage() {
   const [tab, setTab] = useState<Tab>("corridors");
-  const [corridors, setCorridors] = useState<IntercityCorridor[]>([]);
-  const [drivers, setDrivers] = useState<IntercityDriver[]>([]);
-  const [subscriptions, setSubscriptions] = useState<IntercitySubscription[]>([]);
-  const [departures, setDepartures] = useState<IntercityDeparture[]>([]);
-  const [bookings, setBookings] = useState<IntercityBooking[]>([]);
+  const [corridors, setCorridors] = useState<AlloDakarCorridor[]>([]);
+  const [drivers, setDrivers] = useState<AlloDakarDriver[]>([]);
+  const [subscriptions, setSubscriptions] = useState<AlloDakarSubscription[]>([]);
+  const [garages, setGarages] = useState<AlloDakarGarage[]>([]);
+  const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
+  const [bookings, setBookings] = useState<AlloDakarBooking[]>([]);
   const [prices, setPrices] = useState({ hebdo: 5000, mensuel: 15000, essaiJours: 15, commissionPercent: 10 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,24 +67,26 @@ export default function AdminIntercitePage() {
   async function reloadAll() {
     setLoading(true);
     try {
-      const [c, d, s, dep, b, rules] = await Promise.all([
-        listIntercityCorridors(),
-        listIntercityDrivers(),
-        listIntercitySubscriptions(),
-        listAllIntercityDepartures(),
-        listAllIntercityBookings(),
+      const [c, d, s, gg, dep, b, rules] = await Promise.all([
+        listAlloDakarCorridors(),
+        listAlloDakarDrivers(),
+        listAlloDakarSubscriptions(),
+        listAllGarages(),
+        listAllAlloDakarDepartures(),
+        listAllAlloDakarBookings(),
         listBusinessRules(),
       ]);
       setCorridors(c);
       setDrivers(d);
       setSubscriptions(s);
+      setGarages(gg);
       setDepartures(dep);
       setBookings(b);
       setPrices({
-        hebdo: ruleNumber(rules, "intercity", "subscription_price_hebdomadaire_fcfa", 5000),
-        mensuel: ruleNumber(rules, "intercity", "subscription_price_mensuel_fcfa", 15000),
-        essaiJours: ruleNumber(rules, "intercity", "essai_gratuit_jours", 15),
-        commissionPercent: ruleNumber(rules, "intercity", "commission_percent", 10),
+        hebdo: ruleNumber(rules, "allo_dakar", "subscription_price_hebdomadaire_fcfa", 5000),
+        mensuel: ruleNumber(rules, "allo_dakar", "subscription_price_mensuel_fcfa", 15000),
+        essaiJours: ruleNumber(rules, "allo_dakar", "essai_gratuit_jours", 15),
+        commissionPercent: ruleNumber(rules, "allo_dakar", "commission_percent", 10),
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement.");
@@ -93,7 +105,7 @@ export default function AdminIntercitePage() {
     e.preventDefault();
     if (!newOrigin.trim() || !newDestination.trim()) return;
     try {
-      await createIntercityCorridor({
+      await createAlloDakarCorridor({
         originCity: newOrigin,
         destinationCity: newDestination,
         referencePriceFcfa: newRefPrice ? Number(newRefPrice) : null,
@@ -111,8 +123,8 @@ export default function AdminIntercitePage() {
     const priceMap = { essai_gratuit: 0, hebdomadaire: prices.hebdo, mensuel: prices.mensuel };
     const durationMap = { essai_gratuit: prices.essaiJours, hebdomadaire: 7, mensuel: 30 };
     try {
-      await grantIntercitySubscription({
-        intercityDriverId: driverId,
+      await grantAlloDakarSubscription({
+        alloDakarDriverId: driverId,
         corridorId,
         plan,
         priceFcfaPaid: priceMap[plan],
@@ -130,7 +142,7 @@ export default function AdminIntercitePage() {
     <>
       <SjSectionHead
         eyebrow="Nouvelle activité"
-        title="SentraJet Intercité"
+        title="SentraJet Allo Dakar"
       />
       <p className="sj-muted" style={{ marginBottom: 16 }}>
         Transport interurbain en véhicules partenaires indépendants (façon Allo Dakar) — entièrement
@@ -140,9 +152,17 @@ export default function AdminIntercitePage() {
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
 
       <div className="sj-toolbar" style={{ marginBottom: 16 }}>
-        {(["corridors", "chauffeurs", "departs", "reservations"] as Tab[]).map((t) => (
+        {(["corridors", "chauffeurs", "garages", "departs", "reservations"] as Tab[]).map((t) => (
           <button key={t} type="button" className={tab === t ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(t)}>
-            {t === "corridors" ? "Corridors" : t === "chauffeurs" ? "Chauffeurs" : t === "departs" ? "Départs" : "Réservations"}
+            {t === "corridors"
+              ? "Corridors"
+              : t === "chauffeurs"
+                ? "Chauffeurs"
+                : t === "garages"
+                  ? "Garages"
+                  : t === "departs"
+                    ? "Départs"
+                    : "Réservations"}
           </button>
         ))}
       </div>
@@ -185,7 +205,7 @@ export default function AdminIntercitePage() {
                       type="button"
                       className="sj-btn sj-btn-ghost"
                       style={{ display: "block", marginTop: 6 }}
-                      onClick={() => void setIntercityCorridorActive(c.id, !c.is_active).then(reloadAll)}
+                      onClick={() => void setAlloDakarCorridorActive(c.id, !c.is_active).then(reloadAll)}
                     >
                       {c.is_active ? "Désactiver" : "Réactiver"}
                     </button>
@@ -201,7 +221,7 @@ export default function AdminIntercitePage() {
       {tab === "chauffeurs" ? (
         <div className="sj-list">
           {drivers.map((d) => {
-            const driverSubs = subscriptions.filter((s) => s.intercity_driver_id === d.id);
+            const driverSubs = subscriptions.filter((s) => s.allo_dakar_driver_id === d.id);
             return (
               <SjCard key={d.id}>
                 <div className="sj-between">
@@ -213,12 +233,12 @@ export default function AdminIntercitePage() {
                 </div>
                 <div className="sj-toolbar" style={{ marginTop: 10 }}>
                   {d.status !== "actif" ? (
-                    <button type="button" className="sj-btn" onClick={() => void setIntercityDriverStatus(d.id, "actif").then(reloadAll)}>
+                    <button type="button" className="sj-btn" onClick={() => void setAlloDakarDriverStatus(d.id, "actif").then(reloadAll)}>
                       Activer
                     </button>
                   ) : null}
                   {d.status !== "suspendu" ? (
-                    <button type="button" className="sj-btn" style={{ color: "var(--color-error)" }} onClick={() => void setIntercityDriverStatus(d.id, "suspendu").then(reloadAll)}>
+                    <button type="button" className="sj-btn" style={{ color: "var(--color-error)" }} onClick={() => void setAlloDakarDriverStatus(d.id, "suspendu").then(reloadAll)}>
                       Suspendre
                     </button>
                   ) : null}
@@ -252,7 +272,43 @@ export default function AdminIntercitePage() {
               </SjCard>
             );
           })}
-          {!drivers.length ? <SjCard><p className="sj-muted">Aucun chauffeur intercité inscrit pour le moment.</p></SjCard> : null}
+          {!drivers.length ? <SjCard><p className="sj-muted">Aucun chauffeur Allo Dakar inscrit pour le moment.</p></SjCard> : null}
+        </div>
+      ) : null}
+
+      {tab === "garages" ? (
+        <div className="sj-list">
+          {garages.map((g) => {
+            const garageDriverCount = drivers.filter((d) => d.garage_id === g.id).length;
+            return (
+              <SjCard key={g.id}>
+                <div className="sj-between">
+                  <div>
+                    <b>{g.name}</b>
+                    <div className="sj-muted">{g.phone}{g.city ? ` · ${g.city}` : ""} · {garageDriverCount} chauffeur{garageDriverCount > 1 ? "s" : ""}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <SjBadge tone={g.status === "actif" ? "success" : g.status === "suspendu" ? "danger" : "warning"}>
+                      {GARAGE_STATUS_LABEL[g.status] ?? g.status}
+                    </SjBadge>
+                    <div className="sj-toolbar" style={{ marginTop: 6, justifyContent: "flex-end" }}>
+                      {g.status !== "actif" ? (
+                        <button type="button" className="sj-btn sj-btn-ghost" onClick={() => void setGarageStatus(g.id, "actif").then(reloadAll)}>
+                          Activer
+                        </button>
+                      ) : null}
+                      {g.status !== "suspendu" ? (
+                        <button type="button" className="sj-btn sj-btn-ghost" style={{ color: "var(--color-error)" }} onClick={() => void setGarageStatus(g.id, "suspendu").then(reloadAll)}>
+                          Suspendre
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </SjCard>
+            );
+          })}
+          {!garages.length ? <SjCard><p className="sj-muted">Aucun garage inscrit pour le moment.</p></SjCard> : null}
         </div>
       ) : null}
 
@@ -264,7 +320,7 @@ export default function AdminIntercitePage() {
                 <div>
                   <b>{dep.corridor?.origin_city} → {dep.corridor?.destination_city}</b>
                   <div className="sj-muted">
-                    {new Date(dep.departure_at).toLocaleString("fr-FR")} · {dep.driver?.full_name ?? driverById.get(dep.intercity_driver_id)?.full_name} ·{" "}
+                    {new Date(dep.departure_at).toLocaleString("fr-FR")} · {dep.driver?.full_name ?? driverById.get(dep.allo_dakar_driver_id)?.full_name} ·{" "}
                     {dep.vehicle?.plate_number} · {formatFcfa(dep.price_per_seat_fcfa)}/place
                   </div>
                   <div className="sj-muted">{dep.seats_available}/{dep.seats_total} places disponibles</div>
@@ -276,7 +332,7 @@ export default function AdminIntercitePage() {
                       type="button"
                       className="sj-btn sj-btn-ghost"
                       style={{ display: "block", marginTop: 6 }}
-                      onClick={() => void cancelIntercityDeparture(dep.id).then(reloadAll)}
+                      onClick={() => void cancelAlloDakarDeparture(dep.id).then(reloadAll)}
                     >
                       Annuler
                     </button>

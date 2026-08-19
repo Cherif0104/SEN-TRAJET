@@ -52,6 +52,7 @@ function isAllowedNext(path: string): boolean {
     "/dashboard",
     "/reserver",
     "/avis",
+    "/allo-dakar",
     "/",
   ];
   return allowed.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));

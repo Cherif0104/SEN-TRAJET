@@ -2,30 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { AlloDakarShell } from "@/components/allo-dakar/AlloDakarShell";
 import { useAuth } from "@/hooks/useAuth";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
-  addIntercityVehicle,
-  cancelIntercityDeparture,
-  getMyIntercityDriver,
+  addAlloDakarVehicle,
+  cancelAlloDakarDeparture,
+  getMyAlloDakarDriver,
   hasActiveSubscription,
-  listIntercityCorridors,
-  listIntercityDeparturesForDriver,
-  listIntercityBookingsForDeparture,
-  listIntercitySubscriptions,
-  listIntercityVehicles,
-  publishIntercityDeparture,
-  registerIntercityDriver,
-  type IntercityBooking,
-  type IntercityCorridor,
-  type IntercityDeparture,
-  type IntercityDriver,
-  type IntercitySubscription,
-  type IntercityVehicle,
-} from "@/lib/intercityOps";
+  listAlloDakarCorridors,
+  listAlloDakarDeparturesForDriver,
+  listAlloDakarBookingsForDeparture,
+  listAlloDakarSubscriptions,
+  listAlloDakarVehicles,
+  publishAlloDakarDeparture,
+  registerAlloDakarDriver,
+  type AlloDakarBooking,
+  type AlloDakarCorridor,
+  type AlloDakarDeparture,
+  type AlloDakarDriver,
+  type AlloDakarSubscription,
+  type AlloDakarVehicle,
+} from "@/lib/alloDakarOps";
 
 const DRIVER_STATUS_LABEL: Record<string, string> = {
   en_attente: "En attente de validation SentraJet",
@@ -36,24 +35,22 @@ const DRIVER_STATUS_LABEL: Record<string, string> = {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50">
-      <Header />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6">{children}</main>
-      <Footer />
-    </div>
+    <AlloDakarShell>
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">{children}</div>
+    </AlloDakarShell>
   );
 }
 
-export default function IntercityDriverSpace() {
+export default function AlloDakarDriverSpace() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [driver, setDriver] = useState<IntercityDriver | null>(null);
-  const [vehicles, setVehicles] = useState<IntercityVehicle[]>([]);
-  const [corridors, setCorridors] = useState<IntercityCorridor[]>([]);
-  const [subscriptions, setSubscriptions] = useState<IntercitySubscription[]>([]);
-  const [departures, setDepartures] = useState<IntercityDeparture[]>([]);
-  const [bookingsByDeparture, setBookingsByDeparture] = useState<Record<string, IntercityBooking[]>>({});
+  const [driver, setDriver] = useState<AlloDakarDriver | null>(null);
+  const [vehicles, setVehicles] = useState<AlloDakarVehicle[]>([]);
+  const [corridors, setCorridors] = useState<AlloDakarCorridor[]>([]);
+  const [subscriptions, setSubscriptions] = useState<AlloDakarSubscription[]>([]);
+  const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
+  const [bookingsByDeparture, setBookingsByDeparture] = useState<Record<string, AlloDakarBooking[]>>({});
   const [expandedDeparture, setExpandedDeparture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,15 +75,15 @@ export default function IntercityDriverSpace() {
     if (!user) return;
     setLoading(true);
     try {
-      const d = await getMyIntercityDriver(user.id);
+      const d = await getMyAlloDakarDriver(user.id);
       setDriver(d);
-      const c = await listIntercityCorridors();
+      const c = await listAlloDakarCorridors();
       setCorridors(c);
       if (d) {
         const [v, s, dep] = await Promise.all([
-          listIntercityVehicles(d.id),
-          listIntercitySubscriptions(d.id),
-          listIntercityDeparturesForDriver(d.id),
+          listAlloDakarVehicles(d.id),
+          listAlloDakarSubscriptions(d.id),
+          listAlloDakarDeparturesForDriver(d.id),
         ]);
         setVehicles(v);
         setSubscriptions(s);
@@ -102,7 +99,7 @@ export default function IntercityDriverSpace() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.replace("/connexion?next=" + encodeURIComponent("/intercite/chauffeur"));
+      router.replace("/connexion?next=" + encodeURIComponent("/allo-dakar/chauffeur"));
       return;
     }
     void reload();
@@ -113,7 +110,7 @@ export default function IntercityDriverSpace() {
     e.preventDefault();
     if (!user || !fullName.trim() || !phone.trim()) return;
     try {
-      await registerIntercityDriver({ userId: user.id, fullName, phone, idCardNumber: idCard || null, garageName: garage || null });
+      await registerAlloDakarDriver({ userId: user.id, fullName, phone, idCardNumber: idCard || null, garageName: garage || null });
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de créer votre profil.");
@@ -124,7 +121,7 @@ export default function IntercityDriverSpace() {
     e.preventDefault();
     if (!driver || !vPlate.trim()) return;
     try {
-      await addIntercityVehicle({ intercityDriverId: driver.id, plateNumber: vPlate, brand: vBrand || null, model: vModel || null, seatsTotal: vSeats });
+      await addAlloDakarVehicle({ alloDakarDriverId: driver.id, plateNumber: vPlate, brand: vBrand || null, model: vModel || null, seatsTotal: vSeats });
       setVPlate("");
       setVBrand("");
       setVModel("");
@@ -140,9 +137,9 @@ export default function IntercityDriverSpace() {
     const vehicle = vehicles.find((v) => v.id === depVehicle);
     if (!vehicle) return;
     try {
-      await publishIntercityDeparture({
-        intercityDriverId: driver.id,
-        intercityVehicleId: depVehicle,
+      await publishAlloDakarDeparture({
+        alloDakarDriverId: driver.id,
+        alloDakarVehicleId: depVehicle,
         corridorId: depCorridor,
         departureAt: new Date(`${depDate}T${depTime}:00`).toISOString(),
         pricePerSeatFcfa: Number(depPrice),
@@ -164,7 +161,7 @@ export default function IntercityDriverSpace() {
     }
     setExpandedDeparture(departureId);
     if (!bookingsByDeparture[departureId]) {
-      const b = await listIntercityBookingsForDeparture(departureId).catch(() => []);
+      const b = await listAlloDakarBookingsForDeparture(departureId).catch(() => []);
       setBookingsByDeparture((prev) => ({ ...prev, [departureId]: b }));
     }
   }
@@ -174,7 +171,7 @@ export default function IntercityDriverSpace() {
   if (!driver) {
     return (
       <Shell>
-        <h1 className="text-xl font-bold text-neutral-900">Devenir chauffeur SentraJet Intercité</h1>
+        <h1 className="text-xl font-bold text-neutral-900">Devenir chauffeur SentraJet Allo Dakar</h1>
         <p className="mt-1 text-sm text-neutral-600">
           Publiez vos trajets interurbains (Dakar–Saint-Louis, Dakar–Kaolack…) et remplissez votre véhicule
           avec des passagers vérifiés. Validation SentraJet requise avant votre première publication.
@@ -197,7 +194,7 @@ export default function IntercityDriverSpace() {
             <label className="mb-1 block text-sm font-medium text-neutral-700">Garage d’attache (optionnel)</label>
             <input className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm" value={garage} onChange={(e) => setGarage(e.target.value)} />
           </div>
-          <button type="submit" className="w-full rounded-2xl bg-[#07111f] px-4 py-3 text-sm font-bold text-white">
+          <button type="submit" className="w-full rounded-2xl bg-[#1f6b4a] px-4 py-3 text-sm font-bold text-white">
             Envoyer ma candidature
           </button>
         </form>
@@ -207,7 +204,7 @@ export default function IntercityDriverSpace() {
 
   return (
     <Shell>
-      <h1 className="text-xl font-bold text-neutral-900">Espace chauffeur Intercité</h1>
+      <h1 className="text-xl font-bold text-neutral-900">Espace chauffeur Allo Dakar</h1>
       <p className="mt-1 text-sm text-neutral-600">
         {driver.full_name} · {DRIVER_STATUS_LABEL[driver.status] ?? driver.status}
       </p>
@@ -268,7 +265,7 @@ export default function IntercityDriverSpace() {
             <input type="date" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depDate} onChange={(e) => setDepDate(e.target.value)} required />
             <input type="time" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depTime} onChange={(e) => setDepTime(e.target.value)} required />
             <input type="number" className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Prix par place (FCFA)" value={depPrice} onChange={(e) => setDepPrice(e.target.value)} required />
-            <button type="submit" className="col-span-2 rounded-xl bg-[#d5a64a] px-3 py-2 text-sm font-bold text-[#07111f]">Publier ce départ</button>
+            <button type="submit" className="col-span-2 rounded-xl bg-[#1f6b4a] px-3 py-2 text-sm font-bold text-white">Publier ce départ</button>
           </form>
         </>
       ) : null}
@@ -286,11 +283,11 @@ export default function IntercityDriverSpace() {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <button type="button" className="text-xs font-semibold text-[#8a6a1f] underline" onClick={() => void toggleBookings(dep.id)}>
+                <button type="button" className="text-xs font-semibold text-[#1f6b4a] underline" onClick={() => void toggleBookings(dep.id)}>
                   {expandedDeparture === dep.id ? "Masquer" : "Voir réservations"}
                 </button>
                 {dep.status === "publie" ? (
-                  <button type="button" className="text-xs font-semibold text-red-600 underline" onClick={() => void cancelIntercityDeparture(dep.id).then(reload)}>
+                  <button type="button" className="text-xs font-semibold text-red-600 underline" onClick={() => void cancelAlloDakarDeparture(dep.id).then(reload)}>
                     Annuler
                   </button>
                 ) : null}

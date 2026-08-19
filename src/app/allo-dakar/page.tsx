@@ -2,27 +2,26 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { AlloDakarShell } from "@/components/allo-dakar/AlloDakarShell";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
-  bookIntercitySeats,
-  createIntercityWaveCheckout,
-  listIntercityCorridors,
-  searchIntercityDepartures,
-  type IntercityCorridor,
-  type IntercityDeparture,
-} from "@/lib/intercityOps";
+  bookAlloDakarSeats,
+  createAlloDakarWaveCheckout,
+  listAlloDakarCorridors,
+  searchAlloDakarDepartures,
+  type AlloDakarCorridor,
+  type AlloDakarDeparture,
+} from "@/lib/alloDakarOps";
 
-export default function IntercitePage() {
-  const [corridors, setCorridors] = useState<IntercityCorridor[]>([]);
+export default function AlloDakarPage() {
+  const [corridors, setCorridors] = useState<AlloDakarCorridor[]>([]);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
-  const [departures, setDepartures] = useState<IntercityDeparture[]>([]);
+  const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<IntercityDeparture | null>(null);
+  const [selected, setSelected] = useState<AlloDakarDeparture | null>(null);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -38,7 +37,7 @@ export default function IntercitePage() {
   async function runSearch() {
     setSearching(true);
     try {
-      const results = await searchIntercityDepartures({
+      const results = await searchAlloDakarDepartures({
         originCity: origin || undefined,
         destinationCity: destination || undefined,
         fromDate: new Date().toISOString(),
@@ -50,7 +49,7 @@ export default function IntercitePage() {
   }
 
   useEffect(() => {
-    void listIntercityCorridors()
+    void listAlloDakarCorridors()
       .then(setCorridors)
       .finally(() => setLoading(false));
     void runSearch();
@@ -63,14 +62,14 @@ export default function IntercitePage() {
     setBooking(true);
     setBookingError(null);
     try {
-      const result = await bookIntercitySeats({
+      const result = await bookAlloDakarSeats({
         departureId: selected.id,
         clientFullName: name,
         clientPhone: phone,
         seats,
       });
       setConfirmedRef(result.id.slice(0, 8));
-      const checkoutUrl = await createIntercityWaveCheckout(result.id).catch(() => null);
+      const checkoutUrl = await createAlloDakarWaveCheckout(result.id).catch(() => null);
       setPayLink(checkoutUrl);
       await runSearch();
     } catch (err) {
@@ -83,10 +82,8 @@ export default function IntercitePage() {
   if (loading) return <BrandedLoader fullScreen />;
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50">
-      <Header />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a6a1f]">SentraJet Intercité</p>
+    <AlloDakarShell>
+      <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
         <h1 className="mt-1 text-2xl font-bold text-neutral-900">Voyagez d’une ville à l’autre</h1>
         <p className="mt-1 text-sm text-neutral-600">
           Réservez une place chez un chauffeur partenaire vérifié — départs, prix et places disponibles en temps réel.
@@ -107,7 +104,7 @@ export default function IntercitePage() {
           </select>
           <button
             type="button"
-            className="col-span-2 rounded-xl bg-[#07111f] px-4 py-2.5 text-sm font-bold text-white"
+            className="col-span-2 rounded-xl bg-[#1f6b4a] px-4 py-2.5 text-sm font-bold text-white"
             onClick={() => void runSearch()}
             disabled={searching}
           >
@@ -120,7 +117,7 @@ export default function IntercitePage() {
             <div key={dep.id} className="rounded-2xl border border-neutral-200 bg-white p-4">
               <div className="flex items-center justify-between">
                 <b>{dep.corridor?.origin_city} → {dep.corridor?.destination_city}</b>
-                <span className="text-sm font-bold text-[#8a6a1f]">{formatFcfa(dep.price_per_seat_fcfa)}<span className="font-normal text-neutral-500">/place</span></span>
+                <span className="text-sm font-bold text-[#1f6b4a]">{formatFcfa(dep.price_per_seat_fcfa)}<span className="font-normal text-neutral-500">/place</span></span>
               </div>
               <p className="mt-1 text-sm text-neutral-600">
                 {new Date(dep.departure_at).toLocaleString("fr-FR")} · {dep.vehicle?.brand} {dep.vehicle?.model} · {dep.seats_available} place{dep.seats_available > 1 ? "s" : ""} restante{dep.seats_available > 1 ? "s" : ""}
@@ -128,7 +125,7 @@ export default function IntercitePage() {
               <p className="text-xs text-neutral-400">Chauffeur {dep.driver?.full_name}{dep.driver?.garage_name ? ` · Garage ${dep.driver.garage_name}` : ""}</p>
               <button
                 type="button"
-                className="mt-3 w-full rounded-xl bg-[#d5a64a] px-4 py-2.5 text-sm font-bold text-[#07111f]"
+                className="mt-3 w-full rounded-xl bg-[#1f6b4a] px-4 py-2.5 text-sm font-bold text-white"
                 onClick={() => {
                   setSelected(dep);
                   setConfirmedRef(null);
@@ -149,12 +146,15 @@ export default function IntercitePage() {
 
         <p className="mt-6 text-xs text-neutral-400">
           Vous êtes chauffeur et souhaitez publier vos trajets ?{" "}
-          <Link href="/intercite/chauffeur" className="font-semibold text-[#8a6a1f] underline">
-            Rejoindre SentraJet Intercité
+          <Link href="/allo-dakar/chauffeur" className="font-semibold text-[#1f6b4a] underline">
+            Rejoindre Allo Dakar
+          </Link>
+          {" "}· Vous gérez plusieurs chauffeurs ?{" "}
+          <Link href="/allo-dakar/gestionnaire" className="font-semibold text-[#1f6b4a] underline">
+            Ouvrir un espace garage
           </Link>
         </p>
-      </main>
-      <Footer />
+      </div>
 
       {selected ? (
         <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-4 sm:items-center">
@@ -203,7 +203,7 @@ export default function IntercitePage() {
                   <button type="button" className="flex-1 rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-semibold" onClick={() => setSelected(null)} disabled={booking}>
                     Annuler
                   </button>
-                  <button type="submit" className="flex-1 rounded-xl bg-[#07111f] px-4 py-2.5 text-sm font-bold text-white" disabled={booking}>
+                  <button type="submit" className="flex-1 rounded-xl bg-[#1f6b4a] px-4 py-2.5 text-sm font-bold text-white" disabled={booking}>
                     {booking ? "Réservation…" : "Confirmer"}
                   </button>
                 </div>
@@ -212,6 +212,6 @@ export default function IntercitePage() {
           </div>
         </div>
       ) : null}
-    </div>
+    </AlloDakarShell>
   );
 }
