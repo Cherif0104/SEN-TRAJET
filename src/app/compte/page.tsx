@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   BOOKING_STATUS_LABEL,
   bookingStatusTone,
+  CLIENT_CANCELLED_STATUSES,
+  CLIENT_TERMINAL_STATUSES,
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { useClientBookings } from "@/hooks/useClientBookings";
@@ -13,10 +15,15 @@ import { BrandedLoader } from "@/components/ui/BrandedLoader";
 
 export default function ComptePage() {
   const { profile } = useAuth();
-  const { rows, loading, error } = useClientBookings();
+  const { rows, loading, error, refresh } = useClientBookings();
 
-  const upcoming = rows.filter((b) => !["terminee", "annulee"].includes(b.status));
-  const lastPrice = rows[0]?.estimated_price;
+  const upcoming = rows
+    .filter((b) => !CLIENT_TERMINAL_STATUSES.includes(b.status) && !CLIENT_CANCELLED_STATUSES.includes(b.status))
+    .sort((a, b) => new Date(a.pickup_time).getTime() - new Date(b.pickup_time).getTime());
+
+  const lastCompleted = rows
+    .filter((b) => CLIENT_TERMINAL_STATUSES.includes(b.status))
+    .sort((a, b) => new Date(b.pickup_time).getTime() - new Date(a.pickup_time).getTime())[0];
 
   return (
     <>
@@ -30,7 +37,10 @@ export default function ComptePage() {
       />
       {error ? (
         <p role="alert" className="mb-4 text-sm text-[var(--color-error)]">
-          {error}
+          {error}{" "}
+          <button type="button" className="underline" onClick={() => void refresh()}>
+            Réessayer
+          </button>
         </p>
       ) : null}
       {loading ? <BrandedLoader /> : null}
@@ -52,34 +62,44 @@ export default function ComptePage() {
             <div className="num">{upcoming.length.toString().padStart(2, "0")}</div>
           </div>
           <div className="sj-stat">
-            <div className="sj-muted">Dernier trajet</div>
-            <div className="num">{lastPrice != null ? Math.round(Number(lastPrice) / 1000) + "k" : "—"}</div>
-            <div className="sj-gold">FCFA</div>
+            <div className="sj-muted">Dernière course</div>
+            <div className="num" style={{ fontSize: 20 }}>
+              {lastCompleted?.estimated_price != null ? formatFcfa(Number(lastCompleted.estimated_price)) : "—"}
+            </div>
           </div>
         </section>
       </div>
 
-      <SjSectionHead title="Mes prochaines réservations" />
+      <SjSectionHead
+        title="Mes prochaines réservations"
+        action={
+          <Link href="/compte/reservations" className="sj-btn sj-btn-ghost">
+            Voir tout →
+          </Link>
+        }
+      />
       {!loading ? <div className="sj-list">
         {upcoming.slice(0, 5).map((b) => (
-          <SjCard key={b.id}>
-            <div className="sj-between">
-              <div>
-                <b>
-                  {b.pickup} → {b.dropoff}
-                </b>
-                <div className="sj-muted">
-                  {new Date(b.pickup_time).toLocaleString("fr-FR")} · {b.passengers} passagers
+          <Link key={b.id} href={`/compte/reservations/${b.id}`}>
+            <SjCard>
+              <div className="sj-between">
+                <div>
+                  <b>
+                    {b.pickup} → {b.dropoff}
+                  </b>
+                  <div className="sj-muted">
+                    {new Date(b.pickup_time).toLocaleString("fr-FR")} · {b.passengers} passagers
+                  </div>
+                  <div className="sj-gold" style={{ marginTop: 6 }}>
+                    {b.estimated_price != null ? formatFcfa(Number(b.estimated_price)) : "Sur devis"}
+                  </div>
                 </div>
-                <div className="sj-gold" style={{ marginTop: 6 }}>
-                  {b.estimated_price != null ? formatFcfa(Number(b.estimated_price)) : "Sur devis"}
-                </div>
+                <SjBadge tone={bookingStatusTone(b.status)}>
+                  {BOOKING_STATUS_LABEL[b.status] ?? b.status}
+                </SjBadge>
               </div>
-              <SjBadge tone={bookingStatusTone(b.status)}>
-                {BOOKING_STATUS_LABEL[b.status] ?? b.status}
-              </SjBadge>
-            </div>
-          </SjCard>
+            </SjCard>
+          </Link>
         ))}
         {!upcoming.length ? <SjCard><p className="sj-muted">Aucune réservation à venir. Lancez votre première demande.</p></SjCard> : null}
       </div> : null}
