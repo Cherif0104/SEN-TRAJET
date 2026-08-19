@@ -19,6 +19,7 @@ import {
   listAlloDakarCorridors,
   listAlloDakarDrivers,
   listAlloDakarSubscriptions,
+  listOpenAlloDakarRideRequests,
   listVerifiableAlloDakarVehicles,
   setAlloDakarCorridorActive,
   setAlloDakarDriverStatus,
@@ -30,11 +31,17 @@ import {
   type AlloDakarDeparture,
   type AlloDakarDriver,
   type AlloDakarGarage,
+  type AlloDakarRideRequest,
   type AlloDakarSubscription,
   type AlloDakarVehicle,
 } from "@/lib/alloDakarOps";
 
-type Tab = "corridors" | "chauffeurs" | "garages" | "vehicules" | "departs" | "reservations";
+const PICKUP_MODE_LABEL: Record<string, string> = {
+  domicile: "Domicile (porte-à-porte)",
+  point_relais: "Point relais",
+};
+
+type Tab = "corridors" | "chauffeurs" | "garages" | "vehicules" | "departs" | "reservations" | "demandes";
 
 const GARAGE_STATUS_LABEL: Record<string, string> = {
   en_attente: "En attente",
@@ -67,6 +74,7 @@ export default function AdminAlloDakarPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [bookings, setBookings] = useState<AlloDakarBooking[]>([]);
+  const [rideRequests, setRideRequests] = useState<AlloDakarRideRequest[]>([]);
   const [prices, setPrices] = useState({ hebdo: 5000, mensuel: 15000, essaiJours: 15, commissionPercent: 10 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,11 +97,12 @@ export default function AdminAlloDakarPage() {
   const [newOrigin, setNewOrigin] = useState("");
   const [newDestination, setNewDestination] = useState("");
   const [newRefPrice, setNewRefPrice] = useState("");
+  const [newRefPriceDomicile, setNewRefPriceDomicile] = useState("");
 
   async function reloadAll() {
     setLoading(true);
     try {
-      const [c, d, s, gg, vv, dep, b, rules] = await Promise.all([
+      const [c, d, s, gg, vv, dep, b, reqs, rules] = await Promise.all([
         listAlloDakarCorridors(),
         listAlloDakarDrivers(),
         listAlloDakarSubscriptions(),
@@ -101,6 +110,7 @@ export default function AdminAlloDakarPage() {
         listVerifiableAlloDakarVehicles(),
         listAllAlloDakarDepartures(),
         listAllAlloDakarBookings(),
+        listOpenAlloDakarRideRequests(),
         listBusinessRules(),
       ]);
       setCorridors(c);
@@ -110,6 +120,7 @@ export default function AdminAlloDakarPage() {
       setVehicles(vv);
       setDepartures(dep);
       setBookings(b);
+      setRideRequests(reqs);
       setPrices({
         hebdo: ruleNumber(rules, "allo_dakar", "subscription_price_hebdomadaire_fcfa", 5000),
         mensuel: ruleNumber(rules, "allo_dakar", "subscription_price_mensuel_fcfa", 15000),
@@ -137,10 +148,12 @@ export default function AdminAlloDakarPage() {
         originCity: newOrigin,
         destinationCity: newDestination,
         referencePriceFcfa: newRefPrice ? Number(newRefPrice) : null,
+        referencePriceDomicileFcfa: newRefPriceDomicile ? Number(newRefPriceDomicile) : null,
       });
       setNewOrigin("");
       setNewDestination("");
       setNewRefPrice("");
+      setNewRefPriceDomicile("");
       await reloadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de créer ce corridor.");
@@ -254,7 +267,7 @@ export default function AdminAlloDakarPage() {
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
 
       <div className="sj-tabs" style={{ marginBottom: 16 }}>
-        {(["corridors", "chauffeurs", "garages", "vehicules", "departs", "reservations"] as Tab[]).map((t) => (
+        {(["corridors", "chauffeurs", "garages", "vehicules", "departs", "demandes", "reservations"] as Tab[]).map((t) => (
           <button key={t} type="button" className={tab === t ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(t)}>
             {t === "corridors"
               ? "Corridors"
@@ -266,7 +279,9 @@ export default function AdminAlloDakarPage() {
                     ? "Véhicules"
                     : t === "departs"
                       ? "Départs"
-                      : "Réservations"}
+                      : t === "demandes"
+                        ? `Demandes clients (${rideRequests.length})`
+                        : "Réservations"}
           </button>
         ))}
       </div>
@@ -285,13 +300,21 @@ export default function AdminAlloDakarPage() {
                 <input value={newDestination} onChange={(e) => setNewDestination(e.target.value)} placeholder="Saint-Louis" />
               </div>
               <div className="sj-field">
-                <label>Prix indicatif / place (FCFA)</label>
-                <input type="number" value={newRefPrice} onChange={(e) => setNewRefPrice(e.target.value)} placeholder="5000" />
+                <label>Prix indicatif point relais / place (FCFA)</label>
+                <input type="number" value={newRefPrice} onChange={(e) => setNewRefPrice(e.target.value)} placeholder="7500" />
+              </div>
+              <div className="sj-field">
+                <label>Prix indicatif domicile / place (FCFA, optionnel)</label>
+                <input type="number" value={newRefPriceDomicile} onChange={(e) => setNewRefPriceDomicile(e.target.value)} placeholder="10000" />
               </div>
               <button type="submit" className="sj-btn sj-btn-primary" style={{ alignSelf: "end" }}>
                 Ajouter
               </button>
             </form>
+            <p className="sj-muted" style={{ marginTop: 8 }}>
+              Ces prix sont indicatifs : chaque chauffeur fixe son propre prix par place à la publication du départ.
+              Le point relais (dépose commune) est toujours moins cher que le domicile (porte-à-porte).
+            </p>
           </SjCard>
           <div className="sj-list" style={{ marginTop: 12 }}>
             {corridors.map((c) => (
@@ -300,7 +323,8 @@ export default function AdminAlloDakarPage() {
                   <div>
                     <b>{c.origin_city} → {c.destination_city}</b>
                     <div className="sj-muted">
-                      {c.reference_price_fcfa ? `${formatFcfa(c.reference_price_fcfa)} indicatif/place` : "Prix libre"}
+                      {c.reference_price_fcfa ? `${formatFcfa(c.reference_price_fcfa)} point relais` : "Point relais : prix libre"}
+                      {c.reference_price_domicile_fcfa ? ` · ${formatFcfa(c.reference_price_domicile_fcfa)} domicile` : ""}
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -568,7 +592,8 @@ export default function AdminAlloDakarPage() {
                   <b>{dep.corridor?.origin_city} → {dep.corridor?.destination_city}</b>
                   <div className="sj-muted">
                     {new Date(dep.departure_at).toLocaleString("fr-FR")} · {dep.driver?.full_name ?? driverById.get(dep.allo_dakar_driver_id)?.full_name} ·{" "}
-                    {dep.vehicle?.plate_number} · {formatFcfa(dep.price_per_seat_fcfa)}/place
+                    {dep.vehicle?.plate_number} · {formatFcfa(dep.price_per_seat_fcfa)}/place point relais
+                    {dep.price_domicile_fcfa ? ` · ${formatFcfa(dep.price_domicile_fcfa)}/place domicile` : ""}
                   </div>
                   <div className="sj-muted">{dep.seats_available}/{dep.seats_total} places disponibles</div>
                 </div>
@@ -592,6 +617,35 @@ export default function AdminAlloDakarPage() {
         </div>
       ) : null}
 
+      {tab === "demandes" ? (
+        <div className="sj-list">
+          <p className="sj-muted">
+            Demandes publiées par des clients qui n&apos;ont pas trouvé de départ correspondant — visibles par tout
+            chauffeur actif pour qu&apos;il les confirme sur l&apos;un de ses départs publiés.
+          </p>
+          {rideRequests.map((r) => (
+            <SjCard key={r.id}>
+              <div className="sj-between">
+                <div>
+                  <b>{r.client_full_name}</b>
+                  <div className="sj-muted">
+                    {r.corridor ? `${r.corridor.origin_city} → ${r.corridor.destination_city}` : "Corridor inconnu"} ·{" "}
+                    {new Date(r.desired_date).toLocaleDateString("fr-FR")}
+                    {r.desired_time_hint ? ` · ${r.desired_time_hint}` : ""}
+                  </div>
+                  <div className="sj-muted">
+                    {r.seats_needed} place{r.seats_needed > 1 ? "s" : ""} · {PICKUP_MODE_LABEL[r.pickup_mode]}
+                    {r.pickup_detail ? ` (${r.pickup_detail})` : ""} · {r.client_phone}
+                  </div>
+                </div>
+                <SjBadge tone="warning">Ouverte</SjBadge>
+              </div>
+            </SjCard>
+          ))}
+          {!rideRequests.length ? <SjCard><p className="sj-muted">Aucune demande client ouverte pour le moment.</p></SjCard> : null}
+        </div>
+      ) : null}
+
       {tab === "reservations" ? (
         <div className="sj-list">
           {bookings.map((b) => (
@@ -599,7 +653,7 @@ export default function AdminAlloDakarPage() {
               <div className="sj-between">
                 <div>
                   <b>{b.client_full_name}</b>
-                  <div className="sj-muted">{b.client_phone} · {b.seats_booked} place{b.seats_booked > 1 ? "s" : ""}</div>
+                  <div className="sj-muted">{b.client_phone} · {b.seats_booked} place{b.seats_booked > 1 ? "s" : ""} · {PICKUP_MODE_LABEL[b.pickup_mode] ?? b.pickup_mode}</div>
                   <div className="sj-muted">{formatFcfa(b.amount_fcfa)} · commission {formatFcfa(b.commission_fcfa)} · chauffeur {formatFcfa(b.driver_payout_fcfa)}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>

@@ -351,7 +351,17 @@ export async function ensureClientForUser(params: {
     })
     .select("id")
     .single();
-  if (error) throw formatSupabaseError(error, "Impossible de créer le profil client.");
+  if (error) {
+    // Course concurrente possible : deux appels de ensureClientForUser peuvent se déclencher à
+    // quelques millisecondes d'écart juste après connexion (ex. useClientBookings se relance dès
+    // que le profil finit de charger). Si un autre appel a déjà créé la ligne entre-temps, on
+    // récupère son id au lieu d'échouer avec une erreur de contrainte unique.
+    if (error.code === "23505" || /duplicate key|clients_user_id_key/i.test(error.message || "")) {
+      const { data: retry } = await supabase.from("clients").select("id").eq("user_id", params.userId).maybeSingle();
+      if (retry?.id) return retry.id as string;
+    }
+    throw formatSupabaseError(error, "Impossible de créer le profil client.");
+  }
   return data.id as string;
 }
 

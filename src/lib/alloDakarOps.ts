@@ -1,10 +1,19 @@
 import { supabase } from "@/lib/supabase";
+import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
+
+/** Nombre de minutes avant departure_at au-delà desquelles un départ ne peut plus être réservé
+ * (configurable dans business_rules, catégorie allo_dakar). */
+export async function getAlloDakarBookingCutoffMinutes(): Promise<number> {
+  const rules = await listBusinessRules("allo_dakar");
+  return ruleNumber(rules, "allo_dakar", "booking_cutoff_minutes", 30);
+}
 
 export type AlloDakarCorridor = {
   id: string;
   origin_city: string;
   destination_city: string;
   reference_price_fcfa: number | null;
+  reference_price_domicile_fcfa: number | null;
   is_active: boolean;
 };
 
@@ -58,6 +67,8 @@ export type AlloDakarSubscription = {
   status: "actif" | "expire" | "suspendu";
 };
 
+export type AlloDakarPickupMode = "domicile" | "point_relais";
+
 export type AlloDakarDeparture = {
   id: string;
   allo_dakar_driver_id: string;
@@ -65,6 +76,7 @@ export type AlloDakarDeparture = {
   corridor_id: string;
   departure_at: string;
   price_per_seat_fcfa: number;
+  price_domicile_fcfa: number | null;
   seats_total: number;
   seats_available: number;
   status: "publie" | "complet" | "en_cours" | "termine" | "annule";
@@ -81,6 +93,8 @@ export type AlloDakarBooking = {
   client_full_name: string;
   client_phone: string;
   seats_booked: number;
+  pickup_mode: AlloDakarPickupMode;
+  pickup_detail: string | null;
   amount_fcfa: number;
   commission_fcfa: number;
   driver_payout_fcfa: number;
@@ -90,13 +104,32 @@ export type AlloDakarBooking = {
   departure?: AlloDakarDeparture;
 };
 
+export type AlloDakarRideRequest = {
+  id: string;
+  client_user_id: string | null;
+  client_full_name: string;
+  client_phone: string;
+  corridor_id: string;
+  desired_date: string;
+  desired_time_hint: string | null;
+  seats_needed: number;
+  pickup_mode: AlloDakarPickupMode;
+  pickup_detail: string | null;
+  status: "ouverte" | "confirmee" | "expiree" | "annulee";
+  confirmed_by_driver_id: string | null;
+  matched_departure_id: string | null;
+  matched_booking_id: string | null;
+  created_at: string;
+  corridor?: AlloDakarCorridor;
+};
+
 // ---------------------------------------------------------------------------
 // Corridors
 // ---------------------------------------------------------------------------
 export async function listAlloDakarCorridors(): Promise<AlloDakarCorridor[]> {
   const { data, error } = await supabase
     .from("allo_dakar_corridors")
-    .select("id, origin_city, destination_city, reference_price_fcfa, is_active")
+    .select("id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active")
     .order("origin_city");
   if (error) throw error;
   return (data ?? []) as AlloDakarCorridor[];
@@ -106,11 +139,13 @@ export async function createAlloDakarCorridor(input: {
   originCity: string;
   destinationCity: string;
   referencePriceFcfa?: number | null;
+  referencePriceDomicileFcfa?: number | null;
 }): Promise<void> {
   const { error } = await supabase.from("allo_dakar_corridors").insert({
     origin_city: input.originCity.trim(),
     destination_city: input.destinationCity.trim(),
     reference_price_fcfa: input.referencePriceFcfa ?? null,
+    reference_price_domicile_fcfa: input.referencePriceDomicileFcfa ?? null,
   });
   if (error) throw error;
 }
@@ -443,18 +478,21 @@ export function formatSubscriptionPeriod(sub: AlloDakarSubscription): string {
 // Départs
 // ---------------------------------------------------------------------------
 const DEPARTURE_SELECT =
-  "id, allo_dakar_driver_id, allo_dakar_vehicle_id, corridor_id, departure_at, price_per_seat_fcfa, seats_total, seats_available, status, notes, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, is_active), driver:allo_dakar_drivers(id, full_name, phone, garage_name), vehicle:allo_dakar_vehicles(id, plate_number, brand, model, seats_total)";
+  "id, allo_dakar_driver_id, allo_dakar_vehicle_id, corridor_id, departure_at, price_per_seat_fcfa, price_domicile_fcfa, seats_total, seats_available, status, notes, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active), driver:allo_dakar_drivers(id, full_name, phone, garage_name), vehicle:allo_dakar_vehicles(id, plate_number, brand, model, seats_total)";
 
 export async function searchAlloDakarDepartures(input: {
   originCity?: string;
   destinationCity?: string;
   fromDate?: string;
 }): Promise<AlloDakarDeparture[]> {
+  const cutoffMinutes = await getAlloDakarBookingCutoffMinutes();
+  const cutoffAt = new Date(Date.now() + cutoffMinutes * 60_000).toISOString();
   let query = supabase
     .from("allo_dakar_departures")
     .select(DEPARTURE_SELECT)
     .eq("status", "publie")
     .gt("seats_available", 0)
+    .gt("departure_at", cutoffAt)
     .order("departure_at", { ascending: true });
   if (input.fromDate) query = query.gte("departure_at", input.fromDate);
   const { data, error } = await query;
@@ -495,6 +533,7 @@ export async function publishAlloDakarDeparture(input: {
   corridorId: string;
   departureAt: string;
   pricePerSeatFcfa: number;
+  priceDomicileFcfa?: number | null;
   seatsTotal: number;
 }): Promise<void> {
   const { error } = await supabase.from("allo_dakar_departures").insert({
@@ -503,6 +542,7 @@ export async function publishAlloDakarDeparture(input: {
     corridor_id: input.corridorId,
     departure_at: input.departureAt,
     price_per_seat_fcfa: input.pricePerSeatFcfa,
+    price_domicile_fcfa: input.priceDomicileFcfa ?? null,
     seats_total: input.seatsTotal,
     seats_available: input.seatsTotal,
   });
@@ -522,18 +562,24 @@ export async function bookAlloDakarSeats(input: {
   clientFullName: string;
   clientPhone: string;
   seats: number;
+  pickupMode?: AlloDakarPickupMode;
+  pickupDetail?: string | null;
 }): Promise<AlloDakarBooking> {
   const { data, error } = await supabase.rpc("book_allo_dakar_seats", {
     p_departure_id: input.departureId,
     p_client_full_name: input.clientFullName,
     p_client_phone: input.clientPhone,
     p_seats: input.seats,
+    p_pickup_mode: input.pickupMode ?? "point_relais",
+    p_pickup_detail: input.pickupDetail ?? null,
   });
   if (error) {
     const messages: Record<string, string> = {
       not_enough_seats: "Il ne reste plus assez de places disponibles pour ce départ.",
       departure_not_bookable: "Ce départ n’est plus disponible à la réservation.",
       departure_not_found: "Départ introuvable.",
+      booking_closed: "Les réservations pour ce départ sont clôturées (trop proche de l’heure de départ).",
+      pickup_mode_unavailable: "Ce départ n’offre pas la prise en charge à domicile.",
     };
     const key = Object.keys(messages).find((k) => (error.message || "").includes(k));
     throw new Error(key ? messages[key] : "Impossible de réserver cette place.");
@@ -547,10 +593,13 @@ export async function cancelAlloDakarBooking(bookingId: string): Promise<AlloDak
   return data as AlloDakarBooking;
 }
 
+const BOOKING_SELECT =
+  "id, departure_id, client_user_id, client_full_name, client_phone, seats_booked, pickup_mode, pickup_detail, amount_fcfa, commission_fcfa, driver_payout_fcfa, payment_status, status, created_at";
+
 export async function listAlloDakarBookingsForDeparture(departureId: string): Promise<AlloDakarBooking[]> {
   const { data, error } = await supabase
     .from("allo_dakar_bookings")
-    .select("id, departure_id, client_user_id, client_full_name, client_phone, seats_booked, amount_fcfa, commission_fcfa, driver_payout_fcfa, payment_status, status, created_at")
+    .select(BOOKING_SELECT)
     .eq("departure_id", departureId)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -560,11 +609,100 @@ export async function listAlloDakarBookingsForDeparture(departureId: string): Pr
 export async function listAllAlloDakarBookings(): Promise<AlloDakarBooking[]> {
   const { data, error } = await supabase
     .from("allo_dakar_bookings")
-    .select("id, departure_id, client_user_id, client_full_name, client_phone, seats_booked, amount_fcfa, commission_fcfa, driver_payout_fcfa, payment_status, status, created_at, departure:allo_dakar_departures(id, departure_at, corridor:allo_dakar_corridors(origin_city, destination_city))")
+    .select(`${BOOKING_SELECT}, departure:allo_dakar_departures(id, departure_at, corridor:allo_dakar_corridors(origin_city, destination_city))`)
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw error;
   return (data ?? []) as unknown as AlloDakarBooking[];
+}
+
+// ---------------------------------------------------------------------------
+// Demandes clients (marketplace inversé) : le client publie un besoin, un chauffeur le confirme
+// ---------------------------------------------------------------------------
+const RIDE_REQUEST_SELECT =
+  "id, client_user_id, client_full_name, client_phone, corridor_id, desired_date, desired_time_hint, seats_needed, pickup_mode, pickup_detail, status, confirmed_by_driver_id, matched_departure_id, matched_booking_id, created_at, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active)";
+
+export async function createAlloDakarRideRequest(input: {
+  clientUserId?: string | null;
+  clientFullName: string;
+  clientPhone: string;
+  corridorId: string;
+  desiredDate: string;
+  desiredTimeHint?: string | null;
+  seatsNeeded: number;
+  pickupMode: AlloDakarPickupMode;
+  pickupDetail?: string | null;
+}): Promise<AlloDakarRideRequest> {
+  const { data, error } = await supabase
+    .from("allo_dakar_ride_requests")
+    .insert({
+      client_user_id: input.clientUserId ?? null,
+      client_full_name: input.clientFullName.trim(),
+      client_phone: input.clientPhone.trim(),
+      corridor_id: input.corridorId,
+      desired_date: input.desiredDate,
+      desired_time_hint: input.desiredTimeHint ?? null,
+      seats_needed: input.seatsNeeded,
+      pickup_mode: input.pickupMode,
+      pickup_detail: input.pickupDetail ?? null,
+    })
+    .select(RIDE_REQUEST_SELECT)
+    .single();
+  if (error) throw error;
+  return data as unknown as AlloDakarRideRequest;
+}
+
+/** Demandes ouvertes, visibles par tout chauffeur pour trouver des clients sur ses corridors. */
+export async function listOpenAlloDakarRideRequests(corridorId?: string): Promise<AlloDakarRideRequest[]> {
+  let query = supabase
+    .from("allo_dakar_ride_requests")
+    .select(RIDE_REQUEST_SELECT)
+    .eq("status", "ouverte")
+    .order("desired_date", { ascending: true });
+  if (corridorId) query = query.eq("corridor_id", corridorId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as unknown as AlloDakarRideRequest[];
+}
+
+export async function listMyAlloDakarRideRequests(userId: string): Promise<AlloDakarRideRequest[]> {
+  const { data, error } = await supabase
+    .from("allo_dakar_ride_requests")
+    .select(RIDE_REQUEST_SELECT)
+    .eq("client_user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as AlloDakarRideRequest[];
+}
+
+export async function cancelAlloDakarRideRequest(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("allo_dakar_ride_requests")
+    .update({ status: "annulee", updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** Le chauffeur confirme une demande cliente sur l'un de ses départs publiés : crée une vraie
+ * réservation (même logique que book_allo_dakar_seats) et referme la demande. */
+export async function confirmAlloDakarRideRequest(requestId: string, departureId: string): Promise<AlloDakarBooking> {
+  const { data, error } = await supabase.rpc("confirm_allo_dakar_ride_request", {
+    p_request_id: requestId,
+    p_departure_id: departureId,
+  });
+  if (error) {
+    const messages: Record<string, string> = {
+      request_not_open: "Cette demande n’est plus disponible.",
+      departure_not_bookable: "Ce départ n’est plus disponible à la réservation.",
+      not_enough_seats: "Il ne reste plus assez de places sur ce départ.",
+      corridor_mismatch: "Ce départ ne correspond pas au corridor de la demande.",
+      pickup_mode_unavailable: "Ce départ n’offre pas le mode de prise en charge demandé.",
+      not_authorized: "Vous ne pouvez confirmer que sur vos propres départs.",
+    };
+    const key = Object.keys(messages).find((k) => (error.message || "").includes(k));
+    throw new Error(key ? messages[key] : "Impossible de confirmer cette demande.");
+  }
+  return data as AlloDakarBooking;
 }
 
 /** Tente de créer une session de paiement Wave réelle pour cette réservation Allo Dakar. */

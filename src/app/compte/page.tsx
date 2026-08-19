@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plane, Route, Clock, Car, CalendarCheck, Heart } from "lucide-react";
+import { Plane, Route, Clock, CalendarCheck, Heart } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -35,13 +35,6 @@ const SERVICE_TILES = [
     title: "Mise à disposition",
     subtitle: "Chauffeur à l’heure ou à la journée",
     background: "linear-gradient(135deg, #3a2a12, #8a6a1f)",
-  },
-  {
-    href: "/allo-dakar",
-    icon: Car,
-    title: "Allo Dakar",
-    subtitle: "Voyages partagés entre villes",
-    background: "linear-gradient(135deg, #163d2b, #1f6b4a)",
   },
   {
     href: "/compte/reservations",
@@ -145,6 +138,14 @@ export default function ComptePage() {
         ))}
         {!upcoming.length ? <SjCard><p className="sj-muted">Aucune réservation à venir. Lancez votre première demande.</p></SjCard> : null}
       </div> : null}
+
+      <p className="sj-muted" style={{ marginTop: 24, fontSize: 12, textAlign: "center" }}>
+        Besoin d&apos;un trajet interurbain économique et partagé ?{" "}
+        <a href="/allo-dakar" target="_blank" rel="noreferrer" style={{ color: "var(--sj-muted)", textDecoration: "underline" }}>
+          Découvrir SentraJet Allo Dakar
+        </a>{" "}
+        — offre indépendante, hors flotte Premium.
+      </p>
     </>
   );
 }
