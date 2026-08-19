@@ -28,9 +28,16 @@ type PremiumShellProps = {
   nav: PremiumNavItem[];
   mobileNav?: PremiumNavItem[];
   children: React.ReactNode;
+  /**
+   * "pro" (défaut) : espaces internes/professionnels (admin, super admin, ops, commercial,
+   * finance, fleet, rh, manager, partenaire, prestataire, chauffeur, propriétaire) — pensés
+   * desktop-first, tout en restant utilisables sur mobile.
+   * "client" : espace Client — pensé mobile-first, colonne unique conservée même en grand écran.
+   */
+  variant?: "pro" | "client";
 };
 
-export function PremiumShell({ title, subtitle, nav, mobileNav, children }: PremiumShellProps) {
+export function PremiumShell({ title, subtitle, nav, mobileNav, children, variant = "pro" }: PremiumShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
@@ -56,7 +63,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
   };
 
   return (
-    <div className="sj-app">
+    <div className={`sj-app sj-app--${variant}`}>
       <aside className="sj-sidebar">
         <div className="sj-brand">
           <Logo variant={resolvedTheme === "dark" ? "light" : "default"} />
