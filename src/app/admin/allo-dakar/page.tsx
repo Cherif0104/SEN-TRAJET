@@ -7,27 +7,34 @@ import { formatFcfa } from "@/lib/sentrajetPricing";
 import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
 import {
   createAlloDakarCorridor,
+  createAlloDakarDriverByStaff,
+  createGarageWithManager,
+  formatSubscriptionPeriod,
+  getActiveSubscription,
+  getVehicleGreyCardSignedUrl,
   grantAlloDakarSubscription,
-  hasActiveSubscription,
   listAllAlloDakarBookings,
   listAllAlloDakarDepartures,
   listAllGarages,
   listAlloDakarCorridors,
   listAlloDakarDrivers,
   listAlloDakarSubscriptions,
+  listVerifiableAlloDakarVehicles,
   setAlloDakarCorridorActive,
   setAlloDakarDriverStatus,
   setGarageStatus,
   cancelAlloDakarDeparture,
+  verifyAlloDakarVehicle,
   type AlloDakarBooking,
   type AlloDakarCorridor,
   type AlloDakarDeparture,
   type AlloDakarDriver,
   type AlloDakarGarage,
   type AlloDakarSubscription,
+  type AlloDakarVehicle,
 } from "@/lib/alloDakarOps";
 
-type Tab = "corridors" | "chauffeurs" | "garages" | "departs" | "reservations";
+type Tab = "corridors" | "chauffeurs" | "garages" | "vehicules" | "departs" | "reservations";
 
 const GARAGE_STATUS_LABEL: Record<string, string> = {
   en_attente: "En attente",
@@ -54,11 +61,30 @@ export default function AdminAlloDakarPage() {
   const [drivers, setDrivers] = useState<AlloDakarDriver[]>([]);
   const [subscriptions, setSubscriptions] = useState<AlloDakarSubscription[]>([]);
   const [garages, setGarages] = useState<AlloDakarGarage[]>([]);
+  const [vehicles, setVehicles] = useState<AlloDakarVehicle[]>([]);
+  const [greyCardLinks, setGreyCardLinks] = useState<Record<string, string>>({});
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [bookings, setBookings] = useState<AlloDakarBooking[]>([]);
   const [prices, setPrices] = useState({ hebdo: 5000, mensuel: 15000, essaiJours: 15, commissionPercent: 10 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [showNewDriver, setShowNewDriver] = useState(false);
+  const [ndFullName, setNdFullName] = useState("");
+  const [ndPhone, setNdPhone] = useState("");
+  const [ndIdCard, setNdIdCard] = useState("");
+  const [ndGarageId, setNdGarageId] = useState("");
+
+  const [showNewGarage, setShowNewGarage] = useState(false);
+  const [ngEmail, setNgEmail] = useState("");
+  const [ngPassword, setNgPassword] = useState("");
+  const [ngFullName, setNgFullName] = useState("");
+  const [ngGarageName, setNgGarageName] = useState("");
+  const [ngPhone, setNgPhone] = useState("");
+  const [ngCity, setNgCity] = useState("");
+  const [creatingGarage, setCreatingGarage] = useState(false);
 
   const [newOrigin, setNewOrigin] = useState("");
   const [newDestination, setNewDestination] = useState("");
@@ -67,11 +93,12 @@ export default function AdminAlloDakarPage() {
   async function reloadAll() {
     setLoading(true);
     try {
-      const [c, d, s, gg, dep, b, rules] = await Promise.all([
+      const [c, d, s, gg, vv, dep, b, rules] = await Promise.all([
         listAlloDakarCorridors(),
         listAlloDakarDrivers(),
         listAlloDakarSubscriptions(),
         listAllGarages(),
+        listVerifiableAlloDakarVehicles(),
         listAllAlloDakarDepartures(),
         listAllAlloDakarBookings(),
         listBusinessRules(),
@@ -80,6 +107,7 @@ export default function AdminAlloDakarPage() {
       setDrivers(d);
       setSubscriptions(s);
       setGarages(gg);
+      setVehicles(vv);
       setDepartures(dep);
       setBookings(b);
       setPrices({
@@ -119,6 +147,80 @@ export default function AdminAlloDakarPage() {
     }
   }
 
+  async function handleCreateDriver(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ndFullName.trim() || !ndPhone.trim()) return;
+    try {
+      await createAlloDakarDriverByStaff({
+        fullName: ndFullName,
+        phone: ndPhone,
+        idCardNumber: ndIdCard || null,
+        garageId: ndGarageId || null,
+      });
+      setNdFullName("");
+      setNdPhone("");
+      setNdIdCard("");
+      setNdGarageId("");
+      setShowNewDriver(false);
+      await reloadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de créer ce chauffeur.");
+    }
+  }
+
+  async function handleCreateGarage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ngEmail.trim() || !ngPassword || !ngFullName.trim() || !ngGarageName.trim() || !ngPhone.trim()) return;
+    setCreatingGarage(true);
+    try {
+      await createGarageWithManager({
+        email: ngEmail,
+        password: ngPassword,
+        fullName: ngFullName,
+        garageName: ngGarageName,
+        phone: ngPhone,
+        city: ngCity || null,
+      });
+      setNgEmail("");
+      setNgPassword("");
+      setNgFullName("");
+      setNgGarageName("");
+      setNgPhone("");
+      setNgCity("");
+      setShowNewGarage(false);
+      await reloadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de créer ce garage.");
+    } finally {
+      setCreatingGarage(false);
+    }
+  }
+
+  async function viewGreyCard(path: string) {
+    const url = await getVehicleGreyCardSignedUrl(path);
+    if (url) setGreyCardLinks((prev) => ({ ...prev, [path]: url }));
+  }
+
+  async function approveVehicle(vehicleId: string) {
+    try {
+      await verifyAlloDakarVehicle(vehicleId, true);
+      await reloadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de valider ce véhicule.");
+    }
+  }
+
+  async function rejectVehicle(vehicleId: string) {
+    try {
+      await verifyAlloDakarVehicle(vehicleId, false, rejectReason || "Document illisible ou incomplet");
+      setRejectingId(null);
+      setRejectReason("");
+      await reloadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de rejeter ce véhicule.");
+    }
+  }
+
   async function grantAccess(driverId: string, corridorId: string, plan: "essai_gratuit" | "hebdomadaire" | "mensuel") {
     const priceMap = { essai_gratuit: 0, hebdomadaire: prices.hebdo, mensuel: prices.mensuel };
     const durationMap = { essai_gratuit: prices.essaiJours, hebdomadaire: 7, mensuel: 30 };
@@ -151,8 +253,8 @@ export default function AdminAlloDakarPage() {
       </p>
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
 
-      <div className="sj-toolbar" style={{ marginBottom: 16 }}>
-        {(["corridors", "chauffeurs", "garages", "departs", "reservations"] as Tab[]).map((t) => (
+      <div className="sj-tabs" style={{ marginBottom: 16 }}>
+        {(["corridors", "chauffeurs", "garages", "vehicules", "departs", "reservations"] as Tab[]).map((t) => (
           <button key={t} type="button" className={tab === t ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(t)}>
             {t === "corridors"
               ? "Corridors"
@@ -160,9 +262,11 @@ export default function AdminAlloDakarPage() {
                 ? "Chauffeurs"
                 : t === "garages"
                   ? "Garages"
-                  : t === "departs"
-                    ? "Départs"
-                    : "Réservations"}
+                  : t === "vehicules"
+                    ? "Véhicules"
+                    : t === "departs"
+                      ? "Départs"
+                      : "Réservations"}
           </button>
         ))}
       </div>
@@ -219,7 +323,44 @@ export default function AdminAlloDakarPage() {
       ) : null}
 
       {tab === "chauffeurs" ? (
-        <div className="sj-list">
+        <>
+          <SjCard>
+            <div className="sj-between">
+              <h3 style={{ margin: 0 }}>Créer un chauffeur</h3>
+              <button type="button" className="sj-btn" onClick={() => setShowNewDriver((v) => !v)}>
+                {showNewDriver ? "Fermer" : "+ Nouveau chauffeur"}
+              </button>
+            </div>
+            {showNewDriver ? (
+              <form onSubmit={handleCreateDriver} className="sj-form-grid" style={{ marginTop: 12 }}>
+                <div className="sj-field">
+                  <label>Nom complet</label>
+                  <input value={ndFullName} onChange={(e) => setNdFullName(e.target.value)} required />
+                </div>
+                <div className="sj-field">
+                  <label>Téléphone</label>
+                  <input value={ndPhone} onChange={(e) => setNdPhone(e.target.value)} placeholder="+221 …" required />
+                </div>
+                <div className="sj-field">
+                  <label>N° CNI (optionnel)</label>
+                  <input value={ndIdCard} onChange={(e) => setNdIdCard(e.target.value)} />
+                </div>
+                <div className="sj-field">
+                  <label>Garage de rattachement (optionnel)</label>
+                  <select value={ndGarageId} onChange={(e) => setNdGarageId(e.target.value)}>
+                    <option value="">Aucun (indépendant)</option>
+                    {garages.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" className="sj-btn sj-btn-primary" style={{ alignSelf: "end" }}>
+                  Créer (statut actif d’emblée)
+                </button>
+              </form>
+            ) : null}
+          </SjCard>
+          <div className="sj-list" style={{ marginTop: 12 }}>
           {drivers.map((d) => {
             const driverSubs = subscriptions.filter((s) => s.allo_dakar_driver_id === d.id);
             return (
@@ -246,12 +387,12 @@ export default function AdminAlloDakarPage() {
                 <div className="sj-muted" style={{ marginTop: 10 }}>Accès par corridor</div>
                 <div className="sj-list" style={{ marginTop: 6 }}>
                   {corridors.map((c) => {
-                    const active = hasActiveSubscription(driverSubs, c.id);
+                    const active = getActiveSubscription(driverSubs, c.id);
                     return (
                       <div key={c.id} className="sj-row">
                         <span>{c.origin_city} → {c.destination_city}</span>
                         {active ? (
-                          <SjBadge tone="success">Accès actif</SjBadge>
+                          <SjBadge tone="success">{formatSubscriptionPeriod(active)}</SjBadge>
                         ) : (
                           <div className="sj-toolbar">
                             <button type="button" className="sj-btn sj-btn-ghost" onClick={() => void grantAccess(d.id, c.id, "essai_gratuit")}>
@@ -273,11 +414,56 @@ export default function AdminAlloDakarPage() {
             );
           })}
           {!drivers.length ? <SjCard><p className="sj-muted">Aucun chauffeur Allo Dakar inscrit pour le moment.</p></SjCard> : null}
-        </div>
+          </div>
+        </>
       ) : null}
 
       {tab === "garages" ? (
-        <div className="sj-list">
+        <>
+          <SjCard>
+            <div className="sj-between">
+              <h3 style={{ margin: 0 }}>Créer un garage</h3>
+              <button type="button" className="sj-btn" onClick={() => setShowNewGarage((v) => !v)}>
+                {showNewGarage ? "Fermer" : "+ Nouveau garage"}
+              </button>
+            </div>
+            <p className="sj-muted" style={{ marginTop: 6 }}>
+              Crée en un seul geste le compte de connexion du gestionnaire et sa fiche garage (activé d’emblée).
+            </p>
+            {showNewGarage ? (
+              <form onSubmit={handleCreateGarage} className="sj-form-grid" style={{ marginTop: 12 }}>
+                {error ? <p style={{ color: "var(--color-error)", gridColumn: "span 2" }}>{error}</p> : null}
+                <div className="sj-field">
+                  <label>Email du gestionnaire</label>
+                  <input type="email" value={ngEmail} onChange={(e) => setNgEmail(e.target.value)} required />
+                </div>
+                <div className="sj-field">
+                  <label>Mot de passe provisoire (12 caractères min.)</label>
+                  <input type="password" value={ngPassword} onChange={(e) => setNgPassword(e.target.value)} minLength={12} required />
+                </div>
+                <div className="sj-field">
+                  <label>Nom complet du gestionnaire</label>
+                  <input value={ngFullName} onChange={(e) => setNgFullName(e.target.value)} required />
+                </div>
+                <div className="sj-field">
+                  <label>Nom du garage</label>
+                  <input value={ngGarageName} onChange={(e) => setNgGarageName(e.target.value)} required />
+                </div>
+                <div className="sj-field">
+                  <label>Téléphone du garage</label>
+                  <input value={ngPhone} onChange={(e) => setNgPhone(e.target.value)} placeholder="+221 …" required />
+                </div>
+                <div className="sj-field">
+                  <label>Ville</label>
+                  <input value={ngCity} onChange={(e) => setNgCity(e.target.value)} placeholder="Kaolack, Thiès…" />
+                </div>
+                <button type="submit" className="sj-btn sj-btn-primary" style={{ alignSelf: "end" }} disabled={creatingGarage}>
+                  {creatingGarage ? "Création…" : "Créer le garage"}
+                </button>
+              </form>
+            ) : null}
+          </SjCard>
+          <div className="sj-list" style={{ marginTop: 12 }}>
           {garages.map((g) => {
             const garageDriverCount = drivers.filter((d) => d.garage_id === g.id).length;
             return (
@@ -309,6 +495,67 @@ export default function AdminAlloDakarPage() {
             );
           })}
           {!garages.length ? <SjCard><p className="sj-muted">Aucun garage inscrit pour le moment.</p></SjCard> : null}
+          </div>
+        </>
+      ) : null}
+
+      {tab === "vehicules" ? (
+        <div className="sj-list">
+          {vehicles.map((v) => {
+            const driver = drivers.find((d) => d.id === v.allo_dakar_driver_id);
+            return (
+              <SjCard key={v.id}>
+                <div className="sj-between">
+                  <div>
+                    <b>{v.brand} {v.model} · {v.plate_number}</b>
+                    <div className="sj-muted">{driver?.full_name ?? "Chauffeur inconnu"} · {v.seats_total} places</div>
+                  </div>
+                  {v.is_verified ? (
+                    <SjBadge tone="success">Validé</SjBadge>
+                  ) : v.rejection_reason ? (
+                    <SjBadge tone="danger">Rejeté</SjBadge>
+                  ) : (
+                    <SjBadge tone="warning">En attente</SjBadge>
+                  )}
+                </div>
+                {v.rejection_reason ? <p className="sj-muted" style={{ marginTop: 6 }}>Motif : {v.rejection_reason}</p> : null}
+                <div className="sj-toolbar" style={{ marginTop: 10 }}>
+                  {v.grey_card_url ? (
+                    greyCardLinks[v.grey_card_url] ? (
+                      <a href={greyCardLinks[v.grey_card_url]} target="_blank" rel="noreferrer" className="sj-btn sj-btn-ghost">
+                        Voir la carte grise
+                      </a>
+                    ) : (
+                      <button type="button" className="sj-btn sj-btn-ghost" onClick={() => void viewGreyCard(v.grey_card_url!)}>
+                        Afficher la carte grise
+                      </button>
+                    )
+                  ) : (
+                    <span className="sj-muted">Carte grise non envoyée</span>
+                  )}
+                  {!v.is_verified ? (
+                    <>
+                      <button type="button" className="sj-btn" style={{ color: "var(--color-success)" }} onClick={() => void approveVehicle(v.id)}>
+                        Valider
+                      </button>
+                      <button type="button" className="sj-btn" style={{ color: "var(--color-error)" }} onClick={() => setRejectingId(v.id)}>
+                        Rejeter
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+                {rejectingId === v.id ? (
+                  <div className="sj-toolbar" style={{ marginTop: 8 }}>
+                    <input className="sj-field" style={{ flex: 1 }} placeholder="Motif du rejet" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                    <button type="button" className="sj-btn sj-btn-primary" onClick={() => void rejectVehicle(v.id)}>
+                      Confirmer le rejet
+                    </button>
+                  </div>
+                ) : null}
+              </SjCard>
+            );
+          })}
+          {!vehicles.length ? <SjCard><p className="sj-muted">Aucun véhicule enregistré pour le moment.</p></SjCard> : null}
         </div>
       ) : null}
 

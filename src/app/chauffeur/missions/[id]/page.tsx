@@ -194,7 +194,7 @@ export default function ChauffeurMissionDetailPage() {
               <p style={{ color: "#6de0b0" }}>Signalement envoyé à l’équipe SentraJet.</p>
             ) : (
               <form onSubmit={sendIssue}>
-                <div className="sj-toolbar" style={{ marginBottom: 12 }}>
+                <div className="sj-tabs" style={{ marginBottom: 12 }}>
                   {ISSUE_PRESETS.map((preset) => (
                     <button
                       key={preset}

@@ -59,7 +59,7 @@ export default function RhDocumentsPage() {
     <>
       <SjSectionHead eyebrow="RH" title="Documents chauffeurs" />
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
-      <div className="sj-toolbar" style={{ marginBottom: 16 }}>
+      <div className="sj-tabs" style={{ marginBottom: 16 }}>
         {[["attente", "En attente"], ["valides", "Validés"], ["tous", "Tous"]].map(([value, label]) => (
           <button key={value} type="button" className={tab === value ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(value as Tab)}>
             {label}

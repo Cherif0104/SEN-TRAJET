@@ -351,6 +351,12 @@ function ConnexionPageContent() {
             S&apos;inscrire
           </Link>
         </p>
+        <p className="mt-3 text-center text-sm text-slate-500">
+          Vous cherchez un voyage interurbain partagé ?{" "}
+          <Link href="/allo-dakar" className="font-semibold text-[#1f6b4a] hover:underline">
+            Découvrir SentraJet Allo Dakar
+          </Link>
+        </p>
     </AuthPageScaffold>
   );
 }

@@ -41,6 +41,9 @@ export type AlloDakarVehicle = {
   model: string | null;
   seats_total: number;
   grey_card_number: string | null;
+  grey_card_url: string | null;
+  rejection_reason: string | null;
+  verified_at: string | null;
   is_verified: boolean;
 };
 
@@ -175,6 +178,30 @@ export async function registerAlloDakarDriver(input: {
   return data as AlloDakarDriver;
 }
 
+/** Création directe d'un chauffeur par le staff SentraJet (sans auto-inscription) — utile pour
+ * les chauffeurs sans smartphone/compte propre. Statut actif d'emblée, contrairement à
+ * l'auto-inscription (en_attente) — le staff qui saisit assume la vérification. */
+export async function createAlloDakarDriverByStaff(input: {
+  fullName: string;
+  phone: string;
+  idCardNumber?: string | null;
+  garageId?: string | null;
+}): Promise<AlloDakarDriver> {
+  const { data, error } = await supabase
+    .from("allo_dakar_drivers")
+    .insert({
+      full_name: input.fullName.trim(),
+      phone: input.phone.trim(),
+      id_card_number: input.idCardNumber ?? null,
+      garage_id: input.garageId ?? null,
+      status: "actif",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as AlloDakarDriver;
+}
+
 export async function setAlloDakarDriverStatus(id: string, status: AlloDakarDriver["status"]): Promise<void> {
   const { error } = await supabase.from("allo_dakar_drivers").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
@@ -212,6 +239,30 @@ export async function registerGarage(input: {
     .single();
   if (error) throw error;
   return data as AlloDakarGarage;
+}
+
+/** Création staff : compte de connexion + garage en un seul geste (activation immédiate). */
+export async function createGarageWithManager(input: {
+  email: string;
+  password: string;
+  fullName: string;
+  garageName: string;
+  phone: string;
+  city?: string | null;
+}): Promise<void> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch("/api/admin/allo-dakar/create-garage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? "Impossible de créer le garage.");
 }
 
 export async function listAllGarages(): Promise<AlloDakarGarage[]> {
@@ -254,13 +305,53 @@ export async function addDriverToGarage(input: {
 // ---------------------------------------------------------------------------
 // Véhicules Allo Dakar
 // ---------------------------------------------------------------------------
+const VEHICLE_SELECT =
+  "id, allo_dakar_driver_id, plate_number, brand, model, seats_total, grey_card_number, grey_card_url, rejection_reason, verified_at, is_verified";
+
 export async function listAlloDakarVehicles(driverId: string): Promise<AlloDakarVehicle[]> {
   const { data, error } = await supabase
     .from("allo_dakar_vehicles")
-    .select("id, allo_dakar_driver_id, plate_number, brand, model, seats_total, grey_card_number, is_verified")
+    .select(VEHICLE_SELECT)
     .eq("allo_dakar_driver_id", driverId);
   if (error) throw error;
   return (data ?? []) as AlloDakarVehicle[];
+}
+
+/** Tous les véhicules dont l'utilisateur courant peut voir la carte grise (chauffeur, garage
+ * gestionnaire, ou staff — la RLS scope automatiquement le résultat). */
+export async function listVerifiableAlloDakarVehicles(): Promise<AlloDakarVehicle[]> {
+  const { data, error } = await supabase.from("allo_dakar_vehicles").select(VEHICLE_SELECT);
+  if (error) throw error;
+  return (data ?? []) as AlloDakarVehicle[];
+}
+
+export async function uploadVehicleGreyCard(vehicleId: string, driverId: string, file: File): Promise<void> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${driverId}/${vehicleId}-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("allo-dakar-documents").upload(path, file, {
+    upsert: true,
+  });
+  if (uploadError) throw uploadError;
+  const { error } = await supabase
+    .from("allo_dakar_vehicles")
+    .update({ grey_card_url: path, is_verified: false, rejection_reason: null, verified_at: null })
+    .eq("id", vehicleId);
+  if (error) throw error;
+}
+
+export async function getVehicleGreyCardSignedUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from("allo-dakar-documents").createSignedUrl(path, 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
+export async function verifyAlloDakarVehicle(vehicleId: string, approved: boolean, reason?: string | null): Promise<void> {
+  const { error } = await supabase.rpc("verify_allo_dakar_vehicle", {
+    p_vehicle_id: vehicleId,
+    p_approved: approved,
+    p_reason: reason ?? null,
+  });
+  if (error) throw new Error("Impossible de mettre à jour la validation de ce véhicule.");
 }
 
 export async function addAlloDakarVehicle(input: {
@@ -321,10 +412,31 @@ export async function setAlloDakarSubscriptionStatus(id: string, status: AlloDak
 }
 
 export function hasActiveSubscription(subscriptions: AlloDakarSubscription[], corridorId: string): boolean {
+  return getActiveSubscription(subscriptions, corridorId) != null;
+}
+
+/** Renvoie l'abonnement actif (non expiré) le plus récent pour ce corridor, s'il existe. */
+export function getActiveSubscription(
+  subscriptions: AlloDakarSubscription[],
+  corridorId: string
+): AlloDakarSubscription | null {
   const now = Date.now();
-  return subscriptions.some(
+  const active = subscriptions.filter(
     (s) => s.corridor_id === corridorId && s.status === "actif" && new Date(s.ends_at).getTime() > now
   );
+  if (!active.length) return null;
+  return active.sort((a, b) => new Date(b.ends_at).getTime() - new Date(a.ends_at).getTime())[0];
+}
+
+const PLAN_LABEL: Record<AlloDakarSubscription["plan"], string> = {
+  essai_gratuit: "Essai gratuit",
+  hebdomadaire: "Hebdomadaire",
+  mensuel: "Mensuel",
+};
+
+export function formatSubscriptionPeriod(sub: AlloDakarSubscription): string {
+  const end = new Date(sub.ends_at).toLocaleDateString("fr-FR");
+  return `${PLAN_LABEL[sub.plan]} · jusqu’au ${end}`;
 }
 
 // ---------------------------------------------------------------------------

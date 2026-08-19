@@ -9,14 +9,18 @@ import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
   addDriverToGarage,
   getMyGarage,
+  getVehicleGreyCardSignedUrl,
   listAllAlloDakarBookings,
   listAllAlloDakarDepartures,
   listGarageDrivers,
+  listVerifiableAlloDakarVehicles,
   registerGarage,
+  verifyAlloDakarVehicle,
   type AlloDakarBooking,
   type AlloDakarDeparture,
   type AlloDakarDriver,
   type AlloDakarGarage,
+  type AlloDakarVehicle,
 } from "@/lib/alloDakarOps";
 
 const GARAGE_STATUS_LABEL: Record<string, string> = {
@@ -38,6 +42,10 @@ export default function AlloDakarGestionnairePage() {
 
   const [garage, setGarage] = useState<AlloDakarGarage | null>(null);
   const [drivers, setDrivers] = useState<AlloDakarDriver[]>([]);
+  const [vehicles, setVehicles] = useState<AlloDakarVehicle[]>([]);
+  const [greyCardLinks, setGreyCardLinks] = useState<Record<string, string>>({});
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [bookings, setBookings] = useState<AlloDakarBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,12 +66,14 @@ export default function AlloDakarGestionnairePage() {
       const g = await getMyGarage(user.id);
       setGarage(g);
       if (g) {
-        const [d, dep, b] = await Promise.all([
+        const [d, v, dep, b] = await Promise.all([
           listGarageDrivers(g.id),
+          listVerifiableAlloDakarVehicles().catch(() => []),
           listAllAlloDakarDepartures().catch(() => []),
           listAllAlloDakarBookings().catch(() => []),
         ]);
         setDrivers(d);
+        setVehicles(v);
         setDepartures(dep);
         setBookings(b);
       }
@@ -106,6 +116,31 @@ export default function AlloDakarGestionnairePage() {
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d’ajouter ce chauffeur.");
+    }
+  }
+
+  async function viewGreyCard(path: string) {
+    const url = await getVehicleGreyCardSignedUrl(path);
+    if (url) setGreyCardLinks((prev) => ({ ...prev, [path]: url }));
+  }
+
+  async function approveVehicle(vehicleId: string) {
+    try {
+      await verifyAlloDakarVehicle(vehicleId, true);
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de valider ce véhicule.");
+    }
+  }
+
+  async function rejectVehicle(vehicleId: string) {
+    try {
+      await verifyAlloDakarVehicle(vehicleId, false, rejectReason || "Document illisible ou incomplet");
+      setRejectingId(null);
+      setRejectReason("");
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de rejeter ce véhicule.");
     }
   }
 
@@ -204,6 +239,56 @@ export default function AlloDakarGestionnairePage() {
           Le chauffeur ajouté devra être validé par SentraJet avant de pouvoir publier des départs.
           Les accès corridor restent gérés directement par SentraJet.
         </p>
+
+        <h2 className="mt-8 text-base font-bold text-neutral-900">Véhicules à valider</h2>
+        <div className="mt-3 space-y-2">
+          {vehicles.map((v) => (
+            <div key={v.id} className="rounded-xl border border-neutral-200 bg-white p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <b>{v.brand} {v.model} · {v.plate_number}</b>
+                {v.is_verified ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">Validé</span>
+                ) : (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">En attente</span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {v.grey_card_url ? (
+                  greyCardLinks[v.grey_card_url] ? (
+                    <a href={greyCardLinks[v.grey_card_url]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1f6b4a] underline">
+                      Voir la carte grise
+                    </a>
+                  ) : (
+                    <button type="button" className="text-xs font-semibold text-[#1f6b4a] underline" onClick={() => void viewGreyCard(v.grey_card_url!)}>
+                      Afficher la carte grise
+                    </button>
+                  )
+                ) : (
+                  <span className="text-xs text-neutral-400">Carte grise non encore envoyée</span>
+                )}
+                {!v.is_verified ? (
+                  <>
+                    <button type="button" className="text-xs font-semibold text-emerald-700 underline" onClick={() => void approveVehicle(v.id)}>
+                      Valider
+                    </button>
+                    <button type="button" className="text-xs font-semibold text-red-600 underline" onClick={() => setRejectingId(v.id)}>
+                      Rejeter
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              {rejectingId === v.id ? (
+                <div className="mt-2 flex gap-2">
+                  <input className="flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-xs" placeholder="Motif du rejet" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                  <button type="button" className="rounded-lg bg-red-600 px-2 py-1 text-xs font-semibold text-white" onClick={() => void rejectVehicle(v.id)}>
+                    Confirmer
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {!vehicles.length ? <p className="text-sm text-neutral-500">Aucun véhicule à valider pour le moment.</p> : null}
+        </div>
 
         <h2 className="mt-8 text-base font-bold text-neutral-900">Départs de mes chauffeurs</h2>
         <div className="mt-3 space-y-2">

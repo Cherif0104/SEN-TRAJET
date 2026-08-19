@@ -80,16 +80,13 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children, varian
           })}
         </nav>
         <div className="sj-side-bottom">
-          <div className="sj-role-pill">
+          <Link href={profileHref} className="sj-role-pill" style={{ display: "block", textDecoration: "none" }}>
             {t("shell.workspace")} : <strong>{title}</strong>
             {subtitle ? <div className="sj-muted" style={{ marginTop: 4 }}>{subtitle}</div> : null}
             {profile?.full_name ? (
               <div className="sj-muted" style={{ marginTop: 6 }}>{profile.full_name}</div>
             ) : null}
-          </div>
-          <button type="button" className="sj-btn" style={{ width: "100%", marginTop: 10 }} onClick={() => void handleSignOut()}>
-            {t("actions.logout")}
-          </button>
+          </Link>
         </div>
       </aside>
 
@@ -107,15 +104,6 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children, varian
             <NotificationBell userId={user?.id ?? null} />
             <LanguageMenu />
             <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => void handleSignOut()}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-error)] transition hover:border-[var(--color-error)] hover:bg-[var(--color-surface-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
-              aria-label={t("actions.logout")}
-              title={t("actions.logout")}
-            >
-              <LogOut className="h-4.5 w-4.5" />
-            </button>
             <details className="group relative">
               <summary
                 className="sj-avatar cursor-pointer list-none focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
@@ -234,14 +222,6 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children, varian
                   {t("nav.profile")}
                 </Link>
               </div>
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-error)] font-bold text-[var(--color-error)]"
-              >
-                <LogOut className="h-4 w-4" />
-                {t("actions.logout")}
-              </button>
             </div>
           </div>
         ) : null}

@@ -14,6 +14,7 @@ import {
   type PlatformVehicle,
 } from "@/lib/platformOps";
 import { checkVehicleConflict, type ConflictCheck } from "@/lib/engines/dispatchConflict";
+import { triggerAutoDispatch } from "@/lib/rosterOps";
 
 export default function AdminDispatchPage() {
   const [bookings, setBookings] = useState<PlatformBooking[]>([]);
@@ -27,6 +28,7 @@ export default function AdminDispatchPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoDispatchingId, setAutoDispatchingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const [b, d, v] = await Promise.all([listPlatformBookings(), listDrivers(), listVehicles()]);
@@ -76,6 +78,33 @@ export default function AdminDispatchPage() {
   );
   const availableDrivers = drivers.filter((d) => !["on_trip", "offline", "Hors ligne"].includes(d.status));
   const availableVehicles = vehicles.filter((v) => ["available", "Disponible"].includes(v.status) || v.status === "available");
+
+  async function handleAutoDispatch(bookingId: string) {
+    setAutoDispatchingId(bookingId);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await triggerAutoDispatch(bookingId);
+      if (result.ok) {
+        setMessage("Véhicule et chauffeur affectés automatiquement.");
+        await reload();
+      } else if (result.reason === "no_match") {
+        setError(
+          `Aucun véhicule/chauffeur disponible ne correspond automatiquement (mini ${result.min_seats ?? "?"} places) — affectez manuellement ci-dessous.`
+        );
+        setSelectedBooking(bookingId);
+      } else if (result.reason === "already_dispatched") {
+        setMessage("Cette course est déjà affectée.");
+        await reload();
+      } else {
+        setError("Dispatch automatique impossible pour cette course.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Dispatch automatique impossible");
+    } finally {
+      setAutoDispatchingId(null);
+    }
+  }
 
   async function confirmAssign() {
     if (!selectedBooking || !driverId || !vehicleId) return;
@@ -130,9 +159,19 @@ export default function AdminDispatchPage() {
                     {new Date(b.pickup_time).toLocaleString("fr-FR")} · {b.passengers} passagers
                   </div>
                 </div>
-                <button type="button" className="sj-btn sj-btn-primary" onClick={() => setSelectedBooking(b.id)}>
-                  Affecter
-                </button>
+                <div className="sj-toolbar" style={{ justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    className="sj-btn"
+                    disabled={autoDispatchingId === b.id}
+                    onClick={() => void handleAutoDispatch(b.id)}
+                  >
+                    {autoDispatchingId === b.id ? "…" : "Dispatch auto"}
+                  </button>
+                  <button type="button" className="sj-btn sj-btn-primary" onClick={() => setSelectedBooking(b.id)}>
+                    Affecter
+                  </button>
+                </div>
               </div>
             ))}
             {!pending.length ? <div className="sj-muted">Aucune course à assigner.</div> : null}

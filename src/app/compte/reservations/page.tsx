@@ -35,7 +35,7 @@ export default function CompteReservationsPage() {
           </Link>
         }
       />
-      <div className="sj-toolbar" style={{ marginBottom: 16 }}>
+      <div className="sj-tabs" style={{ marginBottom: 16 }}>
         {(
           [
             ["a_venir", "À venir", rows.filter((b) => !CLIENT_TERMINAL_STATUSES.includes(b.status) && !CLIENT_CANCELLED_STATUSES.includes(b.status)).length],

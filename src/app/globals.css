@@ -569,6 +569,71 @@
   justify-content: space-between;
   gap: 12px;
 }
+/* Grille de services façon Yango/inDrive : quelques tuiles illustrées, cliquables, pour choisir
+   immédiatement ce qu'on vient faire (au lieu d'un menu texte). 2 colonnes sur mobile, 3 à partir
+   de la tablette — toujours au moins 2 lignes visibles. */
+.sj-service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .sj-service-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.sj-service-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 120px;
+  border-radius: 20px;
+  padding: 14px;
+  color: #fff;
+  overflow: hidden;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+.sj-service-tile:hover {
+  transform: translateY(-2px);
+}
+.sj-service-tile .sj-service-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  opacity: 0.35;
+}
+.sj-service-tile b {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.sj-service-tile span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+/* Barre d'onglets/filtres horizontale — distincte de .sj-toolbar (actions). Reste toujours en
+   ligne, y compris sur mobile : elle défile horizontalement plutôt que de s'empiler en colonne
+   plein écran, qui est illisible pour un simple sélecteur de filtre. */
+.sj-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.sj-tabs::-webkit-scrollbar {
+  display: none;
+}
+.sj-tabs .sj-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .sj-toolbar {
   display: flex;
   align-items: center;
