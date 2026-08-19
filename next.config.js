@@ -3,7 +3,7 @@ const nextConfig = {
   output: "standalone",
   async rewrites() {
     return [
-      { source: "/favicon.ico", destination: "/icons/app-icon-192.png" },
+      { source: "/favicon.ico", destination: "/icons/favicon-32.png" },
     ];
   },
   async headers() {

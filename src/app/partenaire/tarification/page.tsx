@@ -20,7 +20,7 @@ export default function PartenaireTarificationPage() {
             <div key={t.rule_key} className="sj-row">
               <span>{t.label}</span>
               <b className="sj-gold">
-                {formatFcfa(t.amount_fcfa)}
+                {t.unit === "sur_devis" ? "Sur devis" : formatFcfa(t.amount_fcfa)}
                 {t.unit === "per_km" ? "/km" : ""}
               </b>
             </div>

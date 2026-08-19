@@ -17,6 +17,7 @@ export type AppRole =
   | "rh"
   | "fleet_manager"
   | "provider"
+  | "asset_partner"
   | "vehicle_owner"
   | "owner";
 
@@ -55,6 +56,7 @@ export function normalizeRole(role: string | null | undefined): AppRole | null {
     driver: "driver",
     partner: "partner",
     provider: "partner",
+    asset_partner: "asset_partner",
     client: "client",
     admin: "admin",
     trainer: "trainer",
@@ -85,9 +87,72 @@ export function canAccessOwnerZone(role: string | null | undefined): boolean {
   const r = normalizeRole(role) ?? role;
   return (
     r === "rental_owner" ||
+    r === "asset_partner" ||
     r === "vehicle_owner" ||
     r === "owner" ||
     r === "admin" ||
     r === "super_admin"
   );
+}
+
+/**
+ * Espace Opérations dédié (Phase 5 du blueprint) : le rôle réel `ops` — non déductible du
+ * `role` générique regroupé sous "admin" — doit provenir de `profile.internalRole`.
+ */
+export function canAccessOpsZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "ops" || internalRole === "super_admin" || role === "super_admin";
+}
+
+/** Espace Commercial dédié (Phase 6) : `commercial` conserve déjà sa propre valeur de `profile.role`. */
+export function canAccessCommercialZone(role: string | null | undefined): boolean {
+  return role === "commercial" || role === "super_admin";
+}
+
+/** Espace Finance dédié (Phase 7) : `finance` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessFinanceZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "finance" || internalRole === "super_admin" || role === "super_admin";
+}
+
+/** Espace Fleet Manager dédié (Phase 8) : `fleet_manager` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessFleetZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "fleet_manager" || internalRole === "super_admin" || role === "super_admin";
+}
+
+/** Espace RH dédié (Phase 9) : `rh` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessRhZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "rh" || internalRole === "super_admin" || role === "super_admin";
+}
+
+/** Espace Manager dédié (Phase 10) : `manager` est fusionné sous "admin" dans `profile.role`. */
+export function canAccessManagerZone(internalRole: string | null | undefined, role?: string | null): boolean {
+  return internalRole === "manager" || internalRole === "super_admin" || role === "super_admin";
+}
+
+/** Destination unique utilisée après connexion et dans tous les points d’entrée. */
+export function workspaceForRole(
+  role: string | null | undefined,
+  internalRole?: string | null,
+): string {
+  const raw = role ?? "";
+  const normalized = normalizeRole(raw);
+  if (internalRole === "ops") return "/ops";
+  if (internalRole === "finance") return "/finance";
+  if (internalRole === "fleet_manager") return "/fleet";
+  if (internalRole === "rh") return "/rh";
+  if (internalRole === "manager") return "/manager";
+  if (normalized === "commercial") return "/commercial";
+  if (normalized && PLATFORM_ROLES.includes(normalized)) return "/admin";
+  if (raw === "vehicle_owner" || raw === "owner" || raw === "asset_partner") {
+    return "/proprietaire";
+  }
+  if (
+    normalized === "partner" ||
+    raw === "partner_manager" ||
+    raw === "partner_operator" ||
+    raw === "rental_owner"
+  ) {
+    return "/partenaire";
+  }
+  if (normalized === "driver") return "/chauffeur";
+  return "/compte";
 }

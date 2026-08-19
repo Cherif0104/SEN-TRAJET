@@ -27,11 +27,14 @@ type DemandeBody = {
   luggageCount?: number | null;
 };
 
-function serverSupabase() {
+function serverSupabase(authorization?: string | null) {
   // Cette RPC publique possède ses propres contrôles. Une service_role Vercel
   // obsolète ne doit ni casser la réservation ni contourner inutilement RLS.
   return createClient(SENTRAJET_SUPABASE_URL, SENTRAJET_SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      headers: authorization ? { Authorization: authorization } : {},
+    },
   });
 }
 
@@ -66,7 +69,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const supabase = serverSupabase();
+  const supabase = serverSupabase(req.headers.get("authorization"));
 
   try {
     const { data, error } = await supabase.rpc("submit_booking_demande", {

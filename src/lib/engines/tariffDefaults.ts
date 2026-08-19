@@ -48,10 +48,10 @@ export const DEFAULT_PUBLIC_KM_BANDS: Array<{ min: number; max: number; rate: nu
 ];
 
 export const DEFAULT_PUBLIC_MAD_DAKAR = 50_000;
+export const DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE = 70_000;
+export const DEFAULT_PUBLIC_MAD_INCLUDED_KM = 100;
+export const DEFAULT_PUBLIC_MAD_EXTRA_KM = 530;
 export const DEFAULT_PARTNER_MAD_DAKAR = 40_000;
-export const DEFAULT_PARTNER_MAD_HORS_DAKAR_BASE = 60_000;
-export const DEFAULT_PARTNER_MAD_INCLUDED_KM = 100;
-export const DEFAULT_PARTNER_MAD_EXTRA_KM = 600;
 export const DEFAULT_PARTNER_INTERURBAIN_KM = 700;
 export const DEFAULT_PARTNER_INTERURBAIN_MIN = 30_000;
 export const DEFAULT_PUBLIC_SHORT_TRIP_MIN = 20_000;
@@ -109,6 +109,29 @@ export function buildDefaultCatalog(): TariffRule[] {
       driverPolicy: "inclus",
     },
     {
+      versionCode: "HYUNDAI_STAREX_PUBLIC_V1",
+      priceLayer: "public",
+      serviceFamily: "mad",
+      ruleKey: "public_mad_hors_dakar",
+      label: "MAD public hors Dakar 10 h",
+      pricingMode: "forfait_plus_extra_km",
+      passengersMin: null,
+      passengersMax: 10,
+      zone: "hors_dakar",
+      basePriceFcfa: DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE,
+      pricePerKmFcfa: null,
+      includedDistanceKm: DEFAULT_PUBLIC_MAD_INCLUDED_KM,
+      includedDurationHours: 10,
+      extraKmPriceFcfa: DEFAULT_PUBLIC_MAD_EXTRA_KM,
+      extraHourPriceFcfa: null,
+      minimumPriceFcfa: DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE,
+      fuelPolicy: "exclu",
+      tollPolicy: "exclu",
+      parkingPolicy: "exclu",
+      ferryPolicy: "exclu",
+      driverPolicy: "inclus",
+    },
+    {
       versionCode: "HYUNDAI_STAREX_PARTNER_V1",
       priceLayer: "partner",
       serviceFamily: "mad",
@@ -136,18 +159,18 @@ export function buildDefaultCatalog(): TariffRule[] {
       priceLayer: "partner",
       serviceFamily: "mad",
       ruleKey: "partner_mad_hors_dakar",
-      label: "MAD partenaire hors Dakar",
-      pricingMode: "forfait_plus_extra_km",
+      label: "MAD partenaire hors Dakar — sur devis",
+      pricingMode: "manual",
       passengersMin: null,
       passengersMax: 10,
       zone: "hors_dakar",
-      basePriceFcfa: DEFAULT_PARTNER_MAD_HORS_DAKAR_BASE,
+      basePriceFcfa: 0,
       pricePerKmFcfa: null,
-      includedDistanceKm: DEFAULT_PARTNER_MAD_INCLUDED_KM,
-      includedDurationHours: null,
-      extraKmPriceFcfa: DEFAULT_PARTNER_MAD_EXTRA_KM,
+      includedDistanceKm: null,
+      includedDurationHours: 10,
+      extraKmPriceFcfa: null,
       extraHourPriceFcfa: null,
-      minimumPriceFcfa: DEFAULT_PARTNER_MAD_HORS_DAKAR_BASE,
+      minimumPriceFcfa: null,
       fuelPolicy: "exclu",
       tollPolicy: "exclu",
       parkingPolicy: "exclu",

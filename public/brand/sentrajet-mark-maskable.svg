@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">SentraJet Premium maskable app icon</title>
+  <defs>
+    <linearGradient id="gold" x1="90" y1="70" x2="420" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9b6508"/>
+      <stop offset=".22" stop-color="#f7c95d"/>
+      <stop offset=".43" stop-color="#c3840c"/>
+      <stop offset=".7" stop-color="#ffd978"/>
+      <stop offset="1" stop-color="#a66908"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="155%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity=".32"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="#07111f"/>
+  <g transform="translate(77 77) scale(.7)" filter="url(#shadow)">
+    <path fill="url(#gold)" fill-rule="evenodd" d="M256 52c-111 0-201 90-201 201 0 139 149 214 201 251 52-37 201-112 201-251 0-111-90-201-201-201Zm0 81a120 120 0 1 0 0 240 120 120 0 0 0 0-240Z"/>
+    <path fill="#050505" d="M83 363c83-103 182-158 360-181-106 55-187 131-271 268l-89-87Z"/>
+    <path fill="#fff" d="m134 350 30-25 22 12-33 29-19-16Zm68-53 39-24 22 8-42 27-19-11Zm79-45 43-18 20 4-45 20-18-6Zm81-31 39-11 13 1-40 13-12-3Z"/>
+  </g>
+</svg>

@@ -230,6 +230,32 @@ export function computeTariffQuote(input: TariffEngineInput): TariffEngineResult
       };
     }
 
+    if (rule.pricingMode === "manual") {
+      return {
+        transportFcfa: 0,
+        totalFcfa: 0,
+        ratePerKm: null,
+        outboundKm,
+        returnKm,
+        billableKm: oneWayKm,
+        formulaApplied: `${rule.label} — validation SentraJet`,
+        ruleKey: rule.ruleKey,
+        label: "Sur devis",
+        tariffVersionCode: rule.versionCode,
+        charteVersion: CHARTE_VERSION,
+        vehicleModel: DEFAULT_VEHICLE.model,
+        surDevis: true,
+        estimatif: false,
+        requiresManualValidation: true,
+        feeLines: policyLines(rule),
+        breakdown: [
+          `Zone : ${rule.zone}`,
+          "Carburant / péages / parking / ferry : exclus",
+        ],
+        internalOnly: { priceLayer: input.priceLayer },
+      };
+    }
+
     let transport = Number(rule.basePriceFcfa) || 0;
     let formula = `${rule.label} — forfait ${transport.toLocaleString("fr-FR")} FCFA`;
     if (rule.pricingMode === "forfait_plus_extra_km") {
@@ -258,9 +284,9 @@ export function computeTariffQuote(input: TariffEngineInput): TariffEngineResult
       tariffVersionCode: rule.versionCode,
       charteVersion: CHARTE_VERSION,
       vehicleModel: DEFAULT_VEHICLE.model,
-      surDevis: zone === "hors_dakar" && oneWayKm > 200,
+      surDevis: false,
       estimatif: true,
-      requiresManualValidation: oneWayKm > 200 || passengers >= 9,
+      requiresManualValidation: oneWayKm >= 250 || passengers >= 9,
       feeLines: policyLines(rule),
       breakdown,
       internalOnly: { priceLayer: input.priceLayer },

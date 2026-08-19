@@ -6,21 +6,16 @@ import {
   XCircle,
   CreditCard,
   MapPin,
-  Star,
   Bell,
 } from "lucide-react";
 import type { Notification } from "@/hooks/useNotifications";
 
 const ICONS: Record<string, typeof Bell> = {
-  new_request: MapPin,
-  new_proposal: MessageSquare,
-  proposal_accepted: CheckCircle,
-  proposal_rejected: XCircle,
-  booking_confirmed: CheckCircle,
-  trip_started: MapPin,
-  trip_completed: CheckCircle,
-  credit_low: CreditCard,
-  review_reminder: Star,
+  booking: MapPin,
+  payment: CreditCard,
+  message: MessageSquare,
+  incident: XCircle,
+  contract: CheckCircle,
 };
 
 type Props = {
@@ -60,32 +55,33 @@ export function NotificationDropdown({
           </div>
         ) : (
           notifications.map((notif) => {
-            const Icon = ICONS[notif.type] || Bell;
+            const Icon = ICONS[notif.entity_type ?? ""] || Bell;
+            const isUnread = !notif.read_at;
             return (
               <button
                 key={notif.id}
                 type="button"
                 onClick={() => {
-                  if (!notif.is_read) onMarkRead(notif.id);
+                  if (isUnread) onMarkRead(notif.id);
                 }}
                 className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50 ${
-                  !notif.is_read ? "bg-primary/5" : ""
+                  isUnread ? "bg-primary/5" : ""
                 }`}
               >
                 <Icon
                   className={`mt-0.5 h-5 w-5 shrink-0 ${
-                    !notif.is_read ? "text-primary" : "text-neutral-400"
+                    isUnread ? "text-primary" : "text-neutral-400"
                   }`}
                 />
                 <div className="min-w-0 flex-1">
                   <p
                     className={`text-sm ${
-                      !notif.is_read
+                      isUnread
                         ? "font-medium text-neutral-900"
                         : "text-neutral-600"
                     }`}
                   >
-                    {notif.title}
+                    {notif.subject}
                   </p>
                   {notif.body && (
                     <p className="mt-0.5 truncate text-xs text-neutral-400">
@@ -96,7 +92,7 @@ export function NotificationDropdown({
                     {formatTimeAgo(notif.created_at)}
                   </p>
                 </div>
-                {!notif.is_read && (
+                {isUnread && (
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
                 )}
               </button>

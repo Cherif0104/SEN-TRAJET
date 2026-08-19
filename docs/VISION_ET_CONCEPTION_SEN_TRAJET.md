@@ -138,10 +138,10 @@ L’objectif est un parcours **très simple** pour tout le monde.
 - **Gros colis / bagages** : **≥ 10 kg** (ou volumineux) → passent par les **véhicules utilitaires** (chauffeurs ayant choisi « Véhicule utilitaire » à l’inscription). Différenciation simple pour le client et le chauffeur.
 - Parcours : à la création d’une demande ou d’un envoi colis, le client indique le type (ou le poids) ; la plateforme oriente vers les trajets « personnes » (avec option petits colis) ou « utilitaire » selon la règle.
 
-### 3.0.7 Administration plateforme et comptes de test
+### 3.0.7 Administration de la plateforme
 
 - **Admin** : rôle qui **pilote** l’ensemble — clients, chauffeurs, partenaires. Actions : modération, validation des documents, paramètres plateforme, KPIs, gestion des partenaires et des règles de commission.
-- **Comptes de test** : page **Comptes démo** (`/comptes-test`) avec **un clic** pour se connecter en tant que **Client**, **Chauffeur** ou **Partenaire**. Les comptes sont créés automatiquement (API `POST /api/test-login` avec magic link). Variable d’environnement optionnelle : `TEST_ACCOUNTS_PASSWORD` (défaut `TestPass123!`). Permet de tester tous les parcours sans créer de compte à la main.
+- **Gestion des accès** : le super administrateur crée les comptes et attribue leurs rôles depuis l’interface `/admin/utilisateurs`. Aucun compte de démonstration partagé n’est exposé.
 
 ---
 

@@ -8,8 +8,12 @@ import { Logo } from "./Logo";
 import { Button } from "@/components/ui/Button";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
-import { PreferencesMenu } from "@/components/preferences/PreferencesMenu";
+import {
+  LanguageMenu,
+  ThemeToggle,
+} from "@/components/preferences/PreferenceControls";
 import { usePreferences } from "@/providers/PreferencesProvider";
+import { workspaceForRole } from "@/lib/rbac";
 
 export function Header() {
   const router = useRouter();
@@ -20,46 +24,23 @@ export function Header() {
   const handleSignOut = async () => {
     await signOut();
     setMenuOpen(false);
-    router.push("/");
+    router.replace("/connexion");
     router.refresh();
   };
 
-  const isDriver = profile?.role === "driver";
-  const isPartner = ["partner", "partner_manager", "partner_operator", "provider"].includes(
-    profile?.role ?? ""
-  );
-  const isAdmin = [
-    "admin",
-    "super_admin",
-    "commercial",
-    "trainer",
-    "regional_manager",
-    "manager",
-    "ops",
-    "finance",
-    "fleet_manager",
-  ].includes(profile?.role ?? "");
-  const isOwner = ["rental_owner", "vehicle_owner", "owner"].includes(profile?.role ?? "");
   const isLoggedIn = !!user;
-
-  const hubHref = isAdmin
-    ? "/admin"
-    : isOwner
-      ? "/proprietaire"
-      : isPartner
-        ? "/partenaire"
-        : isDriver
-          ? "/chauffeur"
-          : "/compte";
-  const hubLabel = isAdmin
+  const hubHref = workspaceForRole(profile?.role, profile?.internalRole);
+  const hubLabel = hubHref === "/admin"
     ? t("nav.administration")
-    : isOwner
-      ? t("nav.owner")
-      : isPartner
-        ? t("nav.partner")
-        : isDriver
-          ? t("nav.missions")
-          : t("nav.account");
+    : hubHref === "/ops"
+      ? "Opérations"
+      : hubHref === "/proprietaire"
+        ? t("nav.owner")
+        : hubHref === "/partenaire"
+          ? t("nav.partner")
+          : hubHref === "/chauffeur"
+            ? t("nav.missions")
+            : t("nav.account");
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md">
@@ -67,6 +48,9 @@ export function Header() {
         <Logo variant={resolvedTheme === "dark" ? "light" : "default"} />
 
         <nav className="hidden md:flex md:items-center md:gap-8">
+          <Link href="/application-mobile" className="text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]">
+            {t("nav.mobileApp")}
+          </Link>
           {isLoggedIn ? (
             <Link href={hubHref} className="text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-accent)]">
               {hubLabel}
@@ -79,7 +63,8 @@ export function Header() {
         </nav>
 
         <div className="hidden md:flex md:items-center md:gap-2">
-          <PreferencesMenu />
+          <LanguageMenu />
+          <ThemeToggle />
           {loading ? (
             <div className="h-8 w-24 animate-pulse rounded-lg bg-[var(--color-surface-secondary)]" />
           ) : user ? (
@@ -131,10 +116,16 @@ export function Header() {
         <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
             <div className="mb-2 flex justify-end">
-              <PreferencesMenu compact />
+              <div className="flex gap-2">
+                <LanguageMenu />
+                <ThemeToggle />
+              </div>
             </div>
             <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-[var(--color-text-primary)]" onClick={() => setMenuOpen(false)}>
               {t("nav.book")}
+            </Link>
+            <Link href="/application-mobile" className="rounded-lg px-3 py-2 text-[var(--color-text-secondary)]" onClick={() => setMenuOpen(false)}>
+              {t("nav.mobileApp")}
             </Link>
             {isLoggedIn ? (
               <Link href={hubHref} className="rounded-lg px-3 py-2 font-medium text-[var(--color-text-primary)]" onClick={() => setMenuOpen(false)}>

@@ -1,15 +1,18 @@
-const CACHE_NAME = "sen-trajet-v4-design-system";
+const CACHE_NAME = "sen-trajet-v9-session-mobile";
 const STATIC_ASSETS = [
   "/",
+  "/application-mobile",
   "/manifest.json",
-  "/brand/sentrajet-mark.svg",
   "/brand/sentrajet-mark-transparent.svg",
+  "/brand/sentrajet-mark-maskable.svg",
   "/brand/sentrajet-wordmark.svg",
   "/brand/sentrajet-wordmark-light.svg",
   "/brand/sentrajet-vehicle-hero.webp",
-  "/icons/app-icon-192.png",
-  "/icons/app-icon-512.png",
-  "/icons/apple-touch-icon.png",
+  "/icons/app-icon-transparent-192.png",
+  "/icons/app-icon-transparent-512.png",
+  "/icons/app-icon-maskable-192.png",
+  "/icons/app-icon-maskable-512.png",
+  "/icons/apple-touch-icon-v2.png",
   "/icons/favicon-32.png",
 ];
 
@@ -38,6 +41,10 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -60,6 +67,41 @@ self.addEventListener("fetch", (event) => {
           (cached) => cached ?? offlineResponse("Réseau indisponible.", 503)
         )
       )
+    );
+    return;
+  }
+
+  const authenticatedPage =
+    url.origin === self.location.origin &&
+    [
+      "/admin",
+      "/compte",
+      "/chauffeur",
+      "/partenaire",
+      "/proprietaire",
+      "/dashboard",
+      "/connexion",
+    ].some(
+      (prefix) =>
+        url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)
+    );
+
+  // Les espaces connectés doivent toujours charger le shell le plus récent.
+  // Le cache ne sert que de secours hors ligne, jamais de réponse prioritaire.
+  if (request.mode === "navigate" && authenticatedPage) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then(
+            (cached) =>
+              cached ?? offlineResponse("Réseau indisponible. Rechargez la page.", 503)
+          )
+        )
     );
     return;
   }

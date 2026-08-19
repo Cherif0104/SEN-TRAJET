@@ -13,8 +13,10 @@ import {
   type PlatformDriver,
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminPage() {
+  const { profile } = useAuth();
   const [bookings, setBookings] = useState<PlatformBooking[]>([]);
   const [drivers, setDrivers] = useState<PlatformDriver[]>([]);
   const [partners, setPartners] = useState(0);
@@ -49,9 +51,16 @@ export default function AdminPage() {
               Cockpit SentraJet Premium pour piloter clients, chauffeurs, partenaires, tarifs et
               dispatch.
             </p>
-            <Link href="/admin/reservations" className="sj-btn sj-btn-primary">
-              Voir les réservations
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/admin/reservations" className="sj-btn sj-btn-primary">
+                Voir les réservations
+              </Link>
+              {profile?.role === "super_admin" ? (
+                <Link href="/admin/utilisateurs" className="sj-btn">
+                  Gérer les utilisateurs
+                </Link>
+              ) : null}
+            </div>
           </div>
         </section>
         <section className="sj-hero-stats">

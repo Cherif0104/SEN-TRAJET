@@ -10,11 +10,13 @@ const realtimeOff =
 export type Notification = {
   id: string;
   user_id: string;
-  type: string;
-  title: string;
+  channel: string;
+  subject: string | null;
   body: string | null;
-  data: Record<string, unknown>;
-  is_read: boolean;
+  status: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  read_at: string | null;
   created_at: string;
 };
 
@@ -26,13 +28,13 @@ export function useNotifications(userId: string | null) {
     if (!userId) return;
     const { data } = await supabase
       .from("notifications")
-      .select("*")
+      .select("id, user_id, channel, subject, body, status, entity_type, entity_id, read_at, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(30);
     if (data) {
       setNotifications(data as Notification[]);
-      setUnreadCount(data.filter((n: { is_read: boolean }) => !n.is_read).length);
+      setUnreadCount(data.filter((n: { read_at: string | null }) => !n.read_at).length);
     }
   }, [userId]);
 
@@ -75,7 +77,7 @@ export function useNotifications(userId: string | null) {
     async (notifId: string) => {
       await supabase
         .from("notifications")
-        .update({ is_read: true })
+        .update({ read_at: new Date().toISOString() })
         .eq("id", notifId);
       fetchNotifications();
     },
@@ -86,9 +88,9 @@ export function useNotifications(userId: string | null) {
     if (!userId) return;
     await supabase
       .from("notifications")
-      .update({ is_read: true })
+      .update({ read_at: new Date().toISOString() })
       .eq("user_id", userId)
-      .eq("is_read", false);
+      .is("read_at", null);
     fetchNotifications();
   }, [userId, fetchNotifications]);
 

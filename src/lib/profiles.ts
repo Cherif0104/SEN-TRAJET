@@ -4,21 +4,8 @@ import { isMissingSchemaObjectError } from "@/lib/postgrestErrors";
 export type ProfileUpdate = {
   full_name?: string;
   phone?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   city?: string;
-  role?:
-    | "client"
-    | "driver"
-    | "partner"
-    | "admin"
-    | "super_admin"
-    | "commercial"
-    | "trainer"
-    | "regional_manager"
-    | "partner_manager"
-    | "partner_operator"
-    | "rental_owner";
-  partner_id?: string | null;
 };
 
 export type DriverNotificationPreferences = {
@@ -51,7 +38,29 @@ export async function updateProfile(userId: string, updates: ProfileUpdate) {
   return data;
 }
 
-export async function getDriverVehicles(driverId: string) {
+async function managedDriverIdForUser(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
+async function requireManagedDriverId(userId: string): Promise<string> {
+  const driverId = await managedDriverIdForUser(userId);
+  if (!driverId) {
+    throw new Error(
+      "Votre compte n’est pas encore lié à un dossier chauffeur. Contactez l’administration.",
+    );
+  }
+  return driverId;
+}
+
+export async function getDriverVehicles(userId: string) {
+  const driverId = await managedDriverIdForUser(userId);
+  if (!driverId) return [];
   const { data, error } = await supabase
     .from("vehicles")
     .select("*")
@@ -90,7 +99,8 @@ function legacyVehiclePayload(driverId: string, vehicle: VehicleInsert) {
   };
 }
 
-export async function addVehicle(driverId: string, vehicle: VehicleInsert) {
+export async function addVehicle(userId: string, vehicle: VehicleInsert) {
+  const driverId = await requireManagedDriverId(userId);
   const full = { ...vehicle, driver_id: driverId };
   let { data, error } = await supabase.from("vehicles").insert(full).select().single();
   if (error && isMissingSchemaObjectError(error)) {
@@ -109,10 +119,11 @@ export async function addVehicle(driverId: string, vehicle: VehicleInsert) {
 export type VehicleUpdate = Partial<VehicleInsert>;
 
 export async function updateVehicle(
-  driverId: string,
+  userId: string,
   vehicleId: string,
   updates: VehicleUpdate
 ) {
+  const driverId = await requireManagedDriverId(userId);
   let { data, error } = await supabase
     .from("vehicles")
     .update(updates)
@@ -137,7 +148,8 @@ export async function updateVehicle(
   return data;
 }
 
-export async function deleteVehicle(driverId: string, vehicleId: string): Promise<void> {
+export async function deleteVehicle(userId: string, vehicleId: string): Promise<void> {
+  const driverId = await requireManagedDriverId(userId);
   const { error } = await supabase
     .from("vehicles")
     .delete()
@@ -296,11 +308,12 @@ export async function deleteDocument(
 }
 
 export async function appendVehiclePhoto(
-  driverId: string,
+  userId: string,
   vehicleId: string,
   slotKey: string,
   publicUrl: string
 ): Promise<void> {
+  const driverId = await requireManagedDriverId(userId);
   const { data: row, error } = await supabase
     .from("vehicles")
     .select("vehicle_photo_urls")
@@ -322,11 +335,12 @@ export async function appendVehiclePhoto(
 }
 
 export async function removeVehiclePhotoAt(
-  driverId: string,
+  userId: string,
   vehicleId: string,
   slotKey: string,
   index: number
 ): Promise<void> {
+  const driverId = await requireManagedDriverId(userId);
   const { data: row, error } = await supabase
     .from("vehicles")
     .select("vehicle_photo_urls")

@@ -1,52 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
-import { BookingForm } from "@/components/sentrajet/BookingForm";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { SjSectionHead } from "@/components/sentrajet/PremiumShell";
+import { PartnerBookingWizard } from "@/components/sentrajet/PartnerBookingWizard";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureClientForUser, listPartnerContracts } from "@/lib/platformOps";
 
-export default function PartenaireReserverPage() {
+function PartenaireReserverContent() {
   const { user, profile } = useAuth();
-  const router = useRouter();
-  const [clientId, setClientId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const preselectedClientId = searchParams.get("clientId");
+  const [ownClientId, setOwnClientId] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
       if (!user) return;
-      const id = await ensureClientForUser({
-        userId: user.id,
-        fullName: profile?.full_name,
-        phone: profile?.phone,
-        email: user.email,
-        companyName: profile?.full_name,
-        clientType: "entreprise",
-      });
-      setClientId(id);
-      const contracts = await listPartnerContracts().catch(() => []);
-      const mine = contracts.find((c) => c.partner_user_id === user.id) || contracts.find((c) => c.status === "active");
-      setContractId(mine?.id ?? null);
+      setLoading(true);
+      try {
+        const contracts = await listPartnerContracts().catch(() => []);
+        const mine = contracts.find(
+          (contract) => contract.partner_user_id === user.id && contract.status === "active",
+        );
+        setContractId(mine?.id ?? null);
+
+        const id = await ensureClientForUser({
+          userId: user.id,
+          fullName: profile?.full_name,
+          phone: profile?.phone,
+          email: user.email,
+          companyName: profile?.full_name,
+          clientType: "entreprise",
+        }).catch(() => null);
+        setOwnClientId(id);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [user, profile]);
 
   return (
     <>
-      <SjSectionHead eyebrow="Demande partenaire" title="Nouvelle demande" />
-      <SjCard>
-        {clientId ? (
-          <BookingForm
-            segment="partner"
-            clientId={clientId}
-            partnerContractId={contractId}
-            onCreated={() => router.push("/partenaire/demandes")}
-          />
-        ) : (
-          <BrandedLoader />
-        )}
-      </SjCard>
+      <SjSectionHead eyebrow="Réservation partenaire" title="Nouvelle réservation" />
+      {!loading ? (
+        <PartnerBookingWizard
+          contractId={contractId}
+          ownClientId={ownClientId}
+          initialClientId={preselectedClientId}
+          submitDisabledReason={
+            contractId
+              ? null
+              : "La simulation reste disponible, mais un contrat partenaire actif est requis pour envoyer la demande."
+          }
+        />
+      ) : (
+        <BrandedLoader />
+      )}
     </>
+  );
+}
+
+export default function PartenaireReserverPage() {
+  return (
+    <Suspense fallback={<BrandedLoader />}>
+      <PartenaireReserverContent />
+    </Suspense>
   );
 }

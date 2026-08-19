@@ -20,6 +20,7 @@ import {
 } from "@/lib/sentrajetPricing";
 import { listBusinessRules, ruleNumber, ruleString } from "@/lib/engines/businessRules";
 import {
+  createBookingWaveCheckout,
   createPaymentForBooking,
   createPlatformBooking,
   ensureClientForUser,
@@ -54,7 +55,21 @@ const AIBD_PLACE: SelectedPlace = {
   source: "reference",
 };
 
-const STEP_ORDER: Step[] = ["service", "trajet", "prix", "compte", "confirm", "done"];
+const STEP_ORDER: Step[] = ["service", "trajet", "vehicule", "prix", "compte", "confirm", "done"];
+
+const VEHICLE_OPTIONS: Array<{
+  key: string;
+  label: string;
+  capacityLabel: string;
+  minPassengers: number;
+  maxPassengers: number;
+  luggageHint: string;
+}> = [
+  { key: "berline", label: "Berline / Monospace", capacityLabel: "1 à 4 passagers", minPassengers: 1, maxPassengers: 4, luggageHint: "jusqu’à ~4 valises" },
+  { key: "van7", label: "Van 7 places", capacityLabel: "5 à 7 passagers", minPassengers: 5, maxPassengers: 7, luggageHint: "jusqu’à ~8 valises" },
+  { key: "van10", label: "Van 10 places (Hyundai Starex)", capacityLabel: "8 à 10 passagers", minPassengers: 8, maxPassengers: 10, luggageHint: "jusqu’à ~12 valises" },
+  { key: "groupe", label: "Groupe / plusieurs véhicules", capacityLabel: "Plus de 10 passagers", minPassengers: 11, maxPassengers: 999, luggageHint: "sur devis" },
+];
 
 function stepIndex(step: Step): number {
   return Math.max(0, STEP_ORDER.indexOf(step));
@@ -113,6 +128,8 @@ function ReserverWizard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [doneRef, setDoneRef] = useState<string | null>(null);
+  const [payLink, setPayLink] = useState<string | null>(null);
+  const [pendingResumeDraft, setPendingResumeDraft] = useState<SimulationDraft | null>(null);
 
   useEffect(() => {
     const resume = searchParams.get("resume") === "1";
@@ -150,11 +167,28 @@ function ReserverWizard() {
       if (destination && !next.dropoff) next.dropoff = destination;
       setDraft(next);
     } else if (stored && stored.step !== "done" && stored.step !== "service") {
-      setDraft(stored);
+      // Ne jamais reprendre automatiquement et silencieusement une simulation en cours :
+      // l'utilisateur doit pouvoir choisir de continuer ou de repartir de zéro.
+      setPendingResumeDraft(stored);
     }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function resumeStoredDraft() {
+    if (!pendingResumeDraft) return;
+    setDraft(pendingResumeDraft);
+    setPendingResumeDraft(null);
+  }
+
+  function startFreshDraft() {
+    clearSimulationDraft();
+    setPendingResumeDraft(null);
+    setDraft(emptyDraft());
+    setDoneRef(null);
+    setPayLink(null);
+    router.replace("/reserver");
+  }
 
   useEffect(() => {
     void listBusinessRules().then((rules) => {
@@ -338,7 +372,7 @@ function ReserverWizard() {
       setError("Le kilométrage réel n’est pas encore calculé. Choisissez des suggestions d’adresses GPS.");
       return;
     }
-    go("prix");
+    go("vehicule");
   }
 
   function validateQuote() {
@@ -407,12 +441,16 @@ function ReserverWizard() {
       }
 
       if (quote.amountFcfa > 0) {
-        await createPaymentForBooking({
+        const payment = await createPaymentForBooking({
           bookingId: booking.id,
           amountFcfa: quote.amountFcfa,
           bookingRef: booking.reference,
           status: "pending",
         }).catch(() => null);
+        if (payment?.id) {
+          const checkoutUrl = await createBookingWaveCheckout(payment.id).catch(() => null);
+          if (checkoutUrl) setPayLink(checkoutUrl);
+        }
       }
 
       setDoneRef(booking.reference || booking.id.slice(0, 8));
@@ -436,7 +474,7 @@ function ReserverWizard() {
     }
   }
 
-  const progress = Math.min(100, ((stepIndex(draft.step) + 1) / 5) * 100);
+  const progress = Math.min(100, ((stepIndex(draft.step) + 1) / (STEP_ORDER.length - 1)) * 100);
   const waHref = doneRef
     ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
         `Bonjour SentraJet Premium, réservation ${doneRef} — ${draft.pickup} → ${draft.dropoff} le ${draft.date} à ${draft.time}.`
@@ -447,6 +485,44 @@ function ReserverWizard() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-neutral-500">
         Préparation…
+      </div>
+    );
+  }
+
+  if (pendingResumeDraft) {
+    return (
+      <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10">
+        <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white p-6 shadow-[0_20px_50px_-28px_rgba(7,17,31,0.45)] sm:p-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a6a1f]">
+            SentraJet Premium
+          </p>
+          <h1 className="mt-2 font-display text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
+            Réservation en cours
+          </h1>
+          <p className="mt-2 text-sm text-neutral-600">
+            Vous avez une simulation non terminée
+            {pendingResumeDraft.pickup && pendingResumeDraft.dropoff
+              ? ` (${pendingResumeDraft.pickup} → ${pendingResumeDraft.dropoff})`
+              : ""}
+            . Voulez-vous la reprendre où vous en étiez, ou démarrer une nouvelle réservation ?
+          </p>
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              className="w-full rounded-2xl bg-[#07111f] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#0d1a2e]"
+              onClick={resumeStoredDraft}
+            >
+              Reprendre ma réservation
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-2xl border border-neutral-300 px-4 py-3.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
+              onClick={startFreshDraft}
+            >
+              Nouvelle réservation
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -467,6 +543,7 @@ function ReserverWizard() {
           <h1 className="mt-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
             {draft.step === "service" && t("booking.step.serviceTitle")}
             {draft.step === "trajet" && t("booking.step.journeyTitle")}
+            {draft.step === "vehicule" && "Choisissez votre véhicule"}
             {draft.step === "prix" && t("booking.step.priceTitle")}
             {draft.step === "compte" && t("booking.step.accountTitle")}
             {draft.step === "confirm" && t("booking.step.confirmTitle")}
@@ -477,18 +554,33 @@ function ReserverWizard() {
               ? t("booking.step.serviceSubtitle")
               : draft.step === "trajet"
                 ? t("booking.step.journeySubtitle")
-                : draft.step === "prix"
-                  ? quote.surDevis
-                    ? "Cotation manuelle SentraJet."
-                    : "Basé sur vos points GPS et l’itinéraire calculé."
-                  : draft.step === "done"
-                    ? "Nous validons puis envoyons le paiement Wave."
-                    : "Flotte SentraJet · devis clair · Wave."}
+                : draft.step === "vehicule"
+                  ? "Selon le nombre de passagers indiqué — flotte réelle SentraJet Premium."
+                  : draft.step === "prix"
+                    ? quote.surDevis
+                      ? "Cotation manuelle SentraJet."
+                      : "Basé sur vos points GPS et l’itinéraire calculé."
+                    : draft.step === "done"
+                      ? "Nous validons puis envoyons le paiement Wave."
+                      : "Flotte SentraJet · devis clair · Wave."}
           </p>
           {draft.step !== "done" ? (
             <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/15">
               <div className="h-full rounded-full bg-[#d5a64a] transition-all" style={{ width: `${progress}%` }} />
             </div>
+          ) : null}
+          {draft.step !== "service" && draft.step !== "done" ? (
+            <button
+              type="button"
+              className="mt-3 text-xs font-semibold text-white/60 underline underline-offset-2 hover:text-white/90"
+              onClick={() => {
+                if (window.confirm("Recommencer une nouvelle réservation ? Les informations déjà saisies seront perdues.")) {
+                  startFreshDraft();
+                }
+              }}
+            >
+              Recommencer une nouvelle réservation
+            </button>
           ) : null}
         </div>
 
@@ -700,6 +792,71 @@ function ReserverWizard() {
         </div>
       ) : null}
 
+      {draft.step === "vehicule" ? (
+        <div className="space-y-4">
+          <div className="grid gap-3">
+            {VEHICLE_OPTIONS.map((option) => {
+              const isSelected = draft.passengers >= option.minPassengers && draft.passengers <= option.maxPassengers;
+              const optionQuote = computeSentrajetPrice({
+                segment: "client",
+                serviceType: draft.serviceType,
+                passengers: isSelected ? draft.passengers : option.minPassengers,
+                luggage: draft.luggage,
+                distanceKm: draft.distanceKm,
+                tripMode: draft.tripMode,
+                waitingMinutes: draft.waitingMinutes,
+                applyAccountDiscount: Boolean(user) && discountPercent > 0,
+                accountDiscountPercent: discountPercent,
+              });
+              return (
+                <div
+                  key={option.key}
+                  className={`rounded-2xl border p-4 transition ${
+                    isSelected ? "border-[#d5a64a] bg-amber-50/60 ring-1 ring-[#d5a64a]" : "border-neutral-200 bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-display text-base font-bold text-neutral-900">{option.label}</p>
+                      <p className="text-xs text-neutral-500">{option.capacityLabel} · {option.luggageHint}</p>
+                    </div>
+                    {isSelected ? (
+                      <span className="rounded-full bg-[#d5a64a] px-3 py-1 text-xs font-bold text-[#07111f]">
+                        Sélectionné
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-neutral-800">
+                    {optionQuote.surDevis && !optionQuote.amountFcfa ? "Sur devis" : formatFcfa(optionQuote.amountFcfa)}
+                    {!optionQuote.surDevis ? <span className="ml-1 text-xs font-normal text-neutral-500">estimatif</span> : null}
+                  </p>
+                  {!isSelected ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-semibold text-[#8a6a1f] underline"
+                      onClick={() => go("trajet")}
+                    >
+                      Modifier le nombre de passagers pour choisir cette option
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-neutral-500">
+            Le véhicule affiché correspond au nombre de passagers indiqué à l’étape précédente —
+            SentraJet affecte un véhicule réel de sa flotte lors de la confirmation, pas un chauffeur au choix.
+          </p>
+          <button
+            type="button"
+            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"
+            onClick={() => go("prix")}
+          >
+            Continuer
+          </button>
+        </div>
+      ) : null}
+
       {draft.step === "prix" ? (
         <div className="space-y-4">
           <div className="rounded-2xl bg-neutral-900 px-5 py-6 text-white">
@@ -828,6 +985,16 @@ function ReserverWizard() {
           <p className="text-sm text-neutral-600">
             Réf. <strong>{doneRef}</strong> — SentraJet vous recontacte pour valider le devis et le paiement.
           </p>
+          {payLink ? (
+            <a
+              href={payLink}
+              target="_blank"
+              rel="noreferrer"
+              className="flex w-full items-center justify-center rounded-2xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-white"
+            >
+              Payer maintenant via Wave
+            </a>
+          ) : null}
           <a
             href={waHref}
             target="_blank"
@@ -836,23 +1003,20 @@ function ReserverWizard() {
           >
             Continuer sur WhatsApp
           </a>
-          <a
-            href={waveUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-center text-sm font-semibold text-neutral-600 underline"
-          >
-            Payer via Wave (si devis déjà validé)
-          </a>
+          {!payLink ? (
+            <a
+              href={waveUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center text-sm font-semibold text-neutral-600 underline"
+            >
+              Payer via Wave (si devis déjà validé)
+            </a>
+          ) : null}
           <button
             type="button"
             className="w-full text-sm font-semibold text-amber-800"
-            onClick={() => {
-              clearSimulationDraft();
-              setDoneRef(null);
-              setDraft(emptyDraft());
-              router.replace("/reserver");
-            }}
+            onClick={startFreshDraft}
           >
             Nouvelle réservation
           </button>

@@ -10,6 +10,14 @@ export type PlatformDriver = {
   phone: string | null;
   status: string;
   user_id: string | null;
+  email: string | null;
+  photo_url: string | null;
+  license_number: string | null;
+  license_photo_url: string | null;
+  license_expiry_date: string | null;
+  address: string | null;
+  emergency_contact: string | null;
+  notes: string | null;
 };
 
 export type PlatformVehicle = {
@@ -20,6 +28,16 @@ export type PlatformVehicle = {
   seats: number | null;
   status: string;
   category: string;
+  driver_id: string | null;
+  year: number | null;
+  color: string | null;
+  photo_url: string | null;
+  photo_urls: string[];
+  is_verified: boolean;
+  notes: string | null;
+  service_class?: string | null;
+  air_conditioning?: boolean;
+  transport_vehicle_category?: string | null;
 };
 
 export type PlatformClient = {
@@ -30,6 +48,11 @@ export type PlatformClient = {
   email: string | null;
   client_type: string;
   user_id: string | null;
+  avatar_url: string | null;
+  notes: string | null;
+  matricule?: string | null;
+  whatsapp?: string | null;
+  address?: string | null;
 };
 
 export type PartnerContract = {
@@ -187,7 +210,7 @@ export async function listPlatformBookings(): Promise<PlatformBooking[]> {
 export async function listDrivers(): Promise<PlatformDriver[]> {
   const { data, error } = await supabase
     .from("drivers")
-    .select("id, full_name, phone, status, user_id")
+    .select("id, full_name, phone, status, user_id, email, photo_url, license_number, license_photo_url, license_expiry_date, address, emergency_contact, notes")
     .order("full_name");
   if (error) throw error;
   return (data ?? []) as PlatformDriver[];
@@ -196,7 +219,7 @@ export async function listDrivers(): Promise<PlatformDriver[]> {
 export async function listVehicles(): Promise<PlatformVehicle[]> {
   const { data, error } = await supabase
     .from("vehicles")
-    .select("id, brand, model, plate_number, seats, status, category")
+    .select("id, brand, model, plate_number, seats, status, category, driver_id, year, color, photo_url, photo_urls, is_verified, notes, service_class, air_conditioning, transport_vehicle_category")
     .order("brand");
   if (error) throw error;
   return (data ?? []) as PlatformVehicle[];
@@ -205,10 +228,80 @@ export async function listVehicles(): Promise<PlatformVehicle[]> {
 export async function listClients(): Promise<PlatformClient[]> {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, full_name, company_name, phone, email, client_type, user_id")
+    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes, matricule, whatsapp, address")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as PlatformClient[];
+}
+
+export type ManagedDriverInput = Omit<PlatformDriver, "id" | "user_id"> & {
+  user_id?: string | null;
+};
+
+export async function createDriver(input: ManagedDriverInput): Promise<PlatformDriver> {
+  const { data, error } = await supabase.from("drivers").insert(input).select("*").single();
+  if (error) throw error;
+  return data as PlatformDriver;
+}
+
+export async function updateDriver(
+  id: string,
+  input: Partial<ManagedDriverInput>,
+): Promise<PlatformDriver> {
+  const { data, error } = await supabase.from("drivers").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as PlatformDriver;
+}
+
+export async function deleteDriver(id: string): Promise<void> {
+  const { error } = await supabase.from("drivers").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type ManagedVehicleInput = Omit<PlatformVehicle, "id">;
+
+export async function createVehicle(input: ManagedVehicleInput): Promise<PlatformVehicle> {
+  const { data, error } = await supabase.from("vehicles").insert(input).select("*").single();
+  if (error) throw error;
+  return data as PlatformVehicle;
+}
+
+export async function updateManagedVehicle(
+  id: string,
+  input: Partial<ManagedVehicleInput>,
+): Promise<PlatformVehicle> {
+  const { data, error } = await supabase.from("vehicles").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as PlatformVehicle;
+}
+
+export async function deleteManagedVehicle(id: string): Promise<void> {
+  const { error } = await supabase.from("vehicles").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type ManagedClientInput = Omit<PlatformClient, "id" | "user_id"> & {
+  user_id?: string | null;
+};
+
+export async function createClient(input: ManagedClientInput): Promise<PlatformClient> {
+  const { data, error } = await supabase.from("clients").insert(input).select("*").single();
+  if (error) throw error;
+  return data as PlatformClient;
+}
+
+export async function updateClient(
+  id: string,
+  input: Partial<ManagedClientInput>,
+): Promise<PlatformClient> {
+  const { data, error } = await supabase.from("clients").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as PlatformClient;
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const { error } = await supabase.from("clients").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function listPartnerContracts(): Promise<PartnerContract[]> {
@@ -289,9 +382,17 @@ async function createBookingViaApi(input: {
   luggageCount?: number | null;
 }): Promise<PlatformBooking | null> {
   if (typeof window === "undefined") return null;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const res = await fetch("/api/bookings/demande", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    },
     body: JSON.stringify({
       clientId: input.clientId ?? null,
       partnerContractId: input.partnerContractId ?? null,
@@ -460,7 +561,7 @@ export async function updateBookingWorkflowStatus(params: {
   const patch: Record<string, unknown> = { status: params.toStatus };
   if (params.quoteAmountFcfa != null) {
     patch.estimated_price = params.quoteAmountFcfa;
-    patch.final_price = params.quoteAmountFcfa;
+    patch.final_amount_fcfa = params.quoteAmountFcfa;
   }
 
   const { error } = await supabase.from("bookings").update(patch).eq("id", params.bookingId);
@@ -588,10 +689,40 @@ export async function createPaymentForBooking(input: {
       provider: "wave",
       status: input.status ?? "pending",
     })
-    .select("*")
-    .single();
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
-  return data;
+  // maybeSingle() peut ne rien renvoyer pour une réservation anonyme (RLS ne permet pas la
+  // relecture immédiate sans compte lié) — ce n'est pas une erreur, seul le lien de paiement
+  // Wave dédié ne pourra pas être généré, avec repli automatique sur le lien marchand générique.
+  return { id: data?.id as string | undefined, booking_id: input.bookingId, status: input.status ?? "pending" };
+}
+
+/**
+ * Tente de créer une session de paiement Wave réelle pour ce paiement de réservation.
+ * Si aucune clé Wave n'est configurée côté serveur (mode simulation), renvoie null pour que
+ * l'appelant puisse retomber sur le lien Wave marchand générique déjà en place.
+ */
+export async function createBookingWaveCheckout(paymentId: string): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/checkout/wave/booking", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ paymentId }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { checkout_url?: string | null; simulation?: boolean };
+    if (!res.ok || !data.checkout_url) return null;
+    return data.checkout_url;
+  } catch {
+    return null;
+  }
 }
 
 export async function markBookingPaid(bookingId: string, providerRef?: string) {
@@ -616,4 +747,180 @@ export async function listMissionsForDriverUser(userId: string): Promise<Platfor
   if (!driver?.id) return [];
   const all = await listPlatformBookings();
   return all.filter((b) => b.service_order?.dispatch?.driver_id === driver.id);
+}
+
+export async function setOwnDriverStatus(userId: string, status: string): Promise<void> {
+  const { error } = await supabase.from("drivers").update({ status }).eq("user_id", userId);
+  if (error) throw error;
+}
+
+/** Statuts d'une mission que le chauffeur peut lui-même faire progresser, dans l'ordre. */
+export const MISSION_STATUS_FLOW = [
+  "chauffeur_assigne",
+  "chauffeur_en_route",
+  "chauffeur_arrive",
+  "client_pris_en_charge",
+  "en_cours",
+  "terminee",
+] as const;
+
+export const MISSION_ACTION_LABEL: Record<string, string> = {
+  chauffeur_en_route: "Je suis en route",
+  chauffeur_arrive: "Je suis arrivé",
+  client_pris_en_charge: "Client pris en charge",
+  en_cours: "Client pris en charge",
+  terminee: "Mission terminée",
+};
+
+/** Renvoie le prochain statut que le chauffeur peut déclencher, ou null si la mission est hors de son contrôle. */
+export function nextMissionStatus(current: string): string | null {
+  const idx = MISSION_STATUS_FLOW.indexOf(current as (typeof MISSION_STATUS_FLOW)[number]);
+  if (idx === -1 || idx >= MISSION_STATUS_FLOW.length - 1) return null;
+  return MISSION_STATUS_FLOW[idx + 1];
+}
+
+export async function advanceOwnMissionStatus(bookingId: string, newStatus: string): Promise<PlatformBooking> {
+  const { data, error } = await supabase.rpc("update_own_mission_status", {
+    p_booking_id: bookingId,
+    p_new_status: newStatus,
+  });
+  if (error) {
+    const messages: Record<string, string> = {
+      not_authorized: "Cette mission ne vous est pas affectée.",
+      invalid_transition: "Cette étape ne peut pas être déclenchée depuis le statut actuel.",
+    };
+    const key = Object.keys(messages).find((k) => (error.message || "").includes(k));
+    throw new Error(key ? messages[key] : "Impossible de mettre à jour cette mission.");
+  }
+  return data as PlatformBooking;
+}
+
+export type PendingPayment = {
+  id: string;
+  booking_id: string;
+  amount_fcfa: number;
+  status: string;
+  created_at: string;
+  booking_ref: string | null;
+};
+
+/** Paiements en attente de vérification (staff) — visibilité déjà couverte par la RLS interne. */
+export async function listPendingPayments(): Promise<PendingPayment[]> {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id, booking_id, amount_fcfa, status, created_at, booking_ref")
+    .in("status", ["pending", "initiated", "created"])
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as PendingPayment[];
+}
+
+export async function reportMissionIssue(bookingId: string, message: string): Promise<void> {
+  const { error } = await supabase.rpc("report_mission_issue", {
+    p_booking_id: bookingId,
+    p_message: message,
+  });
+  if (error) throw new Error("Impossible d’envoyer ce signalement.");
+}
+
+export async function getBookingById(id: string): Promise<PlatformBooking | null> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(
+      `id, reference, client_id, lead_id, status, pickup, dropoff, pickup_time, service_type,
+       estimated_price, passengers, notes, pricing_segment, partner_contract_id, distance_km, created_at,
+       cancellation_fee_fcfa, final_amount_fcfa, phone,
+       client:clients(id, full_name, company_name, phone),
+       service_orders(id, order_number, status,
+         dispatch_assignments(id, driver_id, vehicle_id,
+           driver:drivers(id, full_name, phone, status, user_id),
+           vehicle:vehicles(id, brand, model, plate_number, seats, status, category)
+         )
+       )`
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw formatSupabaseError(error, "Impossible de charger cette réservation.");
+  if (!data) return null;
+  const r = data as Record<string, unknown>;
+  const order = firstRelation(r.service_orders as Record<string, unknown> | Record<string, unknown>[] | null);
+  const dispatchRaw = order
+    ? firstRelation(order.dispatch_assignments as Record<string, unknown> | Record<string, unknown>[] | null)
+    : null;
+  return {
+    id: String(r.id),
+    reference: (r.reference as string | null) ?? null,
+    client_id: (r.client_id as string | null) ?? null,
+    lead_id: (r.lead_id as string | null) ?? null,
+    status: String(r.status),
+    pickup: String(r.pickup),
+    dropoff: String(r.dropoff),
+    pickup_time: String(r.pickup_time),
+    service_type: String(r.service_type),
+    estimated_price: r.estimated_price == null ? null : Number(r.estimated_price),
+    passengers: Number(r.passengers ?? 1),
+    notes: (r.notes as string | null) ?? null,
+    pricing_segment: String(r.pricing_segment ?? "client"),
+    partner_contract_id: (r.partner_contract_id as string | null) ?? null,
+    distance_km: r.distance_km == null ? null : Number(r.distance_km),
+    created_at: String(r.created_at),
+    client: (firstRelation(r.client as PlatformClient | PlatformClient[] | null) as PlatformBooking["client"]) ?? null,
+    service_order: order
+      ? {
+          id: String(order.id),
+          order_number: String(order.order_number),
+          status: String(order.status),
+          dispatch: dispatchRaw
+            ? {
+                id: String(dispatchRaw.id),
+                driver_id: String(dispatchRaw.driver_id),
+                vehicle_id: String(dispatchRaw.vehicle_id),
+                driver: (firstRelation(dispatchRaw.driver as PlatformDriver | PlatformDriver[] | null) as PlatformDriver | null),
+                vehicle: (firstRelation(dispatchRaw.vehicle as PlatformVehicle | PlatformVehicle[] | null) as PlatformVehicle | null),
+              }
+            : null,
+        }
+      : null,
+  };
+}
+
+export type BookingStatusHistoryRow = {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  created_at: string;
+};
+
+export async function listBookingStatusHistory(bookingId: string): Promise<BookingStatusHistoryRow[]> {
+  const { data, error } = await supabase
+    .from("booking_status_history")
+    .select("id, from_status, to_status, note, created_at")
+    .eq("booking_id", bookingId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as BookingStatusHistoryRow[];
+}
+
+export type CancelOwnBookingResult = {
+  id: string;
+  status: string;
+  cancellation_fee_fcfa: number | null;
+  final_amount_fcfa: number | null;
+};
+
+/** Annulation client — le calcul des frais est effectué côté serveur (RPC `cancel_own_booking`). */
+export async function cancelOwnBooking(bookingId: string): Promise<CancelOwnBookingResult> {
+  const { data, error } = await supabase.rpc("cancel_own_booking", { p_booking_id: bookingId });
+  if (error) {
+    const code = error.message || "";
+    const messages: Record<string, string> = {
+      booking_not_found: "Réservation introuvable.",
+      not_authorized: "Vous ne pouvez annuler que vos propres réservations.",
+      booking_not_cancellable: "Cette réservation ne peut plus être annulée (déjà terminée, annulée ou remboursée).",
+    };
+    const key = Object.keys(messages).find((k) => code.includes(k));
+    throw new Error(key ? messages[key] : "Impossible d’annuler cette réservation.");
+  }
+  return data as CancelOwnBookingResult;
 }

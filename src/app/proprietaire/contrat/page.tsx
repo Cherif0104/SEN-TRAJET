@@ -1,62 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
 import { bookingStatusTone } from "@/lib/platformOps";
-
-type Contract = {
-  id: string;
-  vehicle_label: string;
-  monthly_amount_fcfa: number;
-  status: string;
-  start_date: string | null;
-  end_date: string | null;
-  terms_summary: string | null;
-};
+import { formatFcfa } from "@/lib/sentrajetPricing";
+import { getMyOwnerRecord, listMyVehicleContracts, type OwnerVehicleContract } from "@/lib/ownerOps";
+import { BrandedLoader } from "@/components/ui/BrandedLoader";
 
 export default function ProprietaireContratPage() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<Contract[]>([]);
+  const [rows, setRows] = useState<OwnerVehicleContract[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
       if (!user) return;
-      const { data: owner } = await supabase
-        .from("vehicle_owners")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!owner?.id) {
-        setRows([]);
-        return;
+      setLoading(true);
+      try {
+        const owner = await getMyOwnerRecord(user.id).catch(() => null);
+        if (!owner) {
+          setRows([]);
+          return;
+        }
+        setRows(await listMyVehicleContracts(owner.id).catch(() => []));
+      } finally {
+        setLoading(false);
       }
-      const { data } = await supabase
-        .from("vehicle_exploitation_contracts")
-        .select("id, vehicle_label, monthly_amount_fcfa, status, start_date, end_date, terms_summary")
-        .eq("owner_id", owner.id)
-        .order("created_at", { ascending: false });
-      setRows((data ?? []) as Contract[]);
     })();
   }, [user]);
 
+  if (loading) return <BrandedLoader />;
+
   return (
     <>
-      <SjSectionHead title="Mon contrat d’exploitation" />
+      <SjSectionHead title="Mes contrats d’exploitation" />
       <div className="sj-list">
         {rows.map((c) => (
           <SjCard key={c.id}>
             <div className="sj-between">
               <div>
-                <b>{c.vehicle_label}</b>
+                <b>{c.vehicle ? `${c.vehicle.brand} ${c.vehicle.model}` : c.vehicle_label}</b>
+                <div className="sj-gold">{formatFcfa(c.monthly_amount_fcfa)} / mois</div>
                 <div className="sj-muted">
-                  {Number(c.monthly_amount_fcfa).toLocaleString("fr-FR")} FCFA / mois
-                </div>
-                <div className="sj-muted">
-                  {c.start_date || "Début à définir"} → {c.end_date || "—"}
+                  {c.start_date ? new Date(c.start_date).toLocaleDateString("fr-FR") : "Début à définir"} →{" "}
+                  {c.end_date ? new Date(c.end_date).toLocaleDateString("fr-FR") : "Durée indéterminée"}
                 </div>
                 {c.terms_summary ? <p style={{ marginTop: 10 }}>{c.terms_summary}</p> : null}
+                {c.vehicle_id ? (
+                  <Link href={`/proprietaire/vehicule/${c.vehicle_id}`} className="sj-gold" style={{ display: "inline-block", marginTop: 8 }}>
+                    Voir la fiche véhicule →
+                  </Link>
+                ) : null}
               </div>
               <SjBadge tone={bookingStatusTone(c.status)}>{c.status}</SjBadge>
             </div>

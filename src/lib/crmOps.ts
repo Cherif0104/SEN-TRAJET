@@ -211,6 +211,66 @@ export async function createPartnerProspect(input: PartnerProspectInput): Promis
   };
 }
 
+export type Lead = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  email: string | null;
+  source: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export const LEAD_STATUSES = ["nouveau", "contacte", "qualifie", "converti", "perdu"] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
+export const LEAD_STATUS_LABELS: Record<string, string> = {
+  nouveau: "Nouveau",
+  contacte: "Contacté",
+  qualifie: "Qualifié",
+  converti: "Converti",
+  perdu: "Perdu",
+};
+
+export async function listLeads(): Promise<Lead[]> {
+  const { data, error } = await supabase
+    .from("leads")
+    .select("id, full_name, phone, email, source, status, notes, created_at, updated_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Lead[];
+}
+
+export async function createLead(input: {
+  fullName: string;
+  phone?: string | null;
+  email?: string | null;
+  source?: string | null;
+  notes?: string | null;
+}): Promise<Lead> {
+  const { data, error } = await supabase
+    .from("leads")
+    .insert({
+      full_name: input.fullName.trim(),
+      phone: input.phone?.trim() || null,
+      email: input.email?.trim() || null,
+      source: input.source || "commercial",
+      status: "nouveau",
+      notes: input.notes?.trim() || null,
+    })
+    .select("id, full_name, phone, email, source, status, notes, created_at, updated_at")
+    .single();
+  if (error) throw error;
+  return data as Lead;
+}
+
+export async function updateLeadStatus(leadId: string, status: LeadStatus): Promise<void> {
+  const { error } = await supabase.from("leads").update({ status, updated_at: new Date().toISOString() }).eq("id", leadId);
+  if (error) throw error;
+}
+
 export function crmTargetLabel(activity: CrmActivity): string {
   if (activity.client) {
     const name = activity.client.company_name || activity.client.full_name || "Client";

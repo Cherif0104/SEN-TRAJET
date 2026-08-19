@@ -11,10 +11,12 @@ import {
   type PlatformBooking,
 } from "@/lib/platformOps";
 import { SERVICE_TYPE_LABELS, formatFcfa, type ServiceType } from "@/lib/sentrajetPricing";
+import type { PricingSegment } from "@/lib/sentrajetPricing";
 
 export default function AdminReservationsPage() {
   const [rows, setRows] = useState<PlatformBooking[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [segment, setSegment] = useState<PricingSegment>("client");
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -43,7 +45,26 @@ export default function AdminReservationsPage() {
 
       {showForm ? (
         <SjCard style={{ marginBottom: 16 }}>
-          <BookingForm segment="client" onCreated={() => void load()} />
+          <div className="mb-5">
+            <p className="mb-2 text-sm font-bold">Base tarifaire de la simulation</p>
+            <div className="grid grid-cols-1 gap-2 rounded-2xl bg-[var(--color-surface-secondary)] p-1.5 sm:grid-cols-2">
+              {(["client", "partner"] as PricingSegment[]).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setSegment(option)}
+                  className={`min-h-11 rounded-xl px-3 text-sm font-bold transition ${
+                    segment === option
+                      ? "bg-[var(--color-accent)] text-[var(--color-accent-contrast)] shadow-sm"
+                      : "text-[var(--color-text-secondary)]"
+                  }`}
+                >
+                  {option === "client" ? "Tarif client direct" : "Tarif partenaire B2B"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <BookingForm key={segment} segment={segment} onCreated={() => void load()} />
         </SjCard>
       ) : null}
 
@@ -51,7 +72,7 @@ export default function AdminReservationsPage() {
 
       <SjCard>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Référence</th>
@@ -67,25 +88,25 @@ export default function AdminReservationsPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td>
+                  <td data-label="Référence">
                     <b>{r.reference || r.id.slice(0, 8)}</b>
                   </td>
-                  <td>{r.client?.company_name || r.client?.full_name || "—"}</td>
-                  <td>
+                  <td data-label="Client">{r.client?.company_name || r.client?.full_name || "—"}</td>
+                  <td data-label="Prestation">
                     {SERVICE_TYPE_LABELS[r.service_type as ServiceType] || r.service_type}
                     <div className="sj-muted">
                       {r.pickup} → {r.dropoff}
                     </div>
                   </td>
-                  <td>{new Date(r.pickup_time).toLocaleString("fr-FR")}</td>
-                  <td>{r.passengers}</td>
-                  <td>{r.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
-                  <td>
+                  <td data-label="Date">{new Date(r.pickup_time).toLocaleString("fr-FR")}</td>
+                  <td data-label="Passagers">{r.passengers}</td>
+                  <td data-label="Chauffeur">{r.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
+                  <td data-label="Statut">
                     <SjBadge tone={bookingStatusTone(r.status)}>
                       {BOOKING_STATUS_LABEL[r.status] ?? r.status}
                     </SjBadge>
                   </td>
-                  <td>
+                  <td data-label="Montant">
                     <b>{r.estimated_price != null ? formatFcfa(Number(r.estimated_price)) : "Sur devis"}</b>
                   </td>
                 </tr>

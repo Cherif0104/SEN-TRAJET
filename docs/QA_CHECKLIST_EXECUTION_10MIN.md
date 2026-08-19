@@ -5,7 +5,7 @@ Objectif: valider les parcours critiques sans régression après stabilisation U
 ## Préparation (1 min)
 
 - Ouvrir l’application en local.
-- Aller sur `/comptes-test`.
+- Utiliser les comptes temporaires créés depuis `/admin/utilisateurs`.
 - Tester sur mobile viewport + desktop.
 
 ## 1) Parcours client (3 min)

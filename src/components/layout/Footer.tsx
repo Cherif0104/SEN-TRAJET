@@ -6,6 +6,7 @@ import { usePreferences } from "@/providers/PreferencesProvider";
 
 const footerLinks = [
   { label: "nav.book" as const, href: "/reserver" },
+  { label: "nav.mobileApp" as const, href: "/application-mobile" },
   { label: "nav.help" as const, href: "/faq" },
   { label: "nav.terms" as const, href: "/cgu" },
   { label: "nav.privacy" as const, href: "/confidentialite" },

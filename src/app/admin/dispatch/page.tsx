@@ -200,7 +200,7 @@ export default function AdminDispatchPage() {
               Créneau libre (±{conflict.bufferMinutes} min).
             </p>
           ) : null}
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+          <div className="sj-toolbar mt-3.5 justify-start">
             <button
               type="button"
               className="sj-btn sj-btn-primary"
@@ -219,7 +219,7 @@ export default function AdminDispatchPage() {
       <SjSectionHead title="Toutes les réservations" />
       <SjCard>
         <div className="sj-table-wrap">
-          <table className="sj-table">
+          <table className="sj-table sj-responsive-table">
             <thead>
               <tr>
                 <th>Réf.</th>
@@ -232,15 +232,15 @@ export default function AdminDispatchPage() {
             <tbody>
               {bookings.map((b) => (
                 <tr key={b.id}>
-                  <td>
+                  <td data-label="Référence">
                     <b>{b.reference || "—"}</b>
                   </td>
-                  <td>
+                  <td data-label="Trajet">
                     {b.pickup} → {b.dropoff}
                   </td>
-                  <td>{new Date(b.pickup_time).toLocaleString("fr-FR")}</td>
-                  <td>{b.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
-                  <td>
+                  <td data-label="Date">{new Date(b.pickup_time).toLocaleString("fr-FR")}</td>
+                  <td data-label="Chauffeur">{b.service_order?.dispatch?.driver?.full_name || "À assigner"}</td>
+                  <td data-label="Statut">
                     <SjBadge tone={bookingStatusTone(b.status)}>
                       {BOOKING_STATUS_LABEL[b.status] ?? b.status}
                     </SjBadge>

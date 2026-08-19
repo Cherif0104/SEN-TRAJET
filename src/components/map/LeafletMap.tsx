@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -45,6 +45,7 @@ export function LeafletMap({
   toCity,
   zoom = 10,
   className = "",
+  routePoints = [],
 }: {
   height?: string;
   markers?: MapMarker[];
@@ -52,6 +53,8 @@ export function LeafletMap({
   toCity?: string;
   zoom?: number;
   className?: string;
+  /** Tracé d'itinéraire optionnel (ex. réponse OSRM) à afficher entre les marqueurs. */
+  routePoints?: Array<{ lat: number; lng: number }>;
 }) {
   const points = useMemo(() => {
     const list: Array<{ lat: number; lng: number }> = [];
@@ -70,6 +73,8 @@ export function LeafletMap({
     return list;
   }, [markers, fromCity, toCity]);
 
+  const boundsPoints = routePoints.length > 0 ? routePoints : points;
+
   const center = points.length > 0 ? points[0] : SENEGAL_CENTER;
 
   return (
@@ -85,7 +90,11 @@ export function LeafletMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <FitBounds points={points} />
+        <FitBounds points={boundsPoints} />
+
+        {routePoints.length > 1 ? (
+          <Polyline positions={routePoints.map((p) => [p.lat, p.lng])} pathOptions={{ color: "#d5a64a", weight: 4 }} />
+        ) : null}
 
         {(markers.length > 0 ? markers : (points.map((p, i) => ({ ...p, label: i === 0 ? fromCity : toCity })) as MapMarker[])).map(
           (m, idx) => (

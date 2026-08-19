@@ -1,12 +1,12 @@
 # Scénarios UX — SEN TRAJET
 
-Scénarios pour tester l’expérience **client**, **chauffeur** et **partenaire** avec les **comptes démo**.
+Scénarios pour tester l’expérience **client**, **chauffeur** et **partenaire** avec des comptes temporaires créés par le super administrateur.
 
 ---
 
 ## 1. Client — Réserver un trajet interurbain
 
-1. Ouvrir la landing et cliquer sur **Compte démo Client** (ou utiliser la page `/comptes-test`).
+1. Se connecter avec un compte temporaire ayant le rôle **Client**.
 2. Sur le boarding `/compte`, choisir **Trouver un trajet**.
 3. Renseigner `Dakar` → `Thiès`, une date proche, lancer la recherche.
 4. Dans les résultats :

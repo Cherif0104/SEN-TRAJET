@@ -42,10 +42,15 @@ function isAllowedNext(path: string): boolean {
     "/chauffeur",
     "/partenaire",
     "/proprietaire",
+    "/ops",
+    "/commercial",
+    "/finance",
+    "/fleet",
+    "/rh",
+    "/manager",
     "/admin",
     "/dashboard",
     "/reserver",
-    "/messages",
     "/avis",
     "/",
   ];
@@ -81,14 +86,26 @@ function hubPathForRole(role: string | undefined): string {
   return "/";
 }
 
-async function resolvePostLoginRedirect(nextParam: string | null): Promise<string> {
+async function resolvePostLoginRedirect(
+  nextParam: string | null,
+  signedInUserId?: string,
+): Promise<string> {
   if (nextParam && isAllowedNext(nextParam)) return nextParam;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.id) return "/";
-  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  return hubPathForRole(prof?.role);
+  let userId = signedInUserId;
+  if (!userId) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    userId = session?.user.id;
+  }
+  if (!userId) return "/connexion";
+  const { data: prof, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !prof?.role) return "/dashboard";
+  return hubPathForRole(prof.role);
 }
 
 function ConnexionPageContent() {
@@ -122,7 +139,7 @@ function ConnexionPageContent() {
     setError(null);
     setLoading(true);
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({
+      const { data, error: err } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -130,7 +147,10 @@ function ConnexionPageContent() {
         setError(formatAuthErrorMessage(err.message));
         return;
       }
-      const target = await resolvePostLoginRedirect(searchParams.get("next"));
+      const target = await resolvePostLoginRedirect(
+        searchParams.get("next"),
+        data.user?.id,
+      );
       window.location.replace(target);
       return;
     } catch {
@@ -175,7 +195,7 @@ function ConnexionPageContent() {
     }
     setLoading(true);
     try {
-      const { error: err } = await supabase.auth.verifyOtp({
+      const { data, error: err } = await supabase.auth.verifyOtp({
         phone: e164,
         token: otp.trim(),
         type: "sms",
@@ -184,7 +204,10 @@ function ConnexionPageContent() {
         setError(formatAuthErrorMessage(err.message) || "Code invalide ou expiré.");
         return;
       }
-      const target = await resolvePostLoginRedirect(searchParams.get("next"));
+      const target = await resolvePostLoginRedirect(
+        searchParams.get("next"),
+        data.user?.id,
+      );
       window.location.replace(target);
       return;
     } catch {
@@ -325,11 +348,6 @@ function ConnexionPageContent() {
             className="font-semibold text-amber-800 hover:text-amber-900 hover:underline"
           >
             S&apos;inscrire
-          </Link>
-        </p>
-        <p className="mt-3 text-center text-sm text-slate-500">
-          <Link href="/comptes-test" className="font-semibold text-amber-800 hover:underline">
-            Tester avec un compte démo (1 clic)
           </Link>
         </p>
     </AuthPageScaffold>

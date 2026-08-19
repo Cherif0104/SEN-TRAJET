@@ -17,11 +17,16 @@ import {
   Landmark,
   Inbox,
   ClipboardList,
+  UserCog,
+  CircleUserRound,
+  ShieldCheck,
+  Bus,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecovery";
 import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
@@ -35,11 +40,28 @@ const nav = [
   { href: "/admin/proprietaires", labelKey: "nav.owners" as const, icon: Landmark },
   { href: "/admin/clients", labelKey: "nav.clients" as const, icon: Contact },
   { href: "/admin/vehicules", labelKey: "nav.fleet" as const, icon: Car },
+  { href: "/admin/intercite", label: "Intercité", icon: Bus },
   { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
   { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },
   { href: "/admin/rapports", labelKey: "nav.reports" as const, icon: BarChart3 },
+  { href: "/admin/profil", labelKey: "nav.profile" as const, icon: CircleUserRound },
+  // Administration profonde — réservée au Super Admin, volontairement en fin de liste
+  // pour ne pas mélanger paramètres techniques et modules opérationnels.
+  { href: "/admin/utilisateurs", labelKey: "nav.users" as const, icon: UserCog },
+  { href: "/admin/roles", label: "Rôles", icon: ShieldCheck },
   { href: "/admin/parametres", labelKey: "nav.settings" as const, icon: Settings },
+  { href: "/admin/securite", label: "Sécurité", icon: ShieldCheck },
 ];
+
+const mobileNav = nav.filter((item) =>
+  [
+    "/admin",
+    "/admin/demandes",
+    "/admin/dispatch",
+    "/admin/utilisateurs",
+    "/admin/profil",
+  ].includes(item.href),
+);
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -53,17 +75,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/connexion?next=" + encodeURIComponent(pathname));
       return;
     }
-    if (profile && !canAccessAdminZone(profile.role)) {
+    if (!profile) {
+      return;
+    }
+    if (!canAccessAdminZone(profile.role)) {
       router.replace("/dashboard?forbidden=1");
     }
   }, [loading, profile, router, pathname, user]);
 
-  if (loading || !user || (profile && !canAccessAdminZone(profile.role))) {
+  if (loading || !user) {
     return <BrandedLoader fullScreen />;
   }
+  if (!profile) return <ProfileAccessRecovery />;
+  if (!canAccessAdminZone(profile.role)) return <BrandedLoader fullScreen />;
+
+  const superAdminOnlyHrefs = ["/admin/utilisateurs", "/admin/roles", "/admin/securite"];
+  const visibleNav =
+    profile?.role === "super_admin"
+      ? nav
+      : nav.filter((item) => !superAdminOnlyHrefs.includes(item.href));
+  const visibleMobileNav = mobileNav.filter((item) =>
+    visibleNav.some((visible) => visible.href === item.href),
+  );
 
   return (
-    <PremiumShell title={t("shell.adminTitle")} subtitle={t("shell.adminSubtitle")} nav={nav}>
+    <PremiumShell
+      title={t("shell.adminTitle")}
+      subtitle={t("shell.adminSubtitle")}
+      nav={visibleNav}
+      mobileNav={visibleMobileNav}
+    >
       {children}
     </PremiumShell>
   );
