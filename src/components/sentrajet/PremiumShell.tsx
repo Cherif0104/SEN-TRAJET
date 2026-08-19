@@ -107,15 +107,6 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children, varian
             <NotificationBell userId={user?.id ?? null} />
             <LanguageMenu />
             <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => void handleSignOut()}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-error)] transition hover:border-[var(--color-error)] hover:bg-[var(--color-surface-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
-              aria-label={t("actions.logout")}
-              title={t("actions.logout")}
-            >
-              <LogOut className="h-4.5 w-4.5" />
-            </button>
             <details className="group relative">
               <summary
                 className="sj-avatar cursor-pointer list-none focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
