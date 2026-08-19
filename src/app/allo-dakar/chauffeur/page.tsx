@@ -9,6 +9,7 @@ import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
   addAlloDakarVehicle,
   cancelAlloDakarDeparture,
+  confirmAlloDakarRideRequest,
   formatSubscriptionPeriod,
   getActiveSubscription,
   getMyAlloDakarDriver,
@@ -19,6 +20,7 @@ import {
   listAlloDakarBookingsForDeparture,
   listAlloDakarSubscriptions,
   listAlloDakarVehicles,
+  listOpenAlloDakarRideRequests,
   publishAlloDakarDeparture,
   registerAlloDakarDriver,
   uploadVehicleGreyCard,
@@ -26,9 +28,15 @@ import {
   type AlloDakarCorridor,
   type AlloDakarDeparture,
   type AlloDakarDriver,
+  type AlloDakarRideRequest,
   type AlloDakarSubscription,
   type AlloDakarVehicle,
 } from "@/lib/alloDakarOps";
+
+const PICKUP_MODE_LABEL: Record<string, string> = {
+  domicile: "Domicile (porte-à-porte)",
+  point_relais: "Point relais",
+};
 
 const DRIVER_STATUS_LABEL: Record<string, string> = {
   en_attente: "En attente de validation SentraJet",
@@ -56,6 +64,10 @@ export default function AlloDakarDriverSpace() {
   const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [bookingsByDeparture, setBookingsByDeparture] = useState<Record<string, AlloDakarBooking[]>>({});
   const [expandedDeparture, setExpandedDeparture] = useState<string | null>(null);
+  const [openRequests, setOpenRequests] = useState<AlloDakarRideRequest[]>([]);
+  const [confirmingRequestId, setConfirmingRequestId] = useState<string | null>(null);
+  const [confirmDepartureId, setConfirmDepartureId] = useState("");
+  const [confirmingBusy, setConfirmingBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +88,7 @@ export default function AlloDakarDriverSpace() {
   const [depDate, setDepDate] = useState("");
   const [depTime, setDepTime] = useState("");
   const [depPrice, setDepPrice] = useState("");
+  const [depPriceDomicile, setDepPriceDomicile] = useState("");
 
   async function reload() {
     if (!user) return;
@@ -86,14 +99,16 @@ export default function AlloDakarDriverSpace() {
       const c = await listAlloDakarCorridors();
       setCorridors(c);
       if (d) {
-        const [v, s, dep] = await Promise.all([
+        const [v, s, dep, reqs] = await Promise.all([
           listAlloDakarVehicles(d.id),
           listAlloDakarSubscriptions(d.id),
           listAlloDakarDeparturesForDriver(d.id),
+          listOpenAlloDakarRideRequests().catch(() => []),
         ]);
         setVehicles(v);
         setSubscriptions(s);
         setDepartures(dep);
+        setOpenRequests(reqs);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement.");
@@ -149,11 +164,13 @@ export default function AlloDakarDriverSpace() {
         corridorId: depCorridor,
         departureAt: new Date(`${depDate}T${depTime}:00`).toISOString(),
         pricePerSeatFcfa: Number(depPrice),
+        priceDomicileFcfa: depPriceDomicile ? Number(depPriceDomicile) : null,
         seatsTotal: Math.max(1, vehicle.seats_total - 1),
       });
       setDepDate("");
       setDepTime("");
       setDepPrice("");
+      setDepPriceDomicile("");
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de publier ce départ.");
@@ -176,6 +193,22 @@ export default function AlloDakarDriverSpace() {
   async function viewGreyCard(path: string) {
     const url = await getVehicleGreyCardSignedUrl(path);
     if (url) setGreyCardLinks((prev) => ({ ...prev, [path]: url }));
+  }
+
+  async function handleConfirmRequest(requestId: string) {
+    if (!confirmDepartureId) return;
+    setConfirmingBusy(true);
+    setError(null);
+    try {
+      await confirmAlloDakarRideRequest(requestId, confirmDepartureId);
+      setConfirmingRequestId(null);
+      setConfirmDepartureId("");
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de confirmer cette demande.");
+    } finally {
+      setConfirmingBusy(false);
+    }
   }
 
   async function toggleBookings(departureId: string) {
@@ -330,9 +363,99 @@ export default function AlloDakarDriverSpace() {
             </select>
             <input type="date" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depDate} onChange={(e) => setDepDate(e.target.value)} required />
             <input type="time" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depTime} onChange={(e) => setDepTime(e.target.value)} required />
-            <input type="number" className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Prix par place (FCFA)" value={depPrice} onChange={(e) => setDepPrice(e.target.value)} required />
+            <input type="number" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Prix point relais (FCFA)" value={depPrice} onChange={(e) => setDepPrice(e.target.value)} required />
+            <input type="number" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Prix domicile (FCFA, optionnel)" value={depPriceDomicile} onChange={(e) => setDepPriceDomicile(e.target.value)} />
+            <p className="col-span-2 text-xs text-neutral-400">
+              Les réservations se ferment automatiquement 30 minutes avant l&apos;heure de départ.
+            </p>
             <button type="submit" className="col-span-2 rounded-xl bg-[#1f6b4a] px-3 py-2 text-sm font-bold text-white">Publier ce départ</button>
           </form>
+        </>
+      ) : null}
+
+      {driver.status === "actif" ? (
+        <>
+          <h2 className="mt-8 text-base font-bold text-neutral-900">Demandes clients sur mes corridors</h2>
+          <p className="mt-1 text-xs text-neutral-500">
+            Des clients n&apos;ont pas trouvé de départ correspondant — confirmez-les directement sur l&apos;un de vos
+            départs publiés pour compléter votre véhicule.
+          </p>
+          <div className="mt-3 space-y-2">
+            {openRequests
+              .filter((r) => hasActiveSubscription(subscriptions, r.corridor_id))
+              .map((r) => {
+                const eligibleDepartures = departures.filter(
+                  (d) => d.corridor_id === r.corridor_id && d.status === "publie" && d.seats_available >= r.seats_needed
+                );
+                return (
+                  <div key={r.id} className="rounded-xl border border-neutral-200 bg-white p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <b>{r.corridor ? `${r.corridor.origin_city} → ${r.corridor.destination_city}` : "Corridor"}</b>
+                        <div className="text-neutral-500">
+                          {new Date(r.desired_date).toLocaleDateString("fr-FR")} · {r.seats_needed} place{r.seats_needed > 1 ? "s" : ""} ·{" "}
+                          {PICKUP_MODE_LABEL[r.pickup_mode]}
+                          {r.pickup_detail ? ` (${r.pickup_detail})` : ""}
+                        </div>
+                        <div className="text-xs text-neutral-400">{r.client_full_name} · {r.client_phone}</div>
+                      </div>
+                      {confirmingRequestId !== r.id ? (
+                        <button
+                          type="button"
+                          className="rounded-lg bg-[#1f6b4a] px-3 py-1.5 text-xs font-bold text-white"
+                          onClick={() => {
+                            setConfirmingRequestId(r.id);
+                            setConfirmDepartureId(eligibleDepartures[0]?.id ?? "");
+                          }}
+                        >
+                          Confirmer
+                        </button>
+                      ) : null}
+                    </div>
+                    {confirmingRequestId === r.id ? (
+                      <div className="mt-2 space-y-2 border-t border-neutral-100 pt-2">
+                        {eligibleDepartures.length ? (
+                          <>
+                            <select
+                              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                              value={confirmDepartureId}
+                              onChange={(e) => setConfirmDepartureId(e.target.value)}
+                            >
+                              {eligibleDepartures.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {new Date(d.departure_at).toLocaleString("fr-FR")} · {d.seats_available} places libres
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex gap-2">
+                              <button type="button" className="flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-semibold" onClick={() => setConfirmingRequestId(null)}>
+                                Annuler
+                              </button>
+                              <button
+                                type="button"
+                                className="flex-1 rounded-lg bg-[#1f6b4a] px-3 py-1.5 text-xs font-bold text-white"
+                                disabled={confirmingBusy}
+                                onClick={() => void handleConfirmRequest(r.id)}
+                              >
+                                {confirmingBusy ? "…" : "Valider sur ce départ"}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-amber-700">
+                            Aucun de vos départs publiés n&apos;a assez de places disponibles sur ce corridor. Publiez
+                            d&apos;abord un départ.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            {!openRequests.filter((r) => hasActiveSubscription(subscriptions, r.corridor_id)).length ? (
+              <p className="text-sm text-neutral-500">Aucune demande client ouverte sur vos corridors pour le moment.</p>
+            ) : null}
+          </div>
         </>
       ) : null}
 
@@ -344,7 +467,8 @@ export default function AlloDakarDriverSpace() {
               <div>
                 <b>{dep.corridor?.origin_city} → {dep.corridor?.destination_city}</b>
                 <div className="text-neutral-500">
-                  {new Date(dep.departure_at).toLocaleString("fr-FR")} · {formatFcfa(dep.price_per_seat_fcfa)}/place ·{" "}
+                  {new Date(dep.departure_at).toLocaleString("fr-FR")} · {formatFcfa(dep.price_per_seat_fcfa)}/place point relais
+                  {dep.price_domicile_fcfa ? ` · ${formatFcfa(dep.price_domicile_fcfa)}/place domicile` : ""} ·{" "}
                   {dep.seats_available}/{dep.seats_total} places restantes · {dep.status}
                 </div>
               </div>
@@ -363,7 +487,11 @@ export default function AlloDakarDriverSpace() {
               <div className="mt-2 space-y-1 border-t border-neutral-100 pt-2">
                 {(bookingsByDeparture[dep.id] ?? []).map((b) => (
                   <div key={b.id} className="flex justify-between text-xs text-neutral-600">
-                    <span>{b.client_full_name} ({b.client_phone}) · {b.seats_booked} place{b.seats_booked > 1 ? "s" : ""}</span>
+                    <span>
+                      {b.client_full_name} ({b.client_phone}) · {b.seats_booked} place{b.seats_booked > 1 ? "s" : ""} ·{" "}
+                      {PICKUP_MODE_LABEL[b.pickup_mode] ?? b.pickup_mode}
+                      {b.pickup_detail ? ` — ${b.pickup_detail}` : ""}
+                    </span>
                     <span>{b.payment_status} · {b.status}</span>
                   </div>
                 ))}
