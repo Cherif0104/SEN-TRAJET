@@ -12,6 +12,7 @@ import {
   formatSubscriptionPeriod,
   getActiveSubscription,
   getMyAlloDakarDriver,
+  getVehicleGreyCardSignedUrl,
   hasActiveSubscription,
   listAlloDakarCorridors,
   listAlloDakarDeparturesForDriver,
@@ -20,6 +21,7 @@ import {
   listAlloDakarVehicles,
   publishAlloDakarDeparture,
   registerAlloDakarDriver,
+  uploadVehicleGreyCard,
   type AlloDakarBooking,
   type AlloDakarCorridor,
   type AlloDakarDeparture,
@@ -66,6 +68,8 @@ export default function AlloDakarDriverSpace() {
   const [vBrand, setVBrand] = useState("");
   const [vModel, setVModel] = useState("");
   const [vSeats, setVSeats] = useState(7);
+  const [uploadingVehicleId, setUploadingVehicleId] = useState<string | null>(null);
+  const [greyCardLinks, setGreyCardLinks] = useState<Record<string, string>>({});
 
   const [depCorridor, setDepCorridor] = useState("");
   const [depVehicle, setDepVehicle] = useState("");
@@ -156,6 +160,24 @@ export default function AlloDakarDriverSpace() {
     }
   }
 
+  async function handleUploadGreyCard(vehicleId: string, file: File) {
+    if (!driver) return;
+    setUploadingVehicleId(vehicleId);
+    try {
+      await uploadVehicleGreyCard(vehicleId, driver.id, file);
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible d’envoyer la carte grise.");
+    } finally {
+      setUploadingVehicleId(null);
+    }
+  }
+
+  async function viewGreyCard(path: string) {
+    const url = await getVehicleGreyCardSignedUrl(path);
+    if (url) setGreyCardLinks((prev) => ({ ...prev, [path]: url }));
+  }
+
   async function toggleBookings(departureId: string) {
     if (expandedDeparture === departureId) {
       setExpandedDeparture(null);
@@ -222,8 +244,47 @@ export default function AlloDakarDriverSpace() {
       <div className="mt-3 space-y-2">
         {vehicles.map((v) => (
           <div key={v.id} className="rounded-xl border border-neutral-200 bg-white p-3 text-sm">
-            <b>{v.brand} {v.model}</b> · {v.plate_number} · {v.seats_total} places (dont chauffeur)
-            {!v.is_verified ? <span className="ml-2 text-xs text-amber-700">Vérification en cours</span> : null}
+            <div className="flex items-center justify-between">
+              <b>{v.brand} {v.model}</b>
+              {v.is_verified ? (
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">Validé</span>
+              ) : v.rejection_reason ? (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">Rejeté</span>
+              ) : (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">En attente de validation</span>
+              )}
+            </div>
+            <p className="text-neutral-500">{v.plate_number} · {v.seats_total} places (dont chauffeur)</p>
+            {v.rejection_reason ? <p className="mt-1 text-xs text-red-700">Motif : {v.rejection_reason}</p> : null}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {v.grey_card_url ? (
+                greyCardLinks[v.grey_card_url] ? (
+                  <a href={greyCardLinks[v.grey_card_url]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1f6b4a] underline">
+                    Voir la carte grise envoyée
+                  </a>
+                ) : (
+                  <button type="button" className="text-xs font-semibold text-[#1f6b4a] underline" onClick={() => void viewGreyCard(v.grey_card_url!)}>
+                    Afficher la carte grise envoyée
+                  </button>
+                )
+              ) : (
+                <span className="text-xs text-neutral-400">Aucune carte grise envoyée</span>
+              )}
+              <label className="text-xs font-semibold text-neutral-600 underline" style={{ cursor: "pointer" }}>
+                {uploadingVehicleId === v.id ? "Envoi…" : v.grey_card_url ? "Remplacer le document" : "Envoyer la carte grise"}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  disabled={uploadingVehicleId === v.id}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleUploadGreyCard(v.id, file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
           </div>
         ))}
       </div>

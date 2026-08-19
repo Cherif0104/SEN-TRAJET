@@ -41,6 +41,9 @@ export type AlloDakarVehicle = {
   model: string | null;
   seats_total: number;
   grey_card_number: string | null;
+  grey_card_url: string | null;
+  rejection_reason: string | null;
+  verified_at: string | null;
   is_verified: boolean;
 };
 
@@ -302,13 +305,53 @@ export async function addDriverToGarage(input: {
 // ---------------------------------------------------------------------------
 // Véhicules Allo Dakar
 // ---------------------------------------------------------------------------
+const VEHICLE_SELECT =
+  "id, allo_dakar_driver_id, plate_number, brand, model, seats_total, grey_card_number, grey_card_url, rejection_reason, verified_at, is_verified";
+
 export async function listAlloDakarVehicles(driverId: string): Promise<AlloDakarVehicle[]> {
   const { data, error } = await supabase
     .from("allo_dakar_vehicles")
-    .select("id, allo_dakar_driver_id, plate_number, brand, model, seats_total, grey_card_number, is_verified")
+    .select(VEHICLE_SELECT)
     .eq("allo_dakar_driver_id", driverId);
   if (error) throw error;
   return (data ?? []) as AlloDakarVehicle[];
+}
+
+/** Tous les véhicules dont l'utilisateur courant peut voir la carte grise (chauffeur, garage
+ * gestionnaire, ou staff — la RLS scope automatiquement le résultat). */
+export async function listVerifiableAlloDakarVehicles(): Promise<AlloDakarVehicle[]> {
+  const { data, error } = await supabase.from("allo_dakar_vehicles").select(VEHICLE_SELECT);
+  if (error) throw error;
+  return (data ?? []) as AlloDakarVehicle[];
+}
+
+export async function uploadVehicleGreyCard(vehicleId: string, driverId: string, file: File): Promise<void> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${driverId}/${vehicleId}-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("allo-dakar-documents").upload(path, file, {
+    upsert: true,
+  });
+  if (uploadError) throw uploadError;
+  const { error } = await supabase
+    .from("allo_dakar_vehicles")
+    .update({ grey_card_url: path, is_verified: false, rejection_reason: null, verified_at: null })
+    .eq("id", vehicleId);
+  if (error) throw error;
+}
+
+export async function getVehicleGreyCardSignedUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from("allo-dakar-documents").createSignedUrl(path, 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
+export async function verifyAlloDakarVehicle(vehicleId: string, approved: boolean, reason?: string | null): Promise<void> {
+  const { error } = await supabase.rpc("verify_allo_dakar_vehicle", {
+    p_vehicle_id: vehicleId,
+    p_approved: approved,
+    p_reason: reason ?? null,
+  });
+  if (error) throw new Error("Impossible de mettre à jour la validation de ce véhicule.");
 }
 
 export async function addAlloDakarVehicle(input: {

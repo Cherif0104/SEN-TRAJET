@@ -11,6 +11,7 @@ import {
   createGarageWithManager,
   formatSubscriptionPeriod,
   getActiveSubscription,
+  getVehicleGreyCardSignedUrl,
   grantAlloDakarSubscription,
   listAllAlloDakarBookings,
   listAllAlloDakarDepartures,
@@ -18,19 +19,22 @@ import {
   listAlloDakarCorridors,
   listAlloDakarDrivers,
   listAlloDakarSubscriptions,
+  listVerifiableAlloDakarVehicles,
   setAlloDakarCorridorActive,
   setAlloDakarDriverStatus,
   setGarageStatus,
   cancelAlloDakarDeparture,
+  verifyAlloDakarVehicle,
   type AlloDakarBooking,
   type AlloDakarCorridor,
   type AlloDakarDeparture,
   type AlloDakarDriver,
   type AlloDakarGarage,
   type AlloDakarSubscription,
+  type AlloDakarVehicle,
 } from "@/lib/alloDakarOps";
 
-type Tab = "corridors" | "chauffeurs" | "garages" | "departs" | "reservations";
+type Tab = "corridors" | "chauffeurs" | "garages" | "vehicules" | "departs" | "reservations";
 
 const GARAGE_STATUS_LABEL: Record<string, string> = {
   en_attente: "En attente",
@@ -57,6 +61,10 @@ export default function AdminAlloDakarPage() {
   const [drivers, setDrivers] = useState<AlloDakarDriver[]>([]);
   const [subscriptions, setSubscriptions] = useState<AlloDakarSubscription[]>([]);
   const [garages, setGarages] = useState<AlloDakarGarage[]>([]);
+  const [vehicles, setVehicles] = useState<AlloDakarVehicle[]>([]);
+  const [greyCardLinks, setGreyCardLinks] = useState<Record<string, string>>({});
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [bookings, setBookings] = useState<AlloDakarBooking[]>([]);
   const [prices, setPrices] = useState({ hebdo: 5000, mensuel: 15000, essaiJours: 15, commissionPercent: 10 });
@@ -85,11 +93,12 @@ export default function AdminAlloDakarPage() {
   async function reloadAll() {
     setLoading(true);
     try {
-      const [c, d, s, gg, dep, b, rules] = await Promise.all([
+      const [c, d, s, gg, vv, dep, b, rules] = await Promise.all([
         listAlloDakarCorridors(),
         listAlloDakarDrivers(),
         listAlloDakarSubscriptions(),
         listAllGarages(),
+        listVerifiableAlloDakarVehicles(),
         listAllAlloDakarDepartures(),
         listAllAlloDakarBookings(),
         listBusinessRules(),
@@ -98,6 +107,7 @@ export default function AdminAlloDakarPage() {
       setDrivers(d);
       setSubscriptions(s);
       setGarages(gg);
+      setVehicles(vv);
       setDepartures(dep);
       setBookings(b);
       setPrices({
@@ -186,6 +196,31 @@ export default function AdminAlloDakarPage() {
     }
   }
 
+  async function viewGreyCard(path: string) {
+    const url = await getVehicleGreyCardSignedUrl(path);
+    if (url) setGreyCardLinks((prev) => ({ ...prev, [path]: url }));
+  }
+
+  async function approveVehicle(vehicleId: string) {
+    try {
+      await verifyAlloDakarVehicle(vehicleId, true);
+      await reloadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de valider ce véhicule.");
+    }
+  }
+
+  async function rejectVehicle(vehicleId: string) {
+    try {
+      await verifyAlloDakarVehicle(vehicleId, false, rejectReason || "Document illisible ou incomplet");
+      setRejectingId(null);
+      setRejectReason("");
+      await reloadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de rejeter ce véhicule.");
+    }
+  }
+
   async function grantAccess(driverId: string, corridorId: string, plan: "essai_gratuit" | "hebdomadaire" | "mensuel") {
     const priceMap = { essai_gratuit: 0, hebdomadaire: prices.hebdo, mensuel: prices.mensuel };
     const durationMap = { essai_gratuit: prices.essaiJours, hebdomadaire: 7, mensuel: 30 };
@@ -219,7 +254,7 @@ export default function AdminAlloDakarPage() {
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
 
       <div className="sj-tabs" style={{ marginBottom: 16 }}>
-        {(["corridors", "chauffeurs", "garages", "departs", "reservations"] as Tab[]).map((t) => (
+        {(["corridors", "chauffeurs", "garages", "vehicules", "departs", "reservations"] as Tab[]).map((t) => (
           <button key={t} type="button" className={tab === t ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(t)}>
             {t === "corridors"
               ? "Corridors"
@@ -227,9 +262,11 @@ export default function AdminAlloDakarPage() {
                 ? "Chauffeurs"
                 : t === "garages"
                   ? "Garages"
-                  : t === "departs"
-                    ? "Départs"
-                    : "Réservations"}
+                  : t === "vehicules"
+                    ? "Véhicules"
+                    : t === "departs"
+                      ? "Départs"
+                      : "Réservations"}
           </button>
         ))}
       </div>
@@ -460,6 +497,66 @@ export default function AdminAlloDakarPage() {
           {!garages.length ? <SjCard><p className="sj-muted">Aucun garage inscrit pour le moment.</p></SjCard> : null}
           </div>
         </>
+      ) : null}
+
+      {tab === "vehicules" ? (
+        <div className="sj-list">
+          {vehicles.map((v) => {
+            const driver = drivers.find((d) => d.id === v.allo_dakar_driver_id);
+            return (
+              <SjCard key={v.id}>
+                <div className="sj-between">
+                  <div>
+                    <b>{v.brand} {v.model} · {v.plate_number}</b>
+                    <div className="sj-muted">{driver?.full_name ?? "Chauffeur inconnu"} · {v.seats_total} places</div>
+                  </div>
+                  {v.is_verified ? (
+                    <SjBadge tone="success">Validé</SjBadge>
+                  ) : v.rejection_reason ? (
+                    <SjBadge tone="danger">Rejeté</SjBadge>
+                  ) : (
+                    <SjBadge tone="warning">En attente</SjBadge>
+                  )}
+                </div>
+                {v.rejection_reason ? <p className="sj-muted" style={{ marginTop: 6 }}>Motif : {v.rejection_reason}</p> : null}
+                <div className="sj-toolbar" style={{ marginTop: 10 }}>
+                  {v.grey_card_url ? (
+                    greyCardLinks[v.grey_card_url] ? (
+                      <a href={greyCardLinks[v.grey_card_url]} target="_blank" rel="noreferrer" className="sj-btn sj-btn-ghost">
+                        Voir la carte grise
+                      </a>
+                    ) : (
+                      <button type="button" className="sj-btn sj-btn-ghost" onClick={() => void viewGreyCard(v.grey_card_url!)}>
+                        Afficher la carte grise
+                      </button>
+                    )
+                  ) : (
+                    <span className="sj-muted">Carte grise non envoyée</span>
+                  )}
+                  {!v.is_verified ? (
+                    <>
+                      <button type="button" className="sj-btn" style={{ color: "var(--color-success)" }} onClick={() => void approveVehicle(v.id)}>
+                        Valider
+                      </button>
+                      <button type="button" className="sj-btn" style={{ color: "var(--color-error)" }} onClick={() => setRejectingId(v.id)}>
+                        Rejeter
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+                {rejectingId === v.id ? (
+                  <div className="sj-toolbar" style={{ marginTop: 8 }}>
+                    <input className="sj-field" style={{ flex: 1 }} placeholder="Motif du rejet" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                    <button type="button" className="sj-btn sj-btn-primary" onClick={() => void rejectVehicle(v.id)}>
+                      Confirmer le rejet
+                    </button>
+                  </div>
+                ) : null}
+              </SjCard>
+            );
+          })}
+          {!vehicles.length ? <SjCard><p className="sj-muted">Aucun véhicule enregistré pour le moment.</p></SjCard> : null}
+        </div>
       ) : null}
 
       {tab === "departs" ? (
