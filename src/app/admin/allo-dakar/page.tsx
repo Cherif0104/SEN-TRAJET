@@ -151,7 +151,7 @@ export default function AdminAlloDakarPage() {
       </p>
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
 
-      <div className="sj-toolbar" style={{ marginBottom: 16 }}>
+      <div className="sj-tabs" style={{ marginBottom: 16 }}>
         {(["corridors", "chauffeurs", "garages", "departs", "reservations"] as Tab[]).map((t) => (
           <button key={t} type="button" className={tab === t ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(t)}>
             {t === "corridors"
