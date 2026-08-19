@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Plane, Route, Clock, Car, CalendarCheck, Heart } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -12,6 +13,51 @@ import {
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { useClientBookings } from "@/hooks/useClientBookings";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+
+const SERVICE_TILES = [
+  {
+    href: "/reserver?service=transfert_aibd",
+    icon: Plane,
+    title: "Transfert Aéroport",
+    subtitle: "AIBD, arrivée ou départ",
+    background: "linear-gradient(135deg, #07111f, #1c3350)",
+  },
+  {
+    href: "/reserver?service=interurbain",
+    icon: Route,
+    title: "Trajet interurbain",
+    subtitle: "Entre régions, avec chauffeur",
+    background: "linear-gradient(135deg, #1c3350, #35507a)",
+  },
+  {
+    href: "/reserver?service=mise_a_disposition",
+    icon: Clock,
+    title: "Mise à disposition",
+    subtitle: "Chauffeur à l’heure ou à la journée",
+    background: "linear-gradient(135deg, #3a2a12, #8a6a1f)",
+  },
+  {
+    href: "/allo-dakar",
+    icon: Car,
+    title: "Allo Dakar",
+    subtitle: "Voyages partagés entre villes",
+    background: "linear-gradient(135deg, #163d2b, #1f6b4a)",
+  },
+  {
+    href: "/compte/reservations",
+    icon: CalendarCheck,
+    title: "Mes réservations",
+    subtitle: "Suivre mes courses",
+    background: "linear-gradient(135deg, #2a2a2a, #4a4a4a)",
+  },
+  {
+    href: "/compte/favoris",
+    icon: Heart,
+    title: "Mes favoris",
+    subtitle: "Adresses enregistrées",
+    background: "linear-gradient(135deg, #3a1a2a, #6a2f4a)",
+  },
+] as const;
 
 export default function ComptePage() {
   const { profile } = useAuth();
@@ -44,30 +90,26 @@ export default function ComptePage() {
         </p>
       ) : null}
       {loading ? <BrandedLoader /> : null}
-      <div className="sj-hero">
-        <section className="sj-hero-card">
-          <div className="sj-hero-art" />
-          <div className="sj-hero-copy">
-            <div className="sj-eyebrow">SentraJet Premium</div>
-            <h1>Réservez votre trajet en toute sérénité.</h1>
-            <p>Transfert AIBD, trajet interurbain ou mise à disposition avec chauffeur professionnel.</p>
-            <Link href="/reserver" className="sj-btn sj-btn-primary">
-              Nouvelle réservation
+
+      <p className="sj-muted" style={{ marginBottom: 10 }}>Que voulez-vous faire aujourd’hui ?</p>
+      <div className="sj-service-grid">
+        {SERVICE_TILES.map((tile) => {
+          const Icon = tile.icon;
+          return (
+            <Link key={tile.href} href={tile.href} className="sj-service-tile" style={{ background: tile.background }}>
+              <Icon className="sj-service-icon" style={{ width: 34, height: 34 }} />
+              <b>{tile.title}</b>
+              <span>{tile.subtitle}</span>
             </Link>
-          </div>
-        </section>
-        <section className="sj-hero-stats">
-          <div className="sj-stat">
-            <div className="sj-muted">Réservations à venir</div>
-            <div className="num">{upcoming.length.toString().padStart(2, "0")}</div>
-          </div>
-          <div className="sj-stat">
-            <div className="sj-muted">Dernière course</div>
-            <div className="num" style={{ fontSize: 20 }}>
-              {lastCompleted?.estimated_price != null ? formatFcfa(Number(lastCompleted.estimated_price)) : "—"}
-            </div>
-          </div>
-        </section>
+          );
+        })}
+      </div>
+
+      <div className="sj-toolbar" style={{ marginTop: 16, marginBottom: 4 }}>
+        <div className="sj-muted">Réservations à venir : <strong style={{ color: "var(--color-text-primary)" }}>{upcoming.length}</strong></div>
+        <div className="sj-muted">
+          Dernière course : <strong style={{ color: "var(--color-text-primary)" }}>{lastCompleted?.estimated_price != null ? formatFcfa(Number(lastCompleted.estimated_price)) : "—"}</strong>
+        </div>
       </div>
 
       <SjSectionHead
