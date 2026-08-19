@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
-import { Users, Car, ArrowLeft, Building2 } from "lucide-react";
+import { Users, Car, ArrowLeft, Building2, MapPinned } from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
@@ -249,8 +249,32 @@ function InscriptionPageContent() {
                 </span>
               </Link>
             </div>
+
+            <div className="mt-6 rounded-2xl border-2 border-[#1f6b4a]/30 bg-[#1f6b4a]/5 p-5">
+              <p className="text-sm font-semibold text-[#1f6b4a]">Une autre offre : SentraJet Allo Dakar</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Voyages interurbains partagés avec des chauffeurs partenaires vérifiés — moins cher, départs
+                fréquents. Distinct de la flotte Premium ci-dessus.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href="/allo-dakar"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#1f6b4a] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  <MapPinned className="h-4 w-4" /> Réserver un trajet Allo Dakar
+                </Link>
+                <Link
+                  href="/allo-dakar/chauffeur"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#1f6b4a] px-4 py-2 text-sm font-semibold text-[#1f6b4a]"
+                >
+                  <Car className="h-4 w-4" /> Devenir chauffeur Allo Dakar
+                </Link>
+              </div>
+            </div>
+
             <p className="mt-6 text-center text-sm text-slate-500">
-              Les chauffeurs sont recrutés et affectés par SentraJet — pas d’inscription marketplace ouverte.
+              Les chauffeurs SentraJet Premium sont recrutés et affectés par SentraJet — pas d’inscription
+              marketplace ouverte.
             </p>
           </>
         )}
