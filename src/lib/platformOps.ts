@@ -277,7 +277,16 @@ export async function updateDriver(
 
 export async function deleteDriver(id: string): Promise<void> {
   const { error } = await supabase.from("drivers").delete().eq("id", id);
-  if (error) throw error;
+  if (error) {
+    // 23503 = violation de clé étrangère (ex. dispatch_assignments en RESTRICT) : le chauffeur a
+    // un historique de missions et ne peut pas être supprimé sans casser cet historique.
+    if (error.code === "23503") {
+      throw new Error(
+        "Ce chauffeur a un historique de missions et ne peut pas être supprimé (cela casserait l’historique des courses). Archivez-le plutôt : il disparaîtra des listes actives sans perdre l’historique."
+      );
+    }
+    throw error;
+  }
 }
 
 export type ManagedVehicleInput = Omit<PlatformVehicle, "id">;
@@ -583,6 +592,8 @@ export async function updateBookingWorkflowStatus(params: {
   toStatus: string;
   note?: string;
   quoteAmountFcfa?: number | null;
+  /** Frais d'annulation saisis manuellement par le staff (FCFA) — indépendant du calcul auto côté client. */
+  cancellationFeeFcfa?: number | null;
 }): Promise<void> {
   const { data: previous } = await supabase
     .from("bookings")
@@ -594,6 +605,9 @@ export async function updateBookingWorkflowStatus(params: {
   if (params.quoteAmountFcfa != null) {
     patch.estimated_price = params.quoteAmountFcfa;
     patch.final_amount_fcfa = params.quoteAmountFcfa;
+  }
+  if (params.cancellationFeeFcfa != null) {
+    patch.cancellation_fee_fcfa = params.cancellationFeeFcfa;
   }
 
   const { error } = await supabase.from("bookings").update(patch).eq("id", params.bookingId);
