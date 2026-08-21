@@ -507,6 +507,73 @@
   display: grid;
   gap: 10px;
 }
+.sj-timeline {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--sj-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.sj-timeline-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sj-line);
+}
+.sj-timeline-row:last-child {
+  border-bottom: none;
+}
+.sj-timeline-row.has-bookings {
+  background: var(--sj-panel);
+}
+.sj-timeline-hour {
+  flex: 0 0 56px;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sj-muted);
+  letter-spacing: 0.02em;
+}
+.sj-timeline-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sj-timeline-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--sj-muted);
+  font-size: 13px;
+}
+.sj-timeline-card {
+  border: 1px solid var(--sj-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--color-surface-primary, transparent);
+}
+.sj-timeline-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px dashed var(--sj-line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sj-muted);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sj-timeline-add:hover {
+  color: var(--sj-gold, var(--color-accent));
+  border-color: var(--sj-gold, var(--color-accent));
+}
 /* Espaces professionnels (tout sauf Client) : pensés desktop-first — les listes de cartes
    exploitent la largeur d'écran en colonnes multiples au lieu de s'empiler verticalement.
    L'espace Client reste volontairement en colonne unique (mobile-first) à toutes les tailles. */

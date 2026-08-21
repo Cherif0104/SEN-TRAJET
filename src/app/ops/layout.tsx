@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, ArrowLeftRight, Route, Car, MessageSquareWarning } from "lucide-react";
+import { LayoutDashboard, Calendar, ClipboardList, ArrowLeftRight, Route, Car, MessageSquareWarning } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessOpsZone } from "@/lib/rbac";
 import { PremiumShell } from "@/components/sentrajet/PremiumShell";
@@ -11,6 +11,7 @@ import { ProfileAccessRecovery } from "@/components/account/ProfileAccessRecover
 
 const nav = [
   { href: "/ops", label: "Accueil", icon: LayoutDashboard },
+  { href: "/ops/calendrier", label: "Calendrier", icon: Calendar },
   { href: "/ops/demandes", label: "Demandes", icon: ClipboardList },
   { href: "/ops/dispatch", label: "Dispatch", icon: ArrowLeftRight },
   { href: "/ops/missions", label: "Missions", icon: Route },
