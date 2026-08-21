@@ -244,13 +244,15 @@ export function SjCard({
   children,
   className = "",
   style,
+  onClick,
 }: {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
 }) {
   return (
-    <div className={`sj-card ${className}`.trim()} style={style}>
+    <div className={`sj-card ${className}`.trim()} style={style} onClick={onClick}>
       {children}
     </div>
   );

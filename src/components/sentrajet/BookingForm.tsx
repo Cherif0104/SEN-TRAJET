@@ -22,6 +22,10 @@ type BookingFormProps = {
   partnerContractId?: string | null;
   onCreated?: () => void;
   submitDisabledReason?: string | null;
+  /** Pré-remplissage (ex. depuis un créneau du calendrier Ops) — format "YYYY-MM-DD". */
+  initialDate?: string;
+  /** Pré-remplissage — format "HH:MM". */
+  initialTime?: string;
 };
 
 const SERVICES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][];
@@ -32,13 +36,15 @@ export function BookingForm({
   partnerContractId,
   onCreated,
   submitDisabledReason,
+  initialDate,
+  initialTime,
 }: BookingFormProps) {
   const { t } = usePreferences();
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
   const [pickupPlace, setPickupPlace] = useState<SelectedPlace | null>(null);
   const [dropoffPlace, setDropoffPlace] = useState<SelectedPlace | null>(null);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [date, setDate] = useState(initialDate ?? "");
+  const [time, setTime] = useState(initialTime ?? "");
   const [passengers, setPassengers] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("transfert_aibd");
   const [distanceKm, setDistanceKm] = useState<number | "">("");

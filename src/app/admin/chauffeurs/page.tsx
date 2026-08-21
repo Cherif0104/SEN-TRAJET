@@ -125,6 +125,7 @@ export default function AdminChauffeursPage() {
           </button>
         }
       />
+      {error && !showForm ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
       {showForm ? (
         <SjCard style={{ marginBottom: 20 }}>
           <form className="sj-form" onSubmit={submit}>
@@ -213,11 +214,26 @@ export default function AdminChauffeursPage() {
                 </Link>
               ) : null}
               <button
+                className="sj-btn"
+                type="button"
+                onClick={() => {
+                  const nextStatus = d.status === "inactive" ? "active" : "inactive";
+                  void updateDriver(d.id, { status: nextStatus })
+                    .then((saved) => setRows((current) => current.map((row) => (row.id === d.id ? saved : row))))
+                    .catch((failure) => setError(failure instanceof Error ? failure.message : "Impossible de modifier ce chauffeur."));
+                }}
+              >
+                {d.status === "inactive" ? "Réactiver" : "Archiver"}
+              </button>
+              <button
                 className="sj-btn text-[var(--color-error)]"
                 type="button"
                 onClick={() => {
-                  if (!window.confirm("Supprimer ce chauffeur ?")) return;
-                  void deleteDriver(d.id).then(() => setRows((current) => current.filter((row) => row.id !== d.id))).catch((failure) => setError(failure.message));
+                  if (!window.confirm("Supprimer définitivement ce chauffeur ? Cette action est irréversible et n’est possible que s’il n’a aucun historique de missions.")) return;
+                  setError(null);
+                  void deleteDriver(d.id)
+                    .then(() => setRows((current) => current.filter((row) => row.id !== d.id)))
+                    .catch((failure) => setError(failure instanceof Error ? failure.message : "Suppression impossible."));
                 }}
               >
                 Supprimer
