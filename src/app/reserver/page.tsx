@@ -13,11 +13,15 @@ import type { TranslationKey } from "@/i18n";
 import {
   SERVICE_TYPE_LABELS,
   TRIP_MODE_LABELS,
+  VEHICLE_CATEGORY_PRICED_SERVICES,
   computeSentrajetPrice,
   formatFcfa,
   type ServiceType,
   type TripMode,
+  type VehicleCategory,
 } from "@/lib/sentrajetPricing";
+import { VehicleCategorySelector } from "@/components/sentrajet/VehicleCategorySelector";
+import { useVehicleCategoryRates } from "@/hooks/useVehicleCategoryRates";
 import { listBusinessRules, ruleNumber, ruleString } from "@/lib/engines/businessRules";
 import {
   createBookingWaveCheckout,
@@ -118,6 +122,7 @@ function ReserverWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { rates: vehicleCategoryRates, flatRateMaxKm } = useVehicleCategoryRates();
   const [discountPercent, setDiscountPercent] = useState(10);
   const [whatsappPhone, setWhatsappPhone] = useState("221788324069");
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
@@ -153,7 +158,11 @@ function ReserverWizard() {
     } else if (serviceParam || destination || depart) {
       const serviceType =
         serviceParam && SERVICE_TYPE_LABELS[serviceParam] ? serviceParam : "interurbain";
-      const next = emptyDraft({ step: "trajet", serviceType });
+      const next = emptyDraft({
+        step: "trajet",
+        serviceType,
+        vehicleCategory: VEHICLE_CATEGORY_PRICED_SERVICES.includes(serviceType) ? "berline" : null,
+      });
       if (serviceType === "transfert_aibd") {
         next.dropoffPlace = AIBD_PLACE;
         next.dropoff = AIBD_PLACE.address;
@@ -287,6 +296,8 @@ function ReserverWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.pickupPlace?.id, draft.dropoffPlace?.id, draft.pickupPlace?.lat, draft.dropoffPlace?.lat]);
 
+  const usesVehicleCategory = VEHICLE_CATEGORY_PRICED_SERVICES.includes(draft.serviceType);
+
   const quote = useMemo(
     () =>
       computeSentrajetPrice({
@@ -299,6 +310,9 @@ function ReserverWizard() {
         waitingMinutes: draft.waitingMinutes,
         applyAccountDiscount: Boolean(user),
         accountDiscountPercent: discountPercent,
+        vehicleCategory: usesVehicleCategory ? draft.vehicleCategory : null,
+        vehicleCategoryRates,
+        flatRateMaxKm,
       }),
     [
       draft.serviceType,
@@ -309,6 +323,10 @@ function ReserverWizard() {
       draft.waitingMinutes,
       user,
       discountPercent,
+      usesVehicleCategory,
+      draft.vehicleCategory,
+      vehicleCategoryRates,
+      flatRateMaxKm,
     ]
   );
 
@@ -594,6 +612,7 @@ function ReserverWizard() {
               onClick={() => {
                 const next: Partial<SimulationDraft> = {
                   serviceType: s.value,
+                  vehicleCategory: VEHICLE_CATEGORY_PRICED_SERVICES.includes(s.value) ? "berline" : null,
                   step: "trajet",
                   distanceKm: null,
                   distanceSource: null,
@@ -794,6 +813,21 @@ function ReserverWizard() {
 
       {draft.step === "vehicule" ? (
         <div className="space-y-4">
+          {usesVehicleCategory ? (
+            <>
+              <p className="text-sm text-neutral-600">
+                Choisissez la catégorie de véhicule pour votre transfert aéroport. Le tarif affiché
+                est « à partir de » — il inclut {flatRateMaxKm} km ; au-delà, le kilomètre
+                supplémentaire est facturé selon la catégorie.
+              </p>
+              <VehicleCategorySelector
+                value={draft.vehicleCategory ?? "berline"}
+                onChange={(vehicleCategory) => patch({ vehicleCategory })}
+                rates={vehicleCategoryRates}
+                flatRateMaxKm={flatRateMaxKm}
+              />
+            </>
+          ) : (
           <div className="grid gap-3">
             {VEHICLE_OPTIONS.map((option) => {
               const isSelected = draft.passengers >= option.minPassengers && draft.passengers <= option.maxPassengers;
@@ -843,10 +877,13 @@ function ReserverWizard() {
               );
             })}
           </div>
-          <p className="text-xs text-neutral-500">
-            Le véhicule affiché correspond au nombre de passagers indiqué à l’étape précédente —
-            SentraJet affecte un véhicule réel de sa flotte lors de la confirmation, pas un chauffeur au choix.
-          </p>
+          )}
+          {!usesVehicleCategory ? (
+            <p className="text-xs text-neutral-500">
+              Le véhicule affiché correspond au nombre de passagers indiqué à l’étape précédente —
+              SentraJet affecte un véhicule réel de sa flotte lors de la confirmation, pas un chauffeur au choix.
+            </p>
+          ) : null}
           <button
             type="button"
             className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"

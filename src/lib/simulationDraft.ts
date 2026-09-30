@@ -1,4 +1,4 @@
-import type { ServiceType, TripMode } from "@/lib/sentrajetPricing";
+import type { ServiceType, TripMode, VehicleCategory } from "@/lib/sentrajetPricing";
 import type { SelectedPlace } from "@/components/booking/AddressAutocomplete";
 
 export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v3";
@@ -6,6 +6,8 @@ export const SIM_DRAFT_KEY = "sentrajet_sim_draft_v3";
 export type SimulationDraft = {
   step: "service" | "trajet" | "vehicule" | "prix" | "compte" | "confirm" | "done";
   serviceType: ServiceType;
+  /** Catégorie choisie (Berline/SUV/Van) — pilote le prix pour les transferts aéroport. */
+  vehicleCategory: VehicleCategory | null;
   tripMode: TripMode;
   pickupPlace: SelectedPlace | null;
   dropoffPlace: SelectedPlace | null;
@@ -32,6 +34,7 @@ export function emptyDraft(partial?: Partial<SimulationDraft>): SimulationDraft 
   return {
     step: "service",
     serviceType: "transfert_aibd",
+    vehicleCategory: "berline",
     tripMode: "aller_simple",
     pickupPlace: null,
     dropoffPlace: null,

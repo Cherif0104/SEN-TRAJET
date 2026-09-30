@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   SERVICE_TYPE_LABELS,
+  VEHICLE_CATEGORY_PRICED_SERVICES,
+  buildNotesWithVehicleCategory,
   computeSentrajetPrice,
   formatFcfa,
   type PricingSegment,
   type ServiceType,
+  type VehicleCategory,
 } from "@/lib/sentrajetPricing";
 import {
   createBookingWaveCheckout,
@@ -28,6 +31,8 @@ import {
   type PartnerTariffOverride,
 } from "@/lib/partnerTariffs";
 import { WhatsAppPasteBox } from "@/components/sentrajet/WhatsAppPasteBox";
+import { VehicleCategorySelector } from "@/components/sentrajet/VehicleCategorySelector";
+import { useVehicleCategoryRates } from "@/hooks/useVehicleCategoryRates";
 
 type BookingFormProps = {
   segment: PricingSegment;
@@ -60,6 +65,8 @@ export function BookingForm({
   const [time, setTime] = useState(initialTime ?? "");
   const [passengers, setPassengers] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("transfert_aibd");
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>("berline");
+  const { rates: vehicleCategoryRates, flatRateMaxKm } = useVehicleCategoryRates();
   const [distanceKm, setDistanceKm] = useState<number | "">("");
   const [distanceLoading, setDistanceLoading] = useState(false);
   const [distanceError, setDistanceError] = useState<string | null>(null);
@@ -160,6 +167,8 @@ export function BookingForm({
     };
   }, [pickupPlace, dropoffPlace]);
 
+  const usesVehicleCategory = VEHICLE_CATEGORY_PRICED_SERVICES.includes(serviceType);
+
   const activeOverride = useMemo(
     () => (segment === "partner" ? findOverrideForService(partnerOverrides, serviceType) : null),
     [segment, partnerOverrides, serviceType]
@@ -175,8 +184,23 @@ export function BookingForm({
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
         tripMode: isRoundTrip ? "aller_retour" : "aller_simple",
         applyAccountDiscount: segment === "client" && Boolean(clientId),
+        vehicleCategory: usesVehicleCategory ? vehicleCategory : null,
+        vehicleCategoryRates,
+        flatRateMaxKm,
       }),
-    [segment, serviceType, passengers, luggageCount, distanceKm, isRoundTrip, clientId]
+    [
+      segment,
+      serviceType,
+      passengers,
+      luggageCount,
+      distanceKm,
+      isRoundTrip,
+      clientId,
+      usesVehicleCategory,
+      vehicleCategory,
+      vehicleCategoryRates,
+      flatRateMaxKm,
+    ]
   );
 
   const quote = useMemo(() => {
@@ -225,7 +249,7 @@ export function BookingForm({
         estimatedPrice: quote.surDevis ? null : quote.amountFcfa,
         pricingSegment: segment,
         distanceKm,
-        notes: notes.trim() || null,
+        notes: buildNotesWithVehicleCategory(notes, isAirport && !activeOverride ? vehicleCategory : null),
         vehiclesNeeded: quote.vehiclesNeeded,
         isRoundTrip,
         phone: phone.trim(),
@@ -380,6 +404,14 @@ export function BookingForm({
         ) : null}
         {isAirport ? (
           <>
+            {!activeOverride ? (
+              <VehicleCategorySelector
+                value={vehicleCategory}
+                onChange={setVehicleCategory}
+                rates={vehicleCategoryRates}
+                flatRateMaxKm={flatRateMaxKm}
+              />
+            ) : null}
             <div className="sj-field">
               <label>N° de vol</label>
               <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="Ex. AT555" />
