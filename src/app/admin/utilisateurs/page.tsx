@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, RefreshCw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Copy, PowerOff, RefreshCw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { assignableRoles, type AssignableRole } from "@/lib/accountRoles";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "@/providers/PreferencesProvider";
@@ -18,6 +18,7 @@ type ManagedUser = {
   profileRole: string | null;
   createdAt: string;
   lastSignInAt: string | null;
+  isDeactivated?: boolean;
 };
 
 type ResourceType = "driver" | "client" | "partner" | "asset_partner";
@@ -70,6 +71,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createdCredentials, setCreatedCredentials] = useState<{
@@ -208,6 +210,37 @@ export default function AdminUsersPage() {
       setError(t("admin.users.error.delete"));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const toggleActive = async (managedUser: ManagedUser) => {
+    const deactivating = !managedUser.isDeactivated;
+    const confirmKey = deactivating ? "admin.users.confirmDeactivate" : "admin.users.confirmReactivate";
+    if (!authorization || !window.confirm(t(confirmKey))) return;
+    setTogglingId(managedUser.id);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { ...authorization, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: managedUser.id,
+          action: deactivating ? "deactivate" : "reactivate",
+        }),
+      });
+      if (!response.ok) throw new Error();
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.id === managedUser.id ? { ...entry, isDeactivated: deactivating } : entry,
+        ),
+      );
+      setMessage(t(deactivating ? "admin.users.success.deactivated" : "admin.users.success.reactivated"));
+    } catch {
+      setError(t("admin.users.error.deactivate"));
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -388,6 +421,11 @@ export default function AdminUsersPage() {
                           ? t(roleLabelKeys[primaryRole])
                           : managedUser.profileRole ?? t("admin.users.role.client")}
                       </span>
+                      {managedUser.isDeactivated ? (
+                        <span className="rounded-full bg-[var(--color-error)]/15 px-2 py-1 font-semibold text-[var(--color-error)]">
+                          {t("admin.users.badgeDeactivated")}
+                        </span>
+                      ) : null}
                       <span className="text-[var(--color-text-muted)]">
                         {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
                           new Date(managedUser.createdAt),
@@ -395,18 +433,34 @@ export default function AdminUsersPage() {
                       </span>
                     </div>
                   </div>
-                  {!isCurrent && !isSuperAdmin ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      isLoading={deletingId === managedUser.id}
-                      onClick={() => void deleteUser(managedUser)}
-                      aria-label={t("admin.users.delete")}
-                      className="text-[var(--color-error)]"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t("admin.users.delete")}
-                    </Button>
+                  {!isCurrent ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        isLoading={togglingId === managedUser.id}
+                        onClick={() => void toggleActive(managedUser)}
+                        aria-label={
+                          managedUser.isDeactivated ? t("admin.users.reactivate") : t("admin.users.deactivate")
+                        }
+                      >
+                        <PowerOff className="h-4 w-4" />
+                        {managedUser.isDeactivated ? t("admin.users.reactivate") : t("admin.users.deactivate")}
+                      </Button>
+                      {!isSuperAdmin ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          isLoading={deletingId === managedUser.id}
+                          onClick={() => void deleteUser(managedUser)}
+                          aria-label={t("admin.users.delete")}
+                          className="text-[var(--color-error)]"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {t("admin.users.delete")}
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               );

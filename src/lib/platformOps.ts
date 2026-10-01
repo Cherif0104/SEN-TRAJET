@@ -53,6 +53,8 @@ export type PlatformClient = {
   matricule?: string | null;
   whatsapp?: string | null;
   address?: string | null;
+  /** Archivage doux (cf. chauffeurs) : false = masqué des listes actives, historique conservé. */
+  is_active?: boolean;
 };
 
 export type PartnerContract = {
@@ -250,7 +252,7 @@ export async function listVehicles(): Promise<PlatformVehicle[]> {
 export async function listClients(): Promise<PlatformClient[]> {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes, matricule, whatsapp, address")
+    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes, matricule, whatsapp, address, is_active")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as PlatformClient[];
@@ -332,7 +334,16 @@ export async function updateClient(
 
 export async function deleteClient(id: string): Promise<void> {
   const { error } = await supabase.from("clients").delete().eq("id", id);
-  if (error) throw error;
+  if (error) {
+    // 23503 = violation de clé étrangère : ce client a des réservations/factures/avis liés et la
+    // suppression casserait cet historique. On privilégie l'archivage (is_active = false).
+    if (error.code === "23503") {
+      throw new Error(
+        "Ce client a des réservations ou un historique CRM liés et ne peut pas être supprimé sans perdre cet historique. Archivez-le plutôt : il disparaîtra des listes actives sans rien perdre."
+      );
+    }
+    throw error;
+  }
 }
 
 export async function listPartnerContracts(): Promise<PartnerContract[]> {
