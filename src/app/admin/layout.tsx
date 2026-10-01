@@ -21,6 +21,7 @@ import {
   CircleUserRound,
   ShieldCheck,
   Bus,
+  MapPinned,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAdminZone } from "@/lib/rbac";
@@ -40,6 +41,7 @@ const nav = [
   { href: "/admin/proprietaires", labelKey: "nav.owners" as const, icon: Landmark },
   { href: "/admin/clients", labelKey: "nav.clients" as const, icon: Contact },
   { href: "/admin/vehicules", labelKey: "nav.fleet" as const, icon: Car },
+  { href: "/admin/destinations", label: "Destinations", icon: MapPinned },
   { href: "/admin/allo-dakar", label: "Allo Dakar", icon: Bus },
   { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
   { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },
