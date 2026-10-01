@@ -25,6 +25,9 @@ export type SimulationDraft = {
   distanceSource: string | null;
   phone: string;
   flightNumber: string;
+  /** Cérémonie & sortie uniquement : type d'événement et nombre de véhicules souhaités. */
+  eventType: string;
+  vehicleCount: number;
   notes: string;
   validatedQuoteFcfa: number | null;
   updatedAt: string;
@@ -51,6 +54,8 @@ export function emptyDraft(partial?: Partial<SimulationDraft>): SimulationDraft 
     distanceSource: null,
     phone: "",
     flightNumber: "",
+    eventType: "",
+    vehicleCount: 1,
     notes: "",
     validatedQuoteFcfa: null,
     updatedAt: new Date().toISOString(),
