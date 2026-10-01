@@ -43,6 +43,7 @@ export const ar: Record<TranslationKey, string> = {
   "nav.settings": "الإعدادات",
   "nav.users": "المستخدمون",
   "nav.mobileApp": "تطبيق الهاتف",
+  "nav.vehicleCatalog": "أسطولنا",
   "nav.home": "الرئيسية",
   "nav.newRequest": "طلب جديد",
   "nav.myPricing": "أسعاري",

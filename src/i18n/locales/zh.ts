@@ -43,6 +43,7 @@ export const zh: Record<TranslationKey, string> = {
   "nav.settings": "设置",
   "nav.users": "用户",
   "nav.mobileApp": "移动应用",
+  "nav.vehicleCatalog": "我们的车队",
   "nav.home": "首页",
   "nav.newRequest": "新需求",
   "nav.myPricing": "我的价格",

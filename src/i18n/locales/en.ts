@@ -43,6 +43,7 @@ export const en: Record<TranslationKey, string> = {
   "nav.settings": "Settings",
   "nav.users": "Users",
   "nav.mobileApp": "Mobile app",
+  "nav.vehicleCatalog": "Our fleet",
   "nav.home": "Home",
   "nav.newRequest": "New request",
   "nav.myPricing": "My pricing",

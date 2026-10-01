@@ -41,6 +41,7 @@ export const fr = {
   "nav.settings": "Paramètres",
   "nav.users": "Utilisateurs",
   "nav.mobileApp": "Application mobile",
+  "nav.vehicleCatalog": "Notre flotte",
   "nav.home": "Accueil",
   "nav.newRequest": "Nouvelle demande",
   "nav.myPricing": "Ma tarification",
