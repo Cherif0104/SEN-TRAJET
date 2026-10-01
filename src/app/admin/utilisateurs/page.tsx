@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, PowerOff, RefreshCw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
-import { assignableRoles, type AssignableRole } from "@/lib/accountRoles";
+import { ROLE_GROUP_LABELS, assignableRoles, rolesByGroup, type AssignableRole } from "@/lib/accountRoles";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "@/providers/PreferencesProvider";
 import type { TranslationKey } from "@/i18n";
@@ -329,12 +329,20 @@ export default function AdminUsersPage() {
                 value={role}
                 onChange={(event) => setRole(event.target.value as AssignableRole)}
               >
-                {assignableRoles.map((value) => (
-                  <option key={value} value={value}>
-                    {t(roleLabelKeys[value])}
-                  </option>
+                {rolesByGroup().map(({ group, roles }) => (
+                  <optgroup key={group} label={ROLE_GROUP_LABELS[group]}>
+                    {roles.map((value) => (
+                      <option key={value} value={value}>
+                        {t(roleLabelKeys[value])}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
+              <p className="mt-1.5 text-xs text-[var(--color-text-secondary)]">
+                4 types de comptes au total — « Gestion / Administration » regroupe les rôles
+                internes précis (Ops, Finance, RH…) utilisés pour la navigation et les permissions.
+              </p>
             </div>
             <Input
               label={t("admin.users.temporaryPassword")}
