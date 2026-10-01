@@ -42,7 +42,8 @@ export default function CommentCaMarchePage() {
               <h2 className="text-lg font-bold text-neutral-900">Voyage interurbain</h2>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-neutral-600">
-              Facturation au kilomètre (850 F client, 700 F partenaire B2B) avec minimum 30 000 F.
+              800 à 1 200 FCFA/km selon le nombre de passagers (client), 700 FCFA/km pour les
+              partenaires B2B (minimum 30 000 F) ; trajet court ≤ 45 km : minimum 20 000 F.
             </p>
           </section>
           <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
