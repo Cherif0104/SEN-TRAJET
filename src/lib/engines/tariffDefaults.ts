@@ -47,8 +47,10 @@ export const DEFAULT_PUBLIC_KM_BANDS: Array<{ min: number; max: number; rate: nu
   { min: 8, max: 10, rate: 1200, key: "public_km_8_10" },
 ];
 
+/** Mise à disposition (location avec chauffeur) — forfait 8h, zone Dakar vs hors Dakar. */
 export const DEFAULT_PUBLIC_MAD_DAKAR = 50_000;
-export const DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE = 70_000;
+export const DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE = 60_000;
+export const DEFAULT_PUBLIC_MAD_INCLUDED_HOURS = 8;
 export const DEFAULT_PUBLIC_MAD_INCLUDED_KM = 100;
 export const DEFAULT_PUBLIC_MAD_EXTRA_KM = 530;
 export const DEFAULT_PARTNER_MAD_DAKAR = 40_000;
@@ -90,7 +92,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       priceLayer: "public",
       serviceFamily: "mad",
       ruleKey: "public_mad_dakar",
-      label: "MAD public Dakar 10 h",
+      label: `MAD public Dakar ${DEFAULT_PUBLIC_MAD_INCLUDED_HOURS} h`,
       pricingMode: "forfait",
       passengersMin: null,
       passengersMax: 10,
@@ -98,7 +100,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       basePriceFcfa: DEFAULT_PUBLIC_MAD_DAKAR,
       pricePerKmFcfa: null,
       includedDistanceKm: null,
-      includedDurationHours: 10,
+      includedDurationHours: DEFAULT_PUBLIC_MAD_INCLUDED_HOURS,
       extraKmPriceFcfa: null,
       extraHourPriceFcfa: null,
       minimumPriceFcfa: DEFAULT_PUBLIC_MAD_DAKAR,
@@ -113,7 +115,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       priceLayer: "public",
       serviceFamily: "mad",
       ruleKey: "public_mad_hors_dakar",
-      label: "MAD public hors Dakar 10 h",
+      label: `MAD public hors Dakar ${DEFAULT_PUBLIC_MAD_INCLUDED_HOURS} h`,
       pricingMode: "forfait_plus_extra_km",
       passengersMin: null,
       passengersMax: 10,
@@ -121,7 +123,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       basePriceFcfa: DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE,
       pricePerKmFcfa: null,
       includedDistanceKm: DEFAULT_PUBLIC_MAD_INCLUDED_KM,
-      includedDurationHours: 10,
+      includedDurationHours: DEFAULT_PUBLIC_MAD_INCLUDED_HOURS,
       extraKmPriceFcfa: DEFAULT_PUBLIC_MAD_EXTRA_KM,
       extraHourPriceFcfa: null,
       minimumPriceFcfa: DEFAULT_PUBLIC_MAD_HORS_DAKAR_BASE,
@@ -136,7 +138,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       priceLayer: "partner",
       serviceFamily: "mad",
       ruleKey: "partner_mad_dakar",
-      label: "MAD partenaire Dakar 10 h",
+      label: `MAD partenaire Dakar ${DEFAULT_PUBLIC_MAD_INCLUDED_HOURS} h`,
       pricingMode: "forfait",
       passengersMin: null,
       passengersMax: 10,
@@ -144,7 +146,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       basePriceFcfa: DEFAULT_PARTNER_MAD_DAKAR,
       pricePerKmFcfa: null,
       includedDistanceKm: null,
-      includedDurationHours: 10,
+      includedDurationHours: DEFAULT_PUBLIC_MAD_INCLUDED_HOURS,
       extraKmPriceFcfa: null,
       extraHourPriceFcfa: null,
       minimumPriceFcfa: DEFAULT_PARTNER_MAD_DAKAR,
@@ -167,7 +169,7 @@ export function buildDefaultCatalog(): TariffRule[] {
       basePriceFcfa: 0,
       pricePerKmFcfa: null,
       includedDistanceKm: null,
-      includedDurationHours: 10,
+      includedDurationHours: DEFAULT_PUBLIC_MAD_INCLUDED_HOURS,
       extraKmPriceFcfa: null,
       extraHourPriceFcfa: null,
       minimumPriceFcfa: null,

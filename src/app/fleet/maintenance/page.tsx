@@ -46,7 +46,7 @@ export default function FleetMaintenancePage() {
   return (
     <>
       <SjSectionHead eyebrow="Fleet Manager" title="Entretien de la flotte" />
-      <div className="sj-toolbar" style={{ marginBottom: 16 }}>
+      <div className="sj-tabs" style={{ marginBottom: 16 }}>
         {[["planifie", "À venir"], ["termine", "Terminés"], ["tous", "Tous"]].map(([value, label]) => (
           <button key={value} type="button" className={tab === value ? "sj-btn sj-btn-primary" : "sj-btn"} onClick={() => setTab(value as Tab)}>
             {label}

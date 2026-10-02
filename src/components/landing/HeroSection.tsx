@@ -1,14 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { usePreferences } from "@/providers/PreferencesProvider";
+import { AppLauncherSearch } from "@/components/landing/AppLauncherSearch";
 
 export function HeroSection() {
   const { t } = usePreferences();
 
   return (
-    <section className="relative min-h-[min(92vh,720px)] overflow-hidden bg-[#07111f] pb-16 pt-8 sm:min-h-[min(88vh,780px)] sm:pb-20 sm:pt-12 lg:pt-16">
+    <section className="relative min-h-[min(78vh,620px)] overflow-hidden bg-[#07111f] pb-16 pt-8 sm:min-h-[min(74vh,660px)] sm:pb-20 sm:pt-12 lg:pt-16">
       <div className="absolute inset-0">
         <Image
           src="/brand/sentrajet-vehicle-hero.webp"
@@ -40,23 +40,19 @@ export function HeroSection() {
           {t("landing.subtitle")}
         </p>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/reserver"
-            className="inline-flex items-center justify-center rounded-xl bg-[var(--color-accent)] px-6 py-3.5 text-sm font-bold text-[var(--color-accent-contrast)] hover:bg-[var(--color-accent-hover)]"
-          >
-            {t("actions.bookNow")}
-          </Link>
+        <div className="mt-6">
           <a
             href="https://wa.me/221788324069"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
+            className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
           >
-            WhatsApp
+            Discuter sur WhatsApp
           </a>
         </div>
       </div>
+
+      <AppLauncherSearch />
     </section>
   );
 }

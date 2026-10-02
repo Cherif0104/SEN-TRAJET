@@ -54,7 +54,7 @@ export default function PartenaireDemandesPage() {
           </Link>
         }
       />
-      <div className="sj-toolbar" style={{ marginBottom: 16 }}>
+      <div className="sj-tabs" style={{ marginBottom: 16 }}>
         {[
           ["a_venir", "À venir"],
           ["en_cours", "En cours"],

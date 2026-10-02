@@ -1,27 +1,66 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, Plane, Clock } from "lucide-react";
+import { Car, MapPin, Plane, Clock, PartyPopper, Map, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { usePreferences } from "@/providers/PreferencesProvider";
 
-const pillars = [
-  {
-    icon: Plane,
-    title: "landing.service.airport" as const,
-    text: "landing.service.airportDetail" as const,
-  },
-  {
-    icon: MapPin,
-    title: "landing.service.travel" as const,
-    text: "landing.service.travelDetail" as const,
-  },
-  {
-    icon: Clock,
-    title: "landing.service.hourly" as const,
-    text: "landing.service.hourlyDetail" as const,
-  },
-];
+/**
+ * Toutes les rubriques de l'offre, présentées comme les tuiles d'une app VTC (type Yango/Uber) —
+ * plutôt que des sections marketing séparées. Allo Dakar reste visuellement distinct (bordure et
+ * badge verts, pas la palette navy/or Premium) conformément à la décision produit de ne jamais le
+ * confondre avec le service premium — mais apparaît ici au même niveau, pas en lien discret caché
+ * en bas de page.
+ */
+function useServiceTiles() {
+  const { t } = usePreferences();
+  return [
+    {
+      icon: Plane,
+      title: t("landing.service.airport"),
+      text: t("landing.service.airportDetail"),
+      href: "/reserver?service=transfert_aibd",
+    },
+    {
+      icon: Clock,
+      title: t("landing.service.hourly"),
+      text: t("landing.service.hourlyDetail"),
+      href: "/reserver?service=mise_a_disposition",
+    },
+    {
+      icon: PartyPopper,
+      title: t("booking.service.ceremony"),
+      text: t("booking.service.ceremonyDetail"),
+      href: "/reserver?service=ceremonie",
+    },
+    {
+      icon: MapPin,
+      title: t("landing.service.travel"),
+      text: t("landing.service.travelDetail"),
+      href: "/reserver?service=interurbain",
+    },
+    {
+      icon: Car,
+      title: "Location de véhicules",
+      text: "Berlines, SUV, vans — photos, places, tarifs indicatifs à parcourir avant de réserver.",
+      href: "/flotte",
+    },
+    {
+      icon: Map,
+      title: "Destinations régionales",
+      text: "Thiès, Saint-Louis, Ziguinchor, Tambacounda… tout le Sénégal desservi avec chauffeur.",
+      href: "/destinations",
+    },
+  ];
+}
+
+const alloDakarCard = {
+  icon: Users2,
+  title: "Allo Dakar — Covoiturage",
+  text: "Trajets interurbains partagés avec des chauffeurs partenaires vérifiés — l'option économique au départ de Dakar.",
+  href: "/allo-dakar",
+  badge: "Covoiturage",
+};
 
 const steps = [
   { n: "1", title: "landing.step.simulate" as const, desc: "landing.step.simulateDetail" as const },
@@ -31,6 +70,7 @@ const steps = [
 
 export function HomeContinued() {
   const { t } = usePreferences();
+  const services = useServiceTiles();
 
   return (
     <>
@@ -45,20 +85,36 @@ export function HomeContinued() {
               {t("landing.servicesSubtitle")}
             </p>
           </div>
-          <div className="mt-12 grid gap-6 sm:grid-cols-3">
-            {pillars.map(({ icon: Icon, title, text }) => (
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map(({ icon: Icon, title, text, href }) => (
               <Link
                 key={title}
-                href="/reserver"
+                href={href}
                 className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition hover:border-[var(--color-accent)] hover:shadow-md"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-primary)]">{t(title)}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">{t(text)}</p>
+                <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-primary)]">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">{text}</p>
               </Link>
             ))}
+
+            <Link
+              href={alloDakarCard.href}
+              className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-50/60 p-6 shadow-sm transition hover:border-emerald-500 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700">
+                  <alloDakarCard.icon className="h-5 w-5" strokeWidth={2} />
+                </div>
+                <span className="whitespace-nowrap rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                  {alloDakarCard.badge}
+                </span>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-emerald-900">{alloDakarCard.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-emerald-800/80">{alloDakarCard.text}</p>
+            </Link>
           </div>
         </div>
       </section>

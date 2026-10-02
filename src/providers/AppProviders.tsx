@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AppSplashScreen } from "@/components/brand/AppSplashScreen";
+import { ONBOARDING_SEEN_KEY, WelcomeOnboarding } from "@/components/brand/WelcomeOnboarding";
 import { AuthProvider, useAuthContext } from "@/providers/AuthProvider";
 import { PreferencesProvider, usePreferences } from "@/providers/PreferencesProvider";
 import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
@@ -23,6 +24,7 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
   const { loading: authLoading, user, profile } = useAuthContext();
   const [ready, setReady] = useState(false);
   const [minimumDisplayElapsed, setMinimumDisplayElapsed] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -45,6 +47,22 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Première visite (jamais connecté, jamais vu l'écran de bienvenue) sur l'accueil : on
+    // propose l'onboarding interactif (logo → « Avez-vous déjà un compte ? ») avant d'afficher
+    // la page. Une fois vu (ou passé), ne se réaffiche plus jamais sur cet appareil.
+    if (!user && pathname === "/" && !showWelcome) {
+      let seen = false;
+      try {
+        seen = window.localStorage.getItem(ONBOARDING_SEEN_KEY) === "1";
+      } catch {
+        seen = true;
+      }
+      if (!seen) {
+        setShowWelcome(true);
+        return;
+      }
+    }
+
     setReady(true);
   }, [
     authLoading,
@@ -53,6 +71,7 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
     preferencesReady,
     profile,
     user,
+    showWelcome,
   ]);
 
   useEffect(() => {
@@ -67,7 +86,16 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       <div aria-hidden={!ready}>{children}</div>
-      {!ready ? <AppSplashScreen /> : null}
+      {showWelcome ? (
+        <WelcomeOnboarding
+          onDismiss={() => {
+            setShowWelcome(false);
+            setReady(true);
+          }}
+        />
+      ) : !ready ? (
+        <AppSplashScreen />
+      ) : null}
     </>
   );
 }

@@ -101,10 +101,13 @@ export default function OpsHomePage() {
           <div className="sj-muted">Paiements à vérifier</div>
           <div className="sj-metric">{payments.length.toString().padStart(2, "0")}</div>
         </SjCard>
-        <SjCard>
-          <div className="sj-muted">Chauffeurs/véhicules à affecter</div>
-          <div className="sj-metric">{aAffecter.length.toString().padStart(2, "0")}</div>
-        </SjCard>
+        <Link href="/ops/dispatch">
+          <SjCard style={aAffecter.length ? { borderColor: "var(--color-warning)" } : undefined}>
+            <div className="sj-muted">Chauffeurs/véhicules à affecter</div>
+            <div className="sj-metric">{aAffecter.length.toString().padStart(2, "0")}</div>
+            {aAffecter.length ? <div className="sj-metric-sub">Le dispatch auto a pu échouer sur ces courses →</div> : null}
+          </SjCard>
+        </Link>
         <SjCard>
           <div className="sj-muted">Missions imminentes (≤3h)</div>
           <div className="sj-metric">{missionsImminentes.length.toString().padStart(2, "0")}</div>

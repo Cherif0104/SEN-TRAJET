@@ -48,6 +48,9 @@ export function Header() {
         <Logo variant={resolvedTheme === "dark" ? "light" : "default"} />
 
         <nav className="hidden md:flex md:items-center md:gap-8">
+          <Link href="/flotte" className="text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]">
+            {t("nav.vehicleCatalog")}
+          </Link>
           <Link href="/application-mobile" className="text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]">
             {t("nav.mobileApp")}
           </Link>
@@ -123,6 +126,9 @@ export function Header() {
             </div>
             <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-[var(--color-text-primary)]" onClick={() => setMenuOpen(false)}>
               {t("nav.book")}
+            </Link>
+            <Link href="/flotte" className="rounded-lg px-3 py-2 text-[var(--color-text-secondary)]" onClick={() => setMenuOpen(false)}>
+              {t("nav.vehicleCatalog")}
             </Link>
             <Link href="/application-mobile" className="rounded-lg px-3 py-2 text-[var(--color-text-secondary)]" onClick={() => setMenuOpen(false)}>
               {t("nav.mobileApp")}

@@ -3,7 +3,7 @@ import { roundFcfa } from "@/lib/pricingMath";
 import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
 import { ceilDistanceKm } from "@/lib/routeDistances";
 import { buildDefaultCatalog, DEFAULT_PUBLIC_KM_BANDS } from "@/lib/engines/tariffDefaults";
-import { computeTariffQuote, publicKmRateFromCatalog, type TariffFeeLine } from "@/lib/engines/tariffEngine";
+import { computeTariffQuote, publicKmRateFromCatalog, type TariffEngineResult, type TariffFeeLine } from "@/lib/engines/tariffEngine";
 import { loadTariffCatalog } from "@/lib/engines/tariffCatalog";
 
 export type PricingSegment = "client" | "partner";
@@ -90,6 +90,101 @@ export function vehiclesNeededForGroup(passengers: number, seatsPerVehicle = 10)
   return Math.max(1, Math.ceil(Math.max(1, passengers) / Math.max(1, seatsPerVehicle)));
 }
 
+/**
+ * Catégories de véhicules avec tarif "à partir de" — remplace le moteur générique pour les
+ * transferts aéroport, sur demande explicite (choix de catégorie). Forfait plat jusqu'à
+ * `flatRateMaxKm` (Dakar-Plateau ↔ AIBD ≈ 51 km routiers réels — cf. calcul OSRM — largement
+ * couvert par les 100 km inclus par défaut), puis facturation au km au-delà.
+ */
+export type VehicleCategory = "berline" | "suv" | "van";
+
+export const VEHICLE_CATEGORY_LABELS: Record<VehicleCategory, string> = {
+  berline: "Berline",
+  suv: "SUV",
+  van: "Van / Minibus",
+};
+
+export const VEHICLE_CATEGORY_SEATS: Record<VehicleCategory, number> = {
+  berline: 4,
+  suv: 5,
+  van: 10,
+};
+
+export type VehicleCategoryRates = Record<VehicleCategory, { baseFcfa: number; extraKmFcfa: number }>;
+
+/** Berline à partir de 25 000, SUV à partir de 30 000 (fourchette 30-35 000 selon modèle), Van à
+ * partir de 45 000 — forfait couvrant jusqu'à `DEFAULT_FLAT_RATE_MAX_KM` (100 km, ex. Dakar-Plateau
+ * → AIBD ≈ 51 km réels). Modifiable sans code via business_rules (catégorie "vehicle_pricing"). */
+export const DEFAULT_VEHICLE_CATEGORY_RATES: VehicleCategoryRates = {
+  berline: { baseFcfa: 25_000, extraKmFcfa: 500 },
+  suv: { baseFcfa: 30_000, extraKmFcfa: 600 },
+  van: { baseFcfa: 45_000, extraKmFcfa: 700 },
+};
+
+export const DEFAULT_FLAT_RATE_MAX_KM = 100;
+
+/**
+ * Services pour lesquels une catégorie de véhicule peut être choisie et pilote le prix.
+ * Les mises à disposition suivent un modèle différent (zone Dakar/hors Dakar + forfait 8h,
+ * voir `tariffDefaults.ts`) — volontairement exclues d'ici pour ne pas les faire basculer sur un
+ * forfait par catégorie de véhicule.
+ */
+export const VEHICLE_CATEGORY_PRICED_SERVICES: ServiceType[] = ["transfert_aibd", "aibd_retour"];
+
+function buildVehicleCategoryEngineResult(params: {
+  priceLayer: "public" | "partner";
+  vehicleCategory: VehicleCategory;
+  oneWayKm: number;
+  isRoundTrip: boolean;
+  rates: VehicleCategoryRates;
+  flatRateMaxKm: number;
+}): TariffEngineResult {
+  const { vehicleCategory, oneWayKm, isRoundTrip, rates, flatRateMaxKm } = params;
+  const { baseFcfa, extraKmFcfa } = rates[vehicleCategory];
+  const legs = isRoundTrip ? 2 : 1;
+  const totalKm = oneWayKm * legs;
+  const thresholdKm = flatRateMaxKm * legs;
+  const baseTotal = baseFcfa * legs;
+  const categoryLabel = VEHICLE_CATEGORY_LABELS[vehicleCategory];
+  const breakdown: string[] = [];
+
+  let transportFcfa = baseTotal;
+  let formulaApplied = `Forfait ${categoryLabel} à partir de ${baseFcfa.toLocaleString("fr-FR")} FCFA${
+    isRoundTrip ? " par trajet (aller-retour)" : ""
+  } — jusqu'à ${flatRateMaxKm} km inclus`;
+
+  if (totalKm > thresholdKm) {
+    const extraKm = roundFcfa(totalKm - thresholdKm);
+    const extraAmount = roundFcfa(extraKm * extraKmFcfa);
+    transportFcfa = baseTotal + extraAmount;
+    formulaApplied = `Forfait ${categoryLabel} ${baseFcfa.toLocaleString("fr-FR")} FCFA (${flatRateMaxKm} km inclus) + ${extraKm} km × ${extraKmFcfa.toLocaleString(
+      "fr-FR"
+    )} FCFA au-delà`;
+    breakdown.push(`Distance ${totalKm} km > ${thresholdKm} km inclus — facturation au km au-delà du seuil`);
+  }
+
+  return {
+    transportFcfa,
+    totalFcfa: transportFcfa,
+    ratePerKm: extraKmFcfa,
+    outboundKm: oneWayKm,
+    returnKm: isRoundTrip ? oneWayKm : 0,
+    billableKm: totalKm,
+    formulaApplied,
+    ruleKey: `vehicle_category_${vehicleCategory}`,
+    label: `${categoryLabel} · à partir de ${baseFcfa.toLocaleString("fr-FR")} FCFA`,
+    tariffVersionCode: "VEHICLE_CATEGORY_V1",
+    charteVersion: "1.0",
+    vehicleModel: categoryLabel,
+    surDevis: false,
+    estimatif: false,
+    requiresManualValidation: false,
+    feeLines: [],
+    breakdown,
+    internalOnly: { priceLayer: params.priceLayer },
+  };
+}
+
 export type PriceQuote = {
   amountFcfa: number;
   amountBeforeDiscountFcfa: number;
@@ -159,6 +254,10 @@ export function computeSentrajetPrice(params: {
   accountDiscountPercent?: number;
   longDistanceFromKm?: number;
   catalog?: ReturnType<typeof buildDefaultCatalog>;
+  /** Si renseignée pour un service transfert aéroport / MAD, pilote le prix (voir plus haut). */
+  vehicleCategory?: VehicleCategory | null;
+  vehicleCategoryRates?: VehicleCategoryRates;
+  flatRateMaxKm?: number;
 }): PriceQuote {
   const passengers = Math.max(1, params.passengers);
   const luggage = Math.max(0, params.luggage ?? 0);
@@ -169,15 +268,27 @@ export function computeSentrajetPrice(params: {
   const vehiclesNeeded = vehiclesNeededForGroup(passengers, 10);
   const priceLayer = params.segment === "partner" ? "partner" : "public";
 
-  const engine = computeTariffQuote({
-    priceLayer,
-    passengers,
-    roadDistanceKm: oneWayKm || null,
-    tripMode,
-    serviceType: params.serviceType,
-    waitingMinutes: params.waitingMinutes,
-    catalog: params.catalog ?? buildDefaultCatalog().filter((r) => r.priceLayer === priceLayer),
-  });
+  const usesVehicleCategoryPricing =
+    Boolean(params.vehicleCategory) && VEHICLE_CATEGORY_PRICED_SERVICES.includes(params.serviceType);
+
+  const engine = usesVehicleCategoryPricing
+    ? buildVehicleCategoryEngineResult({
+        priceLayer,
+        vehicleCategory: params.vehicleCategory as VehicleCategory,
+        oneWayKm,
+        isRoundTrip: tripMode === "aller_retour",
+        rates: params.vehicleCategoryRates ?? DEFAULT_VEHICLE_CATEGORY_RATES,
+        flatRateMaxKm: params.flatRateMaxKm ?? DEFAULT_FLAT_RATE_MAX_KM,
+      })
+    : computeTariffQuote({
+        priceLayer,
+        passengers,
+        roadDistanceKm: oneWayKm || null,
+        tripMode,
+        serviceType: params.serviceType,
+        waitingMinutes: params.waitingMinutes,
+        catalog: params.catalog ?? buildDefaultCatalog().filter((r) => r.priceLayer === priceLayer),
+      });
 
   let waitingFeeFcfa = 0;
   if (tripMode === "attente" || (params.waitingMinutes ?? 0) > 0) {
@@ -246,10 +357,12 @@ export async function computeSentrajetPriceAsync(params: {
   tripMode?: TripMode;
   waitingMinutes?: number;
   applyAccountDiscount?: boolean;
+  vehicleCategory?: VehicleCategory | null;
 }): Promise<PriceQuote> {
   const priceLayer = params.segment === "partner" ? "partner" : "public";
-  const [rules, catalog] = await Promise.all([
+  const [rules, pricingRules, catalog] = await Promise.all([
     listBusinessRules("pricing").catch(() => []),
+    listBusinessRules("vehicle_pricing").catch(() => []),
     loadTariffCatalog(priceLayer),
   ]);
   return computeSentrajetPrice({
@@ -257,7 +370,48 @@ export async function computeSentrajetPriceAsync(params: {
     catalog,
     accountDiscountPercent: ruleNumber(rules, "pricing", "account_discount_percent", 10),
     longDistanceFromKm: ruleNumber(rules, "pricing", "long_distance_from_km", 250),
+    vehicleCategoryRates: vehicleCategoryRatesFromRules(pricingRules),
+    flatRateMaxKm: ruleNumber(pricingRules, "vehicle_pricing", "flat_rate_max_km", DEFAULT_FLAT_RATE_MAX_KM),
   });
+}
+
+/** Construit les tarifs par catégorie à partir des business_rules "vehicle_pricing" (avec repli
+ * sur les valeurs par défaut si une règle n'est pas encore configurée en base). */
+export function vehicleCategoryRatesFromRules(
+  rules: Array<{ category: string; rule_key: string; value_json: unknown }>
+): VehicleCategoryRates {
+  const num = (key: string, fallback: number): number => {
+    const rule = rules.find((r) => r.category === "vehicle_pricing" && r.rule_key === key);
+    const n = rule ? Number(rule.value_json) : NaN;
+    return Number.isFinite(n) ? n : fallback;
+  };
+  return {
+    berline: {
+      baseFcfa: num("berline_base_fcfa", DEFAULT_VEHICLE_CATEGORY_RATES.berline.baseFcfa),
+      extraKmFcfa: num("berline_extra_km_fcfa", DEFAULT_VEHICLE_CATEGORY_RATES.berline.extraKmFcfa),
+    },
+    suv: {
+      baseFcfa: num("suv_base_fcfa", DEFAULT_VEHICLE_CATEGORY_RATES.suv.baseFcfa),
+      extraKmFcfa: num("suv_extra_km_fcfa", DEFAULT_VEHICLE_CATEGORY_RATES.suv.extraKmFcfa),
+    },
+    van: {
+      baseFcfa: num("van_base_fcfa", DEFAULT_VEHICLE_CATEGORY_RATES.van.baseFcfa),
+      extraKmFcfa: num("van_extra_km_fcfa", DEFAULT_VEHICLE_CATEGORY_RATES.van.extraKmFcfa),
+    },
+  };
+}
+
+/** Ajoute la catégorie de véhicule choisie (transfert aéroport) dans les notes de réservation —
+ * évite une colonne dédiée tant que le besoin de filtrer/dispatcher par catégorie n'est pas
+ * confirmé, tout en gardant l'information visible pour les Ops. */
+export function buildNotesWithVehicleCategory(
+  notes: string,
+  vehicleCategory: VehicleCategory | null | undefined
+): string | null {
+  const trimmed = notes.trim();
+  if (!vehicleCategory) return trimmed || null;
+  const line = `Catégorie véhicule choisie : ${VEHICLE_CATEGORY_LABELS[vehicleCategory]}`;
+  return trimmed ? `${trimmed}\n${line}` : line;
 }
 
 export function formatFcfa(n: number): string {

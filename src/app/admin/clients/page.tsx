@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
+import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import {
   createClient,
   deleteClient,
@@ -130,7 +130,10 @@ export default function AdminClientsPage() {
           <SjCard key={c.id}>
             <div className="sj-between">
               <div className="sj-avatar">{(c.company_name || c.full_name || "?").slice(0, 1)}</div>
-              <span className="sj-muted">{c.client_type}</span>
+              <div className="flex items-center gap-2">
+                {c.is_active === false ? <SjBadge tone="danger">Archivé</SjBadge> : null}
+                <span className="sj-muted">{c.client_type}</span>
+              </div>
             </div>
             <h3 style={{ marginTop: 14 }}>{c.company_name || c.full_name || "Client"}</h3>
             <div className="sj-muted">{c.phone || c.email || "—"}</div>
@@ -145,11 +148,24 @@ export default function AdminClientsPage() {
                 </Link>
               ) : null}
               <button
+                className="sj-btn"
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  void updateClient(c.id, { is_active: !(c.is_active ?? true) })
+                    .then((saved) => setRows((current) => current.map((row) => (row.id === c.id ? saved : row))))
+                    .catch((failure) => setError(failure instanceof Error ? failure.message : "Impossible de modifier ce client."));
+                }}
+              >
+                {c.is_active === false ? "Réactiver" : "Archiver"}
+              </button>
+              <button
                 className="sj-btn text-[var(--color-error)]"
                 type="button"
                 onClick={() => {
-                  if (!window.confirm("Supprimer ce client ?")) return;
-                  void deleteClient(c.id).then(() => setRows((current) => current.filter((row) => row.id !== c.id))).catch((failure) => setError(failure.message));
+                  if (!window.confirm("Supprimer définitivement ce client ? Cette action est irréversible et n’est possible que s’il n’a aucun historique (réservations, factures, avis). Préférez « Archiver » pour conserver l’historique.")) return;
+                  setError(null);
+                  void deleteClient(c.id).then(() => setRows((current) => current.filter((row) => row.id !== c.id))).catch((failure) => setError(failure instanceof Error ? failure.message : "Impossible de supprimer."));
                 }}
               >
                 Supprimer

@@ -404,6 +404,31 @@ export default function AdminPartenairesPage() {
                       <button className="sj-btn" type="button" onClick={() => editPartner(partner)}>
                         Modifier
                       </button>
+                      <button
+                        className="sj-btn"
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          const nextStatus = partner.certification_status === "archive" ? "actif" : "archive";
+                          void supabase
+                            .from("partner_organizations")
+                            .update({ certification_status: nextStatus })
+                            .eq("id", partner.id)
+                            .select(
+                              "id, matricule, legal_name, category, certification_status, primary_contact_name, primary_contact_phone, primary_contact_email, city, notes, user_id, created_at"
+                            )
+                            .single()
+                            .then(({ data, error: updateError }) => {
+                              if (updateError || !data) {
+                                setError(updateError?.message ?? "Impossible de modifier ce partenaire.");
+                                return;
+                              }
+                              setRows((current) => current.map((row) => (row.id === partner.id ? (data as PartnerOrg) : row)));
+                            });
+                        }}
+                      >
+                        {partner.certification_status === "archive" ? "Réactiver" : "Archiver"}
+                      </button>
                       {!partner.user_id &&
                       partner.primary_contact_email &&
                       partner.certification_status === "actif" ? (
@@ -418,14 +443,24 @@ export default function AdminPartenairesPage() {
                         className="sj-btn text-[var(--color-error)]"
                         type="button"
                         onClick={() => {
-                          if (!window.confirm("Supprimer ce partenaire ?")) return;
+                          if (
+                            !window.confirm(
+                              "Supprimer définitivement ce partenaire ? Cette action est irréversible et n’est possible que s’il n’a aucun historique (réservations, contrats). Préférez « Archiver » pour conserver l’historique."
+                            )
+                          )
+                            return;
+                          setError(null);
                           void supabase
                             .from("partner_organizations")
                             .delete()
                             .eq("id", partner.id)
                             .then(({ error: deleteError }) => {
                               if (deleteError) {
-                                setError(deleteError.message);
+                                setError(
+                                  deleteError.code === "23503"
+                                    ? "Ce partenaire a des réservations, contrats ou clients liés et ne peut pas être supprimé sans perdre cet historique. Archivez-le plutôt : il disparaîtra du funnel actif sans rien perdre."
+                                    : deleteError.message
+                                );
                               } else {
                                 setRows((current) => current.filter((row) => row.id !== partner.id));
                               }

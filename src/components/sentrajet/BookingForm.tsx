@@ -3,18 +3,36 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   SERVICE_TYPE_LABELS,
+  VEHICLE_CATEGORY_PRICED_SERVICES,
+  buildNotesWithVehicleCategory,
   computeSentrajetPrice,
   formatFcfa,
   type PricingSegment,
   type ServiceType,
+  type VehicleCategory,
 } from "@/lib/sentrajetPricing";
-import { createBookingWaveCheckout, createPaymentForBooking, createPlatformBooking } from "@/lib/platformOps";
+import {
+  createBookingWaveCheckout,
+  createPaymentForBooking,
+  createPlatformBooking,
+  listPartnerContracts,
+  type PartnerContract,
+} from "@/lib/platformOps";
 import { listBusinessRules, ruleString } from "@/lib/engines/businessRules";
 import {
   AddressAutocomplete,
   type SelectedPlace,
 } from "@/components/booking/AddressAutocomplete";
 import { usePreferences } from "@/providers/PreferencesProvider";
+import {
+  computePartnerOverrideQuote,
+  findOverrideForService,
+  listPartnerTariffOverrides,
+  type PartnerTariffOverride,
+} from "@/lib/partnerTariffs";
+import { WhatsAppPasteBox } from "@/components/sentrajet/WhatsAppPasteBox";
+import { VehicleCategorySelector } from "@/components/sentrajet/VehicleCategorySelector";
+import { useVehicleCategoryRates } from "@/hooks/useVehicleCategoryRates";
 
 type BookingFormProps = {
   segment: PricingSegment;
@@ -22,6 +40,10 @@ type BookingFormProps = {
   partnerContractId?: string | null;
   onCreated?: () => void;
   submitDisabledReason?: string | null;
+  /** Pré-remplissage (ex. depuis un créneau du calendrier Ops) — format "YYYY-MM-DD". */
+  initialDate?: string;
+  /** Pré-remplissage — format "HH:MM". */
+  initialTime?: string;
 };
 
 const SERVICES = Object.entries(SERVICE_TYPE_LABELS) as [ServiceType, string][];
@@ -32,15 +54,19 @@ export function BookingForm({
   partnerContractId,
   onCreated,
   submitDisabledReason,
+  initialDate,
+  initialTime,
 }: BookingFormProps) {
   const { t } = usePreferences();
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
   const [pickupPlace, setPickupPlace] = useState<SelectedPlace | null>(null);
   const [dropoffPlace, setDropoffPlace] = useState<SelectedPlace | null>(null);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [date, setDate] = useState(initialDate ?? "");
+  const [time, setTime] = useState(initialTime ?? "");
   const [passengers, setPassengers] = useState(1);
   const [serviceType, setServiceType] = useState<ServiceType>("transfert_aibd");
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>("berline");
+  const { rates: vehicleCategoryRates, flatRateMaxKm } = useVehicleCategoryRates();
   const [distanceKm, setDistanceKm] = useState<number | "">("");
   const [distanceLoading, setDistanceLoading] = useState(false);
   const [distanceError, setDistanceError] = useState<string | null>(null);
@@ -54,6 +80,14 @@ export function BookingForm({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [payLink, setPayLink] = useState<string | null>(null);
+  const [partnerOverrides, setPartnerOverrides] = useState<PartnerTariffOverride[]>([]);
+  const [partnerContracts, setPartnerContracts] = useState<PartnerContract[]>([]);
+  const [selectedPartnerContractId, setSelectedPartnerContractId] = useState<string>("");
+
+  // Contrat effectif : celui imposé par le parent (ex. le partenaire réserve pour lui-même) sinon
+  // celui choisi manuellement dans le sélecteur ci-dessous (ex. staff qui crée une réservation
+  // "à la main" pour un partenaire précis, depuis /ops/calendrier ou /admin/reservations).
+  const effectivePartnerContractId = partnerContractId ?? (selectedPartnerContractId || null);
 
   useEffect(() => {
     void listBusinessRules().then((rules) => {
@@ -61,6 +95,28 @@ export function BookingForm({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segment]);
+
+  // Si le composant reçoit déjà un partnerContractId figé (espace partenaire), pas besoin de
+  // sélecteur : on ne charge la liste des contrats que lorsque le staff doit choisir lui-même.
+  useEffect(() => {
+    if (segment !== "partner" || partnerContractId) {
+      setPartnerContracts([]);
+      return;
+    }
+    void listPartnerContracts()
+      .then((contracts) => setPartnerContracts(contracts.filter((c) => c.status === "active")))
+      .catch(() => setPartnerContracts([]));
+  }, [segment, partnerContractId]);
+
+  useEffect(() => {
+    if (segment !== "partner" || !effectivePartnerContractId) {
+      setPartnerOverrides([]);
+      return;
+    }
+    void listPartnerTariffOverrides(effectivePartnerContractId)
+      .then(setPartnerOverrides)
+      .catch(() => setPartnerOverrides([]));
+  }, [segment, effectivePartnerContractId]);
 
   useEffect(() => {
     if (!pickupPlace || !dropoffPlace) {
@@ -111,7 +167,14 @@ export function BookingForm({
     };
   }, [pickupPlace, dropoffPlace]);
 
-  const quote = useMemo(
+  const usesVehicleCategory = VEHICLE_CATEGORY_PRICED_SERVICES.includes(serviceType);
+
+  const activeOverride = useMemo(
+    () => (segment === "partner" ? findOverrideForService(partnerOverrides, serviceType) : null),
+    [segment, partnerOverrides, serviceType]
+  );
+
+  const genericQuote = useMemo(
     () =>
       computeSentrajetPrice({
         segment,
@@ -121,9 +184,35 @@ export function BookingForm({
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
         tripMode: isRoundTrip ? "aller_retour" : "aller_simple",
         applyAccountDiscount: segment === "client" && Boolean(clientId),
+        vehicleCategory: usesVehicleCategory ? vehicleCategory : null,
+        vehicleCategoryRates,
+        flatRateMaxKm,
       }),
-    [segment, serviceType, passengers, luggageCount, distanceKm, isRoundTrip, clientId]
+    [
+      segment,
+      serviceType,
+      passengers,
+      luggageCount,
+      distanceKm,
+      isRoundTrip,
+      clientId,
+      usesVehicleCategory,
+      vehicleCategory,
+      vehicleCategoryRates,
+      flatRateMaxKm,
+    ]
   );
+
+  const quote = useMemo(() => {
+    if (activeOverride) {
+      return computePartnerOverrideQuote(activeOverride, {
+        passengers,
+        distanceKm: distanceKm === "" ? null : Number(distanceKm),
+        isRoundTrip,
+      });
+    }
+    return genericQuote;
+  }, [activeOverride, genericQuote, passengers, distanceKm, isRoundTrip]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,6 +227,10 @@ export function BookingForm({
       setError("Renseignez départ, destination, date, heure et téléphone.");
       return;
     }
+    if (segment === "partner" && !effectivePartnerContractId) {
+      setError("Choisissez le partenaire B2B concerné par cette réservation.");
+      return;
+    }
     if (distanceLoading || distanceKm === "") {
       setError("Attendez le calcul de la distance routière avant de continuer.");
       return;
@@ -147,7 +240,7 @@ export function BookingForm({
       const pickupTime = new Date(`${date}T${time}:00`).toISOString();
       const booking = await createPlatformBooking({
         clientId,
-        partnerContractId,
+        partnerContractId: effectivePartnerContractId,
         pickup: pickupPlace.address,
         dropoff: dropoffPlace.address,
         pickupTime,
@@ -156,7 +249,7 @@ export function BookingForm({
         estimatedPrice: quote.surDevis ? null : quote.amountFcfa,
         pricingSegment: segment,
         distanceKm,
-        notes: notes.trim() || null,
+        notes: buildNotesWithVehicleCategory(notes, isAirport && !activeOverride ? vehicleCategory : null),
         vehiclesNeeded: quote.vehiclesNeeded,
         isRoundTrip,
         phone: phone.trim(),
@@ -205,6 +298,35 @@ export function BookingForm({
 
   return (
     <form className="sj-form" onSubmit={submit}>
+      <WhatsAppPasteBox
+        onApply={(result) => {
+          if (result.phone) setPhone(result.phone);
+          if (result.date) setDate(result.date);
+          if (result.time) setTime(result.time);
+          if (result.passengers) setPassengers(result.passengers);
+          if (result.flightNumber) setFlightNumber(result.flightNumber);
+          if (result.passengerName) setPassengerName(result.passengerName);
+          if (result.routeHint) {
+            setNotes((prev) => (prev ? `${prev}\nTrajet (WhatsApp) : ${result.routeHint}` : `Trajet (WhatsApp) : ${result.routeHint}`));
+          }
+        }}
+      />
+      {segment === "partner" && !partnerContractId ? (
+        <div className="sj-field">
+          <label>Partenaire B2B concerné *</label>
+          <select value={selectedPartnerContractId} onChange={(e) => setSelectedPartnerContractId(e.target.value)} required>
+            <option value="">Choisir un partenaire…</option>
+            {partnerContracts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.partner_name} · {c.contract_number}
+              </option>
+            ))}
+          </select>
+          {!partnerContracts.length ? (
+            <small className="sj-muted">Aucun contrat partenaire actif trouvé.</small>
+          ) : null}
+        </div>
+      ) : null}
       <div className="sj-form-grid">
         <AddressAutocomplete
           label={t("booking.pickup")}
@@ -282,6 +404,14 @@ export function BookingForm({
         ) : null}
         {isAirport ? (
           <>
+            {!activeOverride ? (
+              <VehicleCategorySelector
+                value={vehicleCategory}
+                onChange={setVehicleCategory}
+                rates={vehicleCategoryRates}
+                flatRateMaxKm={flatRateMaxKm}
+              />
+            ) : null}
             <div className="sj-field">
               <label>N° de vol</label>
               <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="Ex. AT555" />
@@ -312,16 +442,26 @@ export function BookingForm({
         />
       </div>
 
-      <div className="sj-card" style={{ background: "#0b1828" }}>
-        <div className="sj-muted">Estimation {segment === "partner" ? "partenaire B2B" : "client direct"}</div>
-        <div className="sj-metric" style={{ marginTop: 6 }}>
+      <div className="sj-card" style={{ background: "#0b1828", color: "#fff" }}>
+        <div className="sj-muted" style={{ color: "rgba(255,255,255,0.65)" }}>
+          Estimation {segment === "partner" ? "partenaire B2B" : "client direct"}
+          {activeOverride ? " · tarif personnalisé" : ""}
+        </div>
+        <div className="sj-metric" style={{ marginTop: 6, color: "#fff" }}>
           {quote.surDevis && !quote.amountFcfa ? "Sur devis" : formatFcfa(quote.amountFcfa)}
         </div>
-        <div className="sj-metric-sub">{quote.formulaApplied}</div>
-        <div className="sj-metric-sub">{quote.label}</div>
-        {quote.distanceKm > 0 ? <div className="sj-metric-sub">{quote.distanceKm} km routiers</div> : null}
+        <div className="sj-metric-sub" style={{ color: "rgba(255,255,255,0.65)" }}>{quote.formulaApplied}</div>
+        <div className="sj-metric-sub" style={{ color: "rgba(255,255,255,0.65)" }}>{quote.label}</div>
+        {quote.distanceKm > 0 ? (
+          <div className="sj-metric-sub" style={{ color: "rgba(255,255,255,0.65)" }}>{quote.distanceKm} km routiers</div>
+        ) : null}
         {quote.vehiclesNeeded > 1 ? (
-          <div className="sj-metric-sub">{quote.vehiclesNeeded} véhicules nécessaires</div>
+          <div className="sj-metric-sub" style={{ color: "rgba(255,255,255,0.65)" }}>{quote.vehiclesNeeded} véhicules nécessaires</div>
+        ) : null}
+        {activeOverride ? (
+          <div className="sj-metric-sub" style={{ color: "#f6c96c" }}>
+            Ce tarif remplace la grille partenaire générique pour ce type de prestation.
+          </div>
         ) : null}
       </div>
 

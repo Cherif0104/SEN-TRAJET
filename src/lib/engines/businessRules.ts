@@ -65,6 +65,13 @@ export function ruleString(rules: BusinessRule[], category: string, key: string,
   return String(rule.value_json).replace(/^"|"$/g, "");
 }
 
+export function ruleBoolean(rules: BusinessRule[], category: string, key: string, fallback: boolean): boolean {
+  const rule = rules.find((r) => r.category === category && r.rule_key === key);
+  if (!rule || rule.value_json == null) return fallback;
+  if (typeof rule.value_json === "boolean") return rule.value_json;
+  return String(rule.value_json).toLowerCase() === "true";
+}
+
 export async function updateBusinessRuleValue(id: string, value: unknown): Promise<void> {
   const { error } = await supabase
     .from("business_rules")

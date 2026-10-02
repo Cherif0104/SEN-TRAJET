@@ -26,16 +26,25 @@ export function useNotifications(userId: string | null) {
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, user_id, channel, subject, body, status, entity_type, entity_id, read_at, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(30);
+    const [{ data }, { count }] = await Promise.all([
+      supabase
+        .from("notifications")
+        .select("id, user_id, channel, subject, body, status, entity_type, entity_id, read_at, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      // Compte réel des non-lues, indépendant de la limite d'affichage ci-dessus (sinon le badge
+      // peut afficher 0 alors qu'il reste des non-lues plus anciennes que les 50 chargées).
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("read_at", null),
+    ]);
     if (data) {
       setNotifications(data as Notification[]);
-      setUnreadCount(data.filter((n: { read_at: string | null }) => !n.read_at).length);
     }
+    setUnreadCount(count ?? 0);
   }, [userId]);
 
   const fetchRef = useRef(fetchNotifications);

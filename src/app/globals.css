@@ -507,6 +507,153 @@
   display: grid;
   gap: 10px;
 }
+.sj-timeline {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--sj-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.sj-timeline-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sj-line);
+}
+.sj-timeline-row:last-child {
+  border-bottom: none;
+}
+.sj-timeline-row.has-bookings {
+  background: var(--sj-panel);
+}
+.sj-timeline-hour {
+  flex: 0 0 56px;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sj-muted);
+  letter-spacing: 0.02em;
+}
+.sj-timeline-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sj-timeline-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--sj-muted);
+  font-size: 13px;
+}
+.sj-timeline-card {
+  border: 1px solid var(--sj-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--color-surface-primary, transparent);
+}
+.sj-timeline-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px dashed var(--sj-line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sj-muted);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sj-timeline-add:hover {
+  color: var(--sj-gold, var(--color-accent));
+  border-color: var(--sj-gold, var(--color-accent));
+}
+.sj-timeline-row.is-now {
+  background: color-mix(in srgb, var(--sj-gold, var(--color-accent)) 8%, transparent);
+}
+.sj-timeline-hour {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sj-timeline-now-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--sj-gold, var(--color-accent));
+  display: inline-block;
+}
+.sj-timeline-card.is-late {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+}
+.sj-timeline-card.is-highlighted {
+  outline: 2px solid var(--sj-gold, var(--color-accent));
+  outline-offset: 2px;
+}
+.sj-timeline-late-flag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-error);
+}
+.sj-timeline-cancel-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--sj-line);
+}
+
+/* Panneau de notifications : plein écran (quasi) sur mobile pour rester lisible, ancré à la
+   cloche en position absolue à partir du breakpoint tablette. */
+.sj-notif-panel {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  top: 64px;
+  z-index: 50;
+  width: auto;
+  max-height: 75vh;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+.sj-notif-panel-list {
+  max-height: calc(75vh - 48px);
+  overflow-y: auto;
+}
+@media (min-width: 640px) {
+  .sj-notif-panel {
+    position: absolute;
+    left: auto;
+    right: 0;
+    top: 100%;
+    margin-top: 8px;
+    width: 384px;
+    max-height: none;
+  }
+  .sj-notif-panel-list {
+    max-height: 320px;
+  }
+}
+/* Espaces professionnels (tout sauf Client) : pensés desktop-first — les listes de cartes
+   exploitent la largeur d'écran en colonnes multiples au lieu de s'empiler verticalement.
+   L'espace Client reste volontairement en colonne unique (mobile-first) à toutes les tailles. */
+.sj-app--pro .sj-list {
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  align-items: start;
+}
 .sj-row {
   display: flex;
   align-items: center;
@@ -561,6 +708,71 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+/* Grille de services façon Yango/inDrive : quelques tuiles illustrées, cliquables, pour choisir
+   immédiatement ce qu'on vient faire (au lieu d'un menu texte). 2 colonnes sur mobile, 3 à partir
+   de la tablette — toujours au moins 2 lignes visibles. */
+.sj-service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .sj-service-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.sj-service-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 120px;
+  border-radius: 20px;
+  padding: 14px;
+  color: #fff;
+  overflow: hidden;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+.sj-service-tile:hover {
+  transform: translateY(-2px);
+}
+.sj-service-tile .sj-service-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  opacity: 0.35;
+}
+.sj-service-tile b {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.sj-service-tile span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+/* Barre d'onglets/filtres horizontale — distincte de .sj-toolbar (actions). Reste toujours en
+   ligne, y compris sur mobile : elle défile horizontalement plutôt que de s'empiler en colonne
+   plein écran, qui est illisible pour un simple sélecteur de filtre. */
+.sj-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.sj-tabs::-webkit-scrollbar {
+  display: none;
+}
+.sj-tabs .sj-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .sj-toolbar {
   display: flex;
@@ -631,7 +843,8 @@
   .sj-grid-4,
   .sj-grid-3,
   .sj-grid-2,
-  .sj-form-grid {
+  .sj-form-grid,
+  .sj-app--pro .sj-list {
     grid-template-columns: 1fr;
   }
   .sj-hero h1 {

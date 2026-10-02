@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   SERVICE_TYPE_LABELS,
+  VEHICLE_CATEGORY_PRICED_SERVICES,
+  buildNotesWithVehicleCategory,
   computeSentrajetPrice,
   formatFcfa,
   type ServiceType,
+  type VehicleCategory,
 } from "@/lib/sentrajetPricing";
 import {
   createBookingWaveCheckout,
@@ -17,6 +20,15 @@ import { listBusinessRules, ruleString } from "@/lib/engines/businessRules";
 import { listPartnerClients, type PartnerClient } from "@/lib/partnerClients";
 import { AddressAutocomplete, type SelectedPlace } from "@/components/booking/AddressAutocomplete";
 import { SjCard } from "@/components/sentrajet/PremiumShell";
+import {
+  computePartnerOverrideQuote,
+  findOverrideForService,
+  listPartnerTariffOverrides,
+  type PartnerTariffOverride,
+} from "@/lib/partnerTariffs";
+import { WhatsAppPasteBox } from "@/components/sentrajet/WhatsAppPasteBox";
+import { VehicleCategorySelector } from "@/components/sentrajet/VehicleCategorySelector";
+import { useVehicleCategoryRates } from "@/hooks/useVehicleCategoryRates";
 
 type WizardStep = "client" | "trajet" | "service" | "confirmation" | "done";
 const STEPS: WizardStep[] = ["client", "trajet", "service", "confirmation", "done"];
@@ -55,6 +67,8 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
   const [distanceError, setDistanceError] = useState<string | null>(null);
 
   const [serviceType, setServiceType] = useState<ServiceType>("transfert_aibd");
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>("berline");
+  const { rates: vehicleCategoryRates, flatRateMaxKm } = useVehicleCategoryRates();
   const [passengers, setPassengers] = useState(1);
   const [phone, setPhone] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
@@ -67,6 +81,7 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
   const [error, setError] = useState<string | null>(null);
   const [doneRef, setDoneRef] = useState<string | null>(null);
   const [payLink, setPayLink] = useState<string | null>(null);
+  const [partnerOverrides, setPartnerOverrides] = useState<PartnerTariffOverride[]>([]);
 
   useEffect(() => {
     void listBusinessRules().then((rules) => {
@@ -74,6 +89,16 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!contractId) {
+      setPartnerOverrides([]);
+      return;
+    }
+    void listPartnerTariffOverrides(contractId)
+      .then(setPartnerOverrides)
+      .catch(() => setPartnerOverrides([]));
+  }, [contractId]);
 
   useEffect(() => {
     if (!contractId) {
@@ -131,7 +156,14 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
     };
   }, [pickupPlace, dropoffPlace]);
 
-  const quote = useMemo(
+  const usesVehicleCategory = VEHICLE_CATEGORY_PRICED_SERVICES.includes(serviceType);
+
+  const activeOverride = useMemo(
+    () => findOverrideForService(partnerOverrides, serviceType),
+    [partnerOverrides, serviceType]
+  );
+
+  const genericQuote = useMemo(
     () =>
       computeSentrajetPrice({
         segment: "partner",
@@ -140,9 +172,33 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
         luggage: luggageCount === "" ? 0 : Number(luggageCount),
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
         tripMode: isRoundTrip ? "aller_retour" : "aller_simple",
+        vehicleCategory: usesVehicleCategory ? vehicleCategory : null,
+        vehicleCategoryRates,
+        flatRateMaxKm,
       }),
-    [serviceType, passengers, luggageCount, distanceKm, isRoundTrip]
+    [
+      serviceType,
+      passengers,
+      luggageCount,
+      distanceKm,
+      isRoundTrip,
+      usesVehicleCategory,
+      vehicleCategory,
+      vehicleCategoryRates,
+      flatRateMaxKm,
+    ]
   );
+
+  const quote = useMemo(() => {
+    if (activeOverride) {
+      return computePartnerOverrideQuote(activeOverride, {
+        passengers,
+        distanceKm: distanceKm === "" ? null : Number(distanceKm),
+        isRoundTrip,
+      });
+    }
+    return genericQuote;
+  }, [activeOverride, genericQuote, passengers, distanceKm, isRoundTrip]);
 
   const finalClientId = useOwnOrg ? ownClientId : selectedClientId;
   const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
@@ -186,7 +242,7 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
         estimatedPrice: quote.surDevis ? null : quote.amountFcfa,
         pricingSegment: "partner",
         distanceKm: distanceKm === "" ? null : Number(distanceKm),
-        notes: notes.trim() || null,
+        notes: buildNotesWithVehicleCategory(notes, isAirport && !activeOverride ? vehicleCategory : null),
         vehiclesNeeded: quote.vehiclesNeeded,
         isRoundTrip,
         phone: phone.trim(),
@@ -282,6 +338,19 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
 
       {step === "trajet" ? (
         <div className="sj-form">
+          <WhatsAppPasteBox
+            onApply={(result) => {
+              if (result.phone) setPhone(result.phone);
+              if (result.date) setDate(result.date);
+              if (result.time) setTime(result.time);
+              if (result.passengers) setPassengers(result.passengers);
+              if (result.flightNumber) setFlightNumber(result.flightNumber);
+              if (result.passengerName) setPassengerName(result.passengerName);
+              if (result.routeHint) {
+                setNotes((prev) => (prev ? `${prev}\nTrajet (WhatsApp) : ${result.routeHint}` : `Trajet (WhatsApp) : ${result.routeHint}`));
+              }
+            }}
+          />
           <div className="sj-form-grid">
             <AddressAutocomplete label="Départ" placeholder="Adresse de départ" value={pickupPlace} onSelect={setPickupPlace} onClear={() => setPickupPlace(null)} showMyLocation accent="pickup" />
             <AddressAutocomplete label="Destination" placeholder="Adresse d’arrivée" value={dropoffPlace} onSelect={setDropoffPlace} onClear={() => setDropoffPlace(null)} accent="dropoff" />
@@ -340,6 +409,14 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
             </div>
             {isAirport ? (
               <>
+                {!activeOverride ? (
+                  <VehicleCategorySelector
+                    value={vehicleCategory}
+                    onChange={setVehicleCategory}
+                    rates={vehicleCategoryRates}
+                    flatRateMaxKm={flatRateMaxKm}
+                  />
+                ) : null}
                 <div className="sj-field">
                   <label>N° de vol</label>
                   <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)} placeholder="Ex. AT555" />
@@ -376,7 +453,9 @@ export function PartnerBookingWizard({ contractId, ownClientId, initialClientId,
             <div className="sj-muted" style={{ marginTop: 10 }}>Trajet</div>
             <b>{pickupPlace?.address} → {dropoffPlace?.address}</b>
             <div className="sj-muted">{date} à {time} · {passengers} passager{passengers > 1 ? "s" : ""}</div>
-            <div className="sj-muted" style={{ marginTop: 10 }}>Prix partenaire (net, hors marge éventuelle)</div>
+            <div className="sj-muted" style={{ marginTop: 10 }}>
+              Prix partenaire (net, hors marge éventuelle){activeOverride ? " · tarif personnalisé" : ""}
+            </div>
             <div className="sj-metric" style={{ marginTop: 2 }}>
               {quote.surDevis && !quote.amountFcfa ? "Sur devis" : formatFcfa(quote.amountFcfa)}
             </div>

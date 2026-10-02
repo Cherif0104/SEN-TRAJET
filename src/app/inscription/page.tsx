@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
-import { Users, Car, ArrowLeft, Building2 } from "lucide-react";
+import { Users, Car, ArrowLeft, Building2, CarTaxiFront } from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
@@ -237,8 +237,20 @@ function InscriptionPageContent() {
                 </span>
               </Link>
               <Link
+                href="/allo-dakar/chauffeur"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-emerald-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
+                  <CarTaxiFront className="h-7 w-7" />
+                </div>
+                <span className="text-lg font-semibold text-slate-900">Chauffeur</span>
+                <span className="text-sm text-slate-600">
+                  Rejoindre le covoiturage Allo Dakar — inscription libre, validée par SentraJet
+                </span>
+              </Link>
+              <Link
                 href="/devenir-partenaire?profil=proprietaire"
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40 sm:col-span-2"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Car className="h-7 w-7" />
@@ -249,8 +261,17 @@ function InscriptionPageContent() {
                 </span>
               </Link>
             </div>
+
             <p className="mt-6 text-center text-sm text-slate-500">
-              Les chauffeurs sont recrutés et affectés par SentraJet — pas d’inscription marketplace ouverte.
+              Les chauffeurs de la flotte SentraJet Premium sont recrutés et affectés directement par
+              SentraJet. L’inscription libre ci-dessus concerne le covoiturage Allo Dakar.
+            </p>
+
+            <p className="mt-3 text-center text-xs text-slate-400">
+              Besoin d’un trajet interurbain économique et partagé plutôt qu’un service premium ?{" "}
+              <a href="/allo-dakar" className="underline hover:text-slate-600">
+                Découvrir le covoiturage SentraJet Allo Dakar
+              </a>
             </p>
           </>
         )}

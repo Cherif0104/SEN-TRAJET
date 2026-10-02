@@ -52,6 +52,7 @@ function isAllowedNext(path: string): boolean {
     "/dashboard",
     "/reserver",
     "/avis",
+    "/allo-dakar",
     "/",
   ];
   return allowed.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
@@ -344,11 +345,21 @@ function ConnexionPageContent() {
         <p className="mt-8 text-center text-sm text-slate-600">
           Pas encore de compte ?{" "}
           <Link
-            href="/inscription"
+            href={
+              searchParams.get("next")
+                ? `/inscription?next=${encodeURIComponent(searchParams.get("next")!)}`
+                : "/inscription"
+            }
             className="font-semibold text-amber-800 hover:text-amber-900 hover:underline"
           >
             S&apos;inscrire
           </Link>
+        </p>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Besoin d’un trajet interurbain économique et partagé plutôt qu’un service premium ?{" "}
+          <a href="/allo-dakar" className="underline hover:text-slate-600">
+            Découvrir le covoiturage SentraJet Allo Dakar
+          </a>
         </p>
     </AuthPageScaffold>
   );

@@ -53,6 +53,8 @@ export type PlatformClient = {
   matricule?: string | null;
   whatsapp?: string | null;
   address?: string | null;
+  /** Archivage doux (cf. chauffeurs) : false = masqué des listes actives, historique conservé. */
+  is_active?: boolean;
 };
 
 export type PartnerContract = {
@@ -91,6 +93,7 @@ export type PlatformBooking = {
   distance_km: number | null;
   created_at: string;
   client: Pick<PlatformClient, "id" | "full_name" | "company_name" | "phone"> | null;
+  partner_contract: Pick<PartnerContract, "id" | "partner_name" | "contract_number"> | null;
   service_order: {
     id: string;
     order_number: string;
@@ -105,6 +108,17 @@ export const BOOKING_STATUS_LABEL: Record<string, string> = new Proxy(
     get: (_t, prop: string) => bookingStatusLabel(prop),
   }
 );
+
+/** Statuts terminaux "réussis" (course effectuée) — utilisés pour l'onglet Passées côté client. */
+export const CLIENT_TERMINAL_STATUSES = ["terminee"];
+/** Statuts terminaux "annulés" (quelle que soit la cause) — utilisés pour l'onglet Annulées. */
+export const CLIENT_CANCELLED_STATUSES = [
+  "annulee_client",
+  "annulee_sentrajet",
+  "remboursee",
+  "remboursement_en_cours",
+  "no_show",
+];
 
 export function bookingStatusTone(status: string): "success" | "warning" | "info" | "danger" {
   const s = normalizeBookingStatus(status);
@@ -142,21 +156,29 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
-export async function listPlatformBookings(): Promise<PlatformBooking[]> {
-  const { data, error } = await supabase
+export async function listPlatformBookings(options?: {
+  /** ISO inclusif — pour restreindre à une plage (ex. vue calendrier journée/semaine). */
+  rangeStart?: string;
+  /** ISO exclusif. */
+  rangeEnd?: string;
+}): Promise<PlatformBooking[]> {
+  let query = supabase
     .from("bookings")
     .select(
       `id, reference, client_id, lead_id, status, pickup, dropoff, pickup_time, service_type,
        estimated_price, passengers, notes, pricing_segment, partner_contract_id, distance_km, created_at,
        client:clients(id, full_name, company_name, phone),
+       partner_contract:partner_contracts(id, partner_name, contract_number),
        service_orders(id, order_number, status,
          dispatch_assignments(id, driver_id, vehicle_id,
            driver:drivers(id, full_name, phone, status, user_id),
            vehicle:vehicles(id, brand, model, plate_number, seats, status, category)
          )
        )`
-    )
-    .order("pickup_time", { ascending: true });
+    );
+  if (options?.rangeStart) query = query.gte("pickup_time", options.rangeStart);
+  if (options?.rangeEnd) query = query.lt("pickup_time", options.rangeEnd);
+  const { data, error } = await query.order("pickup_time", { ascending: true });
 
   if (error) throw error;
 
@@ -187,6 +209,8 @@ export async function listPlatformBookings(): Promise<PlatformBooking[]> {
       distance_km: r.distance_km == null ? null : Number(r.distance_km),
       created_at: String(r.created_at),
       client: (firstRelation(r.client as PlatformClient | PlatformClient[] | null) as PlatformBooking["client"]) ?? null,
+      partner_contract:
+        (firstRelation(r.partner_contract as PartnerContract | PartnerContract[] | null) as PlatformBooking["partner_contract"]) ?? null,
       service_order: order
         ? {
             id: String(order.id),
@@ -228,7 +252,7 @@ export async function listVehicles(): Promise<PlatformVehicle[]> {
 export async function listClients(): Promise<PlatformClient[]> {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes, matricule, whatsapp, address")
+    .select("id, full_name, company_name, phone, email, client_type, user_id, avatar_url, notes, matricule, whatsapp, address, is_active")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as PlatformClient[];
@@ -255,7 +279,16 @@ export async function updateDriver(
 
 export async function deleteDriver(id: string): Promise<void> {
   const { error } = await supabase.from("drivers").delete().eq("id", id);
-  if (error) throw error;
+  if (error) {
+    // 23503 = violation de clé étrangère (ex. dispatch_assignments en RESTRICT) : le chauffeur a
+    // un historique de missions et ne peut pas être supprimé sans casser cet historique.
+    if (error.code === "23503") {
+      throw new Error(
+        "Ce chauffeur a un historique de missions et ne peut pas être supprimé (cela casserait l’historique des courses). Archivez-le plutôt : il disparaîtra des listes actives sans perdre l’historique."
+      );
+    }
+    throw error;
+  }
 }
 
 export type ManagedVehicleInput = Omit<PlatformVehicle, "id">;
@@ -301,7 +334,16 @@ export async function updateClient(
 
 export async function deleteClient(id: string): Promise<void> {
   const { error } = await supabase.from("clients").delete().eq("id", id);
-  if (error) throw error;
+  if (error) {
+    // 23503 = violation de clé étrangère : ce client a des réservations/factures/avis liés et la
+    // suppression casserait cet historique. On privilégie l'archivage (is_active = false).
+    if (error.code === "23503") {
+      throw new Error(
+        "Ce client a des réservations ou un historique CRM liés et ne peut pas être supprimé sans perdre cet historique. Archivez-le plutôt : il disparaîtra des listes actives sans rien perdre."
+      );
+    }
+    throw error;
+  }
 }
 
 export async function listPartnerContracts(): Promise<PartnerContract[]> {
@@ -340,7 +382,17 @@ export async function ensureClientForUser(params: {
     })
     .select("id")
     .single();
-  if (error) throw formatSupabaseError(error, "Impossible de créer le profil client.");
+  if (error) {
+    // Course concurrente possible : deux appels de ensureClientForUser peuvent se déclencher à
+    // quelques millisecondes d'écart juste après connexion (ex. useClientBookings se relance dès
+    // que le profil finit de charger). Si un autre appel a déjà créé la ligne entre-temps, on
+    // récupère son id au lieu d'échouer avec une erreur de contrainte unique.
+    if (error.code === "23505" || /duplicate key|clients_user_id_key/i.test(error.message || "")) {
+      const { data: retry } = await supabase.from("clients").select("id").eq("user_id", params.userId).maybeSingle();
+      if (retry?.id) return retry.id as string;
+    }
+    throw formatSupabaseError(error, "Impossible de créer le profil client.");
+  }
   return data.id as string;
 }
 
@@ -551,6 +603,8 @@ export async function updateBookingWorkflowStatus(params: {
   toStatus: string;
   note?: string;
   quoteAmountFcfa?: number | null;
+  /** Frais d'annulation saisis manuellement par le staff (FCFA) — indépendant du calcul auto côté client. */
+  cancellationFeeFcfa?: number | null;
 }): Promise<void> {
   const { data: previous } = await supabase
     .from("bookings")
@@ -562,6 +616,9 @@ export async function updateBookingWorkflowStatus(params: {
   if (params.quoteAmountFcfa != null) {
     patch.estimated_price = params.quoteAmountFcfa;
     patch.final_amount_fcfa = params.quoteAmountFcfa;
+  }
+  if (params.cancellationFeeFcfa != null) {
+    patch.cancellation_fee_fcfa = params.cancellationFeeFcfa;
   }
 
   const { error } = await supabase.from("bookings").update(patch).eq("id", params.bookingId);
@@ -865,6 +922,7 @@ export async function getBookingById(id: string): Promise<PlatformBooking | null
     distance_km: r.distance_km == null ? null : Number(r.distance_km),
     created_at: String(r.created_at),
     client: (firstRelation(r.client as PlatformClient | PlatformClient[] | null) as PlatformBooking["client"]) ?? null,
+    partner_contract: null,
     service_order: order
       ? {
           id: String(order.id),

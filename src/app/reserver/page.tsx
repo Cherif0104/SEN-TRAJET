@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -13,12 +13,18 @@ import type { TranslationKey } from "@/i18n";
 import {
   SERVICE_TYPE_LABELS,
   TRIP_MODE_LABELS,
+  VEHICLE_CATEGORY_PRICED_SERVICES,
   computeSentrajetPrice,
   formatFcfa,
   type ServiceType,
   type TripMode,
+  type VehicleCategory,
 } from "@/lib/sentrajetPricing";
+import { VehicleCategorySelector } from "@/components/sentrajet/VehicleCategorySelector";
+import { useVehicleCategoryRates } from "@/hooks/useVehicleCategoryRates";
 import { listBusinessRules, ruleNumber, ruleString } from "@/lib/engines/businessRules";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { reverseGeocode } from "@/lib/geocode";
 import {
   createBookingWaveCheckout,
   createPaymentForBooking,
@@ -41,7 +47,16 @@ const SERVICE_CARDS: { value: ServiceType; title: TranslationKey; hint: Translat
   { value: "transfert_aibd", title: "landing.service.airport", hint: "landing.service.airportDetail" },
   { value: "interurbain", title: "landing.service.travel", hint: "landing.service.travelDetail" },
   { value: "mise_a_disposition", title: "landing.service.hourly", hint: "landing.service.hourlyDetail" },
+  { value: "ceremonie", title: "booking.service.ceremony", hint: "booking.service.ceremonyDetail" },
   { value: "autre", title: "booking.service.other", hint: "booking.service.otherDetail" },
+];
+
+const EVENT_TYPE_OPTIONS = [
+  "Mariage",
+  "Baptême",
+  "Anniversaire",
+  "Cortège / convoi",
+  "Autre événement",
 ];
 
 const PRIMARY_TRIP_MODES: TripMode[] = ["aller_simple", "aller_retour"];
@@ -118,6 +133,7 @@ function ReserverWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { rates: vehicleCategoryRates, flatRateMaxKm } = useVehicleCategoryRates();
   const [discountPercent, setDiscountPercent] = useState(10);
   const [whatsappPhone, setWhatsappPhone] = useState("221788324069");
   const [waveUrl, setWaveUrl] = useState("https://pay.wave.com/m/M_sn_Sc0CT6Qo7LkY/c/sn/");
@@ -153,7 +169,11 @@ function ReserverWizard() {
     } else if (serviceParam || destination || depart) {
       const serviceType =
         serviceParam && SERVICE_TYPE_LABELS[serviceParam] ? serviceParam : "interurbain";
-      const next = emptyDraft({ step: "trajet", serviceType });
+      const next = emptyDraft({
+        step: "trajet",
+        serviceType,
+        vehicleCategory: VEHICLE_CATEGORY_PRICED_SERVICES.includes(serviceType) ? "berline" : null,
+      });
       if (serviceType === "transfert_aibd") {
         next.dropoffPlace = AIBD_PLACE;
         next.dropoff = AIBD_PLACE.address;
@@ -287,6 +307,8 @@ function ReserverWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.pickupPlace?.id, draft.dropoffPlace?.id, draft.pickupPlace?.lat, draft.dropoffPlace?.lat]);
 
+  const usesVehicleCategory = VEHICLE_CATEGORY_PRICED_SERVICES.includes(draft.serviceType);
+
   const quote = useMemo(
     () =>
       computeSentrajetPrice({
@@ -299,6 +321,9 @@ function ReserverWizard() {
         waitingMinutes: draft.waitingMinutes,
         applyAccountDiscount: Boolean(user),
         accountDiscountPercent: discountPercent,
+        vehicleCategory: usesVehicleCategory ? draft.vehicleCategory : null,
+        vehicleCategoryRates,
+        flatRateMaxKm,
       }),
     [
       draft.serviceType,
@@ -309,6 +334,10 @@ function ReserverWizard() {
       draft.waitingMinutes,
       user,
       discountPercent,
+      usesVehicleCategory,
+      draft.vehicleCategory,
+      vehicleCategoryRates,
+      flatRateMaxKm,
     ]
   );
 
@@ -316,6 +345,42 @@ function ReserverWizard() {
     setDraft((d) => ({ ...d, ...p }));
     setError(null);
   }
+
+  // Détection automatique de la position au départ, façon app VTC (Uber/Yango) : pas besoin de
+  // cliquer sur « Ma position » — on tente une fois, en silence, dès l'arrivée sur l'étape trajet
+  // sans départ renseigné. Un refus du navigateur ou une adresse déjà choisie n'affiche aucune
+  // erreur bloquante : l'utilisateur tape simplement son adresse comme avant.
+  const autoGeoAttemptedRef = useRef(false);
+  const { getPosition: getAutoPosition } = useGeolocation({ enableHighAccuracy: false, timeout: 8000 });
+  useEffect(() => {
+    if (!hydrated || draft.step !== "trajet" || draft.pickupPlace || autoGeoAttemptedRef.current) return;
+    autoGeoAttemptedRef.current = true;
+    void (async () => {
+      const res = await getAutoPosition();
+      if (!res.ok) return;
+      const address = await reverseGeocode(res.position.lat, res.position.lng);
+      if (!address) return;
+      setDraft((d) =>
+        d.pickupPlace
+          ? d
+          : {
+              ...d,
+              pickupPlace: {
+                id: `geo:${res.position.lat},${res.position.lng}`,
+                label: "Ma position",
+                address,
+                lat: res.position.lat,
+                lng: res.position.lng,
+                source: "geolocation",
+              },
+              pickup: address,
+              distanceKm: null,
+              distanceSource: null,
+            }
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, draft.step, draft.pickupPlace]);
 
   function go(step: Step) {
     patch({ step });
@@ -408,11 +473,18 @@ function ReserverWizard() {
         draft.notes.trim(),
         `Mode: ${TRIP_MODE_LABELS[draft.tripMode]}`,
         `Valises: ${draft.luggage}`,
+        draft.serviceType === "ceremonie" && draft.eventType ? `Événement: ${draft.eventType}` : "",
+        draft.serviceType === "ceremonie" ? `Véhicules souhaités: ${draft.vehicleCount}` : "",
         draft.distanceKm ? `Km réel: ${draft.distanceKm} (${draft.distanceSource || "route"})` : "",
         draft.pickupPlace ? `Pickup GPS: ${draft.pickupPlace.lat},${draft.pickupPlace.lng}` : "",
         draft.dropoffPlace ? `Dropoff GPS: ${draft.dropoffPlace.lat},${draft.dropoffPlace.lng}` : "",
         quote.formulaApplied,
       ].filter(Boolean);
+
+      const vehiclesNeeded =
+        draft.serviceType === "ceremonie"
+          ? Math.max(quote.vehiclesNeeded, draft.vehicleCount)
+          : quote.vehiclesNeeded;
 
       const booking = await createPlatformBooking({
         clientId,
@@ -429,7 +501,7 @@ function ReserverWizard() {
         phone: draft.phone.trim(),
         flightNumber: draft.flightNumber.trim() || null,
         luggageCount: draft.luggage,
-        vehiclesNeeded: quote.vehiclesNeeded,
+        vehiclesNeeded,
       });
 
       if (user && quote.discountPercent > 0) {
@@ -594,6 +666,7 @@ function ReserverWizard() {
               onClick={() => {
                 const next: Partial<SimulationDraft> = {
                   serviceType: s.value,
+                  vehicleCategory: VEHICLE_CATEGORY_PRICED_SERVICES.includes(s.value) ? "berline" : null,
                   step: "trajet",
                   distanceKm: null,
                   distanceSource: null,
@@ -766,6 +839,40 @@ function ReserverWizard() {
             )}
           </div>
 
+          {draft.serviceType === "ceremonie" ? (
+            <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+              <p className="text-xs font-semibold text-amber-900">
+                Cérémonie &amp; sortie — cotation sur mesure. Précisez vos besoins, SentraJet vous
+                recontacte avec un devis adapté.
+              </p>
+              <div>
+                <label htmlFor="booking-event-type" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                  Type d’événement
+                </label>
+                <select
+                  id="booking-event-type"
+                  className="input-base mt-1.5"
+                  value={draft.eventType}
+                  onChange={(e) => patch({ eventType: e.target.value })}
+                >
+                  <option value="">Sélectionner…</option>
+                  {EVENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Counter
+                label="Nombre de véhicules souhaités"
+                value={draft.vehicleCount}
+                min={1}
+                max={20}
+                onChange={(n) => patch({ vehicleCount: n })}
+              />
+            </div>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Counter label={t("booking.passengers")} value={draft.passengers} min={1} max={40} onChange={(n) => patch({ passengers: n })} />
             <Counter label={t("booking.luggage")} value={draft.luggage} min={0} max={30} onChange={(n) => patch({ luggage: n })} />
@@ -794,6 +901,33 @@ function ReserverWizard() {
 
       {draft.step === "vehicule" ? (
         <div className="space-y-4">
+          {usesVehicleCategory ? (
+            <>
+              <p className="text-sm text-neutral-600">
+                Choisissez la catégorie de véhicule pour votre transfert aéroport. Le tarif affiché
+                est « à partir de » — il inclut {flatRateMaxKm} km ; au-delà, le kilomètre
+                supplémentaire est facturé selon la catégorie.
+              </p>
+              <VehicleCategorySelector
+                value={draft.vehicleCategory ?? "berline"}
+                onChange={(vehicleCategory) => patch({ vehicleCategory })}
+                rates={vehicleCategoryRates}
+                flatRateMaxKm={flatRateMaxKm}
+              />
+            </>
+          ) : draft.serviceType === "ceremonie" ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+              <p className="font-display text-base font-bold text-neutral-900">
+                {draft.vehicleCount} véhicule{draft.vehicleCount > 1 ? "s" : ""} demandé
+                {draft.vehicleCount > 1 ? "s" : ""}
+                {draft.eventType ? ` · ${draft.eventType}` : ""}
+              </p>
+              <p className="mt-2 text-sm text-neutral-600">
+                SentraJet compose le convoi (berlines, SUV, vans) selon vos besoins et vous propose
+                un devis adapté — modifiez le nombre de véhicules à l’étape précédente si besoin.
+              </p>
+            </div>
+          ) : (
           <div className="grid gap-3">
             {VEHICLE_OPTIONS.map((option) => {
               const isSelected = draft.passengers >= option.minPassengers && draft.passengers <= option.maxPassengers;
@@ -843,10 +977,13 @@ function ReserverWizard() {
               );
             })}
           </div>
-          <p className="text-xs text-neutral-500">
-            Le véhicule affiché correspond au nombre de passagers indiqué à l’étape précédente —
-            SentraJet affecte un véhicule réel de sa flotte lors de la confirmation, pas un chauffeur au choix.
-          </p>
+          )}
+          {!usesVehicleCategory && draft.serviceType !== "ceremonie" ? (
+            <p className="text-xs text-neutral-500">
+              Le véhicule affiché correspond au nombre de passagers indiqué à l’étape précédente —
+              SentraJet affecte un véhicule réel de sa flotte lors de la confirmation, pas un chauffeur au choix.
+            </p>
+          ) : null}
           <button
             type="button"
             className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"

@@ -28,9 +28,16 @@ type PremiumShellProps = {
   nav: PremiumNavItem[];
   mobileNav?: PremiumNavItem[];
   children: React.ReactNode;
+  /**
+   * "pro" (défaut) : espaces internes/professionnels (admin, super admin, ops, commercial,
+   * finance, fleet, rh, manager, partenaire, prestataire, chauffeur, propriétaire) — pensés
+   * desktop-first, tout en restant utilisables sur mobile.
+   * "client" : espace Client — pensé mobile-first, colonne unique conservée même en grand écran.
+   */
+  variant?: "pro" | "client";
 };
 
-export function PremiumShell({ title, subtitle, nav, mobileNav, children }: PremiumShellProps) {
+export function PremiumShell({ title, subtitle, nav, mobileNav, children, variant = "pro" }: PremiumShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
@@ -56,7 +63,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
   };
 
   return (
-    <div className="sj-app">
+    <div className={`sj-app sj-app--${variant}`}>
       <aside className="sj-sidebar">
         <div className="sj-brand">
           <Logo variant={resolvedTheme === "dark" ? "light" : "default"} />
@@ -73,16 +80,13 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
           })}
         </nav>
         <div className="sj-side-bottom">
-          <div className="sj-role-pill">
+          <Link href={profileHref} className="sj-role-pill" style={{ display: "block", textDecoration: "none" }}>
             {t("shell.workspace")} : <strong>{title}</strong>
             {subtitle ? <div className="sj-muted" style={{ marginTop: 4 }}>{subtitle}</div> : null}
             {profile?.full_name ? (
               <div className="sj-muted" style={{ marginTop: 6 }}>{profile.full_name}</div>
             ) : null}
-          </div>
-          <button type="button" className="sj-btn" style={{ width: "100%", marginTop: 10 }} onClick={() => void handleSignOut()}>
-            {t("actions.logout")}
-          </button>
+          </Link>
         </div>
       </aside>
 
@@ -100,15 +104,6 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
             <NotificationBell userId={user?.id ?? null} />
             <LanguageMenu />
             <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => void handleSignOut()}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-error)] transition hover:border-[var(--color-error)] hover:bg-[var(--color-surface-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
-              aria-label={t("actions.logout")}
-              title={t("actions.logout")}
-            >
-              <LogOut className="h-4.5 w-4.5" />
-            </button>
             <details className="group relative">
               <summary
                 className="sj-avatar cursor-pointer list-none focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)]"
@@ -227,14 +222,6 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
                   {t("nav.profile")}
                 </Link>
               </div>
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-error)] font-bold text-[var(--color-error)]"
-              >
-                <LogOut className="h-4 w-4" />
-                {t("actions.logout")}
-              </button>
             </div>
           </div>
         ) : null}
@@ -257,13 +244,15 @@ export function SjCard({
   children,
   className = "",
   style,
+  onClick,
 }: {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
 }) {
   return (
-    <div className={`sj-card ${className}`.trim()} style={style}>
+    <div className={`sj-card ${className}`.trim()} style={style} onClick={onClick}>
       {children}
     </div>
   );

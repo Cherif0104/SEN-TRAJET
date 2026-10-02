@@ -7,7 +7,7 @@ import {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "Cache-Control": "no-store",
 };
 
@@ -89,6 +89,14 @@ async function authorize(request: Request, admin: SupabaseClient) {
   return { user };
 }
 
+function isCurrentlyBanned(user: User): boolean {
+  const until = (user as { banned_until?: string | null }).banned_until;
+  if (!until) return false;
+  // GoTrue renvoie une date lointaine ("none" => pas de champ) ; on vérifie qu'elle n'est pas déjà passée.
+  const ts = Date.parse(until);
+  return Number.isFinite(ts) && ts > Date.now();
+}
+
 function publicUser(
   user: User,
   profiles: Map<string, { full_name: string | null; role: string | null }>,
@@ -103,6 +111,7 @@ function publicUser(
     roles: roles.get(user.id) ?? [],
     createdAt: user.created_at,
     lastSignInAt: user.last_sign_in_at ?? null,
+    isDeactivated: isCurrentlyBanned(user),
   };
 }
 
@@ -257,6 +266,38 @@ Deno.serve(async (request) => {
     }
   }
 
+  if (request.method === "PATCH") {
+    // Désactivation/réactivation (ban GoTrue) : alternative sûre à la suppression définitive —
+    // bloque la connexion sans toucher aux données liées (véhicules, contrats, historique CRM…).
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const userId = typeof body.userId === "string" ? body.userId : "";
+    const action = body.action;
+    if (!userId || (action !== "deactivate" && action !== "reactivate")) {
+      return response({ error: "invalid_request" }, 400);
+    }
+    if (userId === authorization.user.id) {
+      return response({ error: "cannot_deactivate_self" }, 400);
+    }
+    if (action === "deactivate") {
+      const { data: roles } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      if (roles?.some((entry) => String(entry.role) === "super_admin")) {
+        return response({ error: "cannot_deactivate_super_admin" }, 400);
+      }
+    }
+    const { data, error } = await admin.auth.admin.updateUserById(userId, {
+      // "876000h" ~ 100 ans : GoTrue n'a pas de valeur "pour toujours", "none" lève le ban.
+      ban_duration: action === "deactivate" ? "876000h" : "none",
+    });
+    if (error || !data.user) {
+      console.error("admin-users updateUserById failed", failureDetail(error));
+      return response({ error: "user_update_failed" }, 500);
+    }
+    return response({ success: true, isDeactivated: isCurrentlyBanned(data.user) });
+  }
+
   if (request.method === "DELETE") {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const userId = typeof body.userId === "string" ? body.userId : "";
@@ -272,9 +313,13 @@ Deno.serve(async (request) => {
       return response({ error: "cannot_delete_super_admin" }, 400);
     }
     const { error } = await admin.auth.admin.deleteUser(userId);
-    return error
-      ? response({ error: "user_deletion_failed" }, 500)
-      : response({ success: true });
+    if (error) {
+      console.error("admin-users deleteUser failed", failureDetail(error));
+      // GoTrue remonte une erreur générique quand une table applicative (ex. vehicle_owners en
+      // RESTRICT) bloque la suppression en cascade — on le signale pour orienter vers "Désactiver".
+      return response({ error: "user_deletion_failed", detail: failureDetail(error) }, 500);
+    }
+    return response({ success: true });
   }
 
   return response({ error: "method_not_allowed" }, 405);

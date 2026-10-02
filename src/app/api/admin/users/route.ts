@@ -59,6 +59,10 @@ export async function POST(request: Request) {
   return proxyToAccountFunction(request);
 }
 
+export async function PATCH(request: Request) {
+  return proxyToAccountFunction(request);
+}
+
 export async function DELETE(request: Request) {
   return proxyToAccountFunction(request);
 }
