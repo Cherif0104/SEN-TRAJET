@@ -274,7 +274,7 @@ export default function AdminAlloDakarPage() {
               : t === "chauffeurs"
                 ? "Chauffeurs"
                 : t === "garages"
-                  ? "Garages"
+                  ? "Antennes"
                   : t === "vehicules"
                     ? "Véhicules"
                     : t === "departs"
@@ -370,7 +370,7 @@ export default function AdminAlloDakarPage() {
                   <input value={ndIdCard} onChange={(e) => setNdIdCard(e.target.value)} />
                 </div>
                 <div className="sj-field">
-                  <label>Garage de rattachement (optionnel)</label>
+                  <label>Antenne de rattachement (optionnel)</label>
                   <select value={ndGarageId} onChange={(e) => setNdGarageId(e.target.value)}>
                     <option value="">Aucun (indépendant)</option>
                     {garages.map((g) => (
@@ -392,7 +392,7 @@ export default function AdminAlloDakarPage() {
                 <div className="sj-between">
                   <div>
                     <b>{d.full_name}</b>
-                    <div className="sj-muted">{d.phone} {d.garage_name ? `· Garage ${d.garage_name}` : ""}</div>
+                    <div className="sj-muted">{d.phone} {d.garage_name ? `· Antenne ${d.garage_name}` : ""}</div>
                   </div>
                   <SjBadge tone={driverStatusTone(d.status)}>{DRIVER_STATUS_LABEL[d.status] ?? d.status}</SjBadge>
                 </div>
@@ -446,13 +446,13 @@ export default function AdminAlloDakarPage() {
         <>
           <SjCard>
             <div className="sj-between">
-              <h3 style={{ margin: 0 }}>Créer un garage</h3>
+              <h3 style={{ margin: 0 }}>Créer une antenne</h3>
               <button type="button" className="sj-btn" onClick={() => setShowNewGarage((v) => !v)}>
-                {showNewGarage ? "Fermer" : "+ Nouveau garage"}
+                {showNewGarage ? "Fermer" : "+ Nouvelle antenne"}
               </button>
             </div>
             <p className="sj-muted" style={{ marginTop: 6 }}>
-              Crée en un seul geste le compte de connexion du gestionnaire et sa fiche garage (activé d’emblée).
+              Crée en un seul geste le compte de connexion du gestionnaire et sa fiche d’antenne (activée d’emblée).
             </p>
             {showNewGarage ? (
               <form onSubmit={handleCreateGarage} className="sj-form-grid" style={{ marginTop: 12 }}>
@@ -470,11 +470,11 @@ export default function AdminAlloDakarPage() {
                   <input value={ngFullName} onChange={(e) => setNgFullName(e.target.value)} required />
                 </div>
                 <div className="sj-field">
-                  <label>Nom du garage</label>
+                  <label>Nom de l’antenne</label>
                   <input value={ngGarageName} onChange={(e) => setNgGarageName(e.target.value)} required />
                 </div>
                 <div className="sj-field">
-                  <label>Téléphone du garage</label>
+                  <label>Téléphone de l’antenne</label>
                   <input value={ngPhone} onChange={(e) => setNgPhone(e.target.value)} placeholder="+221 …" required />
                 </div>
                 <div className="sj-field">
@@ -482,7 +482,7 @@ export default function AdminAlloDakarPage() {
                   <input value={ngCity} onChange={(e) => setNgCity(e.target.value)} placeholder="Kaolack, Thiès…" />
                 </div>
                 <button type="submit" className="sj-btn sj-btn-primary" style={{ alignSelf: "end" }} disabled={creatingGarage}>
-                  {creatingGarage ? "Création…" : "Créer le garage"}
+                  {creatingGarage ? "Création…" : "Créer l’antenne"}
                 </button>
               </form>
             ) : null}
@@ -518,7 +518,7 @@ export default function AdminAlloDakarPage() {
               </SjCard>
             );
           })}
-          {!garages.length ? <SjCard><p className="sj-muted">Aucun garage inscrit pour le moment.</p></SjCard> : null}
+          {!garages.length ? <SjCard><p className="sj-muted">Aucune antenne inscrite pour le moment.</p></SjCard> : null}
           </div>
         </>
       ) : null}

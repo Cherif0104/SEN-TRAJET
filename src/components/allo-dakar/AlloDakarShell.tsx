@@ -33,7 +33,7 @@ export function AlloDakarContextBar() {
             href="/allo-dakar/gestionnaire"
             className="hidden rounded-full border border-emerald-300 px-3 py-1 transition hover:bg-emerald-100 sm:inline-block"
           >
-            Espace garage
+            Espace antenne
           </Link>
         </div>
       </div>

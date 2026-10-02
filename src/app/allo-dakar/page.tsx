@@ -175,7 +175,7 @@ export default function AlloDakarPage() {
                 {new Date(dep.departure_at).toLocaleString("fr-FR")} · {dep.vehicle?.brand} {dep.vehicle?.model} · {dep.seats_available} place{dep.seats_available > 1 ? "s" : ""} restante{dep.seats_available > 1 ? "s" : ""}
               </p>
               <p className="text-xs text-neutral-400">
-                Chauffeur {dep.driver?.full_name}{dep.driver?.garage_name ? ` · Garage ${dep.driver.garage_name}` : ""}
+                Chauffeur {dep.driver?.full_name}{dep.driver?.garage_name ? ` · Antenne ${dep.driver.garage_name}` : ""}
                 {dep.price_domicile_fcfa ? ` · Domicile disponible (${formatFcfa(dep.price_domicile_fcfa)})` : ""}
               </p>
               <button
@@ -265,7 +265,7 @@ export default function AlloDakarPage() {
           </Link>
           {" "}· Vous gérez plusieurs chauffeurs ?{" "}
           <Link href="/allo-dakar/gestionnaire" className="font-semibold text-[#1f6b4a] underline">
-            Ouvrir un espace garage
+            Ouvrir un espace antenne
           </Link>
         </p>
       </div>

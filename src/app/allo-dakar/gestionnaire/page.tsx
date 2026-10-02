@@ -150,15 +150,15 @@ export default function AlloDakarGestionnairePage() {
     return (
       <AlloDakarShell>
         <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
-          <h1 className="text-xl font-bold text-neutral-900">Devenir gestionnaire de garage Allo Dakar</h1>
+          <h1 className="text-xl font-bold text-neutral-900">Devenir gestionnaire d’antenne Allo Dakar</h1>
           <p className="mt-1 text-sm text-neutral-600">
-            Regroupez vos chauffeurs sous un même garage, suivez leurs départs et leurs réservations
+            Regroupez vos chauffeurs sous une même antenne, suivez leurs départs et leurs réservations
             depuis un tableau de bord unique.
           </p>
           <form onSubmit={handleRegister} className="mt-6 space-y-4 rounded-2xl border border-neutral-200 bg-white p-5">
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Nom du garage</label>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">Nom de l’antenne</label>
               <input className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div>
@@ -170,11 +170,11 @@ export default function AlloDakarGestionnairePage() {
               <input className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Kaolack, Thiès…" />
             </div>
             <button type="submit" className="w-full rounded-2xl bg-[#1f6b4a] px-4 py-3 text-sm font-bold text-white">
-              Créer mon garage
+              Créer mon antenne
             </button>
           </form>
           <p className="mt-4 text-xs text-neutral-500">
-            Vous êtes un chauffeur individuel, sans garage ?{" "}
+            Vous êtes un chauffeur individuel, sans antenne ?{" "}
             <a href="/allo-dakar/chauffeur" className="font-semibold text-[#1f6b4a] underline">Rejoignez Allo Dakar directement</a>.
           </p>
         </div>
@@ -196,7 +196,7 @@ export default function AlloDakarGestionnairePage() {
 
         {garage.status === "en_attente" ? (
           <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Votre garage est en cours de vérification par l’équipe SentraJet.
+            Votre antenne est en cours de vérification par l’équipe SentraJet.
           </div>
         ) : null}
 

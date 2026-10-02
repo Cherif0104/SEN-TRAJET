@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   if (!email || !email.includes("@")) return NextResponse.json({ error: "Email invalide." }, { status: 400 });
   if (password.length < 12) return NextResponse.json({ error: "Mot de passe trop court (12 caractères minimum)." }, { status: 400 });
   if (!fullName) return NextResponse.json({ error: "Nom complet requis." }, { status: 400 });
-  if (!garageName) return NextResponse.json({ error: "Nom du garage requis." }, { status: 400 });
+  if (!garageName) return NextResponse.json({ error: "Nom de l’antenne requis." }, { status: 400 });
   if (!phone) return NextResponse.json({ error: "Téléphone requis." }, { status: 400 });
 
   let createdUserId: string | null = null;
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.auth.admin.deleteUser(createdUserId).catch(() => null);
     }
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Impossible de créer le garage." },
+      { error: err instanceof Error ? err.message : "Impossible de créer l’antenne." },
       { status: 500 },
     );
   }

@@ -248,7 +248,7 @@ export default function AlloDakarDriverSpace() {
             <input className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm" value={idCard} onChange={(e) => setIdCard(e.target.value)} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Garage d’attache (optionnel)</label>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Antenne de rattachement (optionnel)</label>
             <input className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm" value={garage} onChange={(e) => setGarage(e.target.value)} />
           </div>
           <button type="submit" className="w-full rounded-2xl bg-[#1f6b4a] px-4 py-3 text-sm font-bold text-white">
