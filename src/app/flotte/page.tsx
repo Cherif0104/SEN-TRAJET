@@ -144,7 +144,7 @@ export default function FlottePage() {
                     key={vehicle.id}
                     className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:shadow-md"
                   >
-                    <div className="relative">
+                    <Link href={`/flotte/${vehicle.id}`} className="relative block">
                       <VehiclePhoto vehicle={vehicle} />
                       <div className="absolute left-3 top-3 flex flex-wrap gap-2">
                         {vehicle.category ? (
@@ -158,16 +158,16 @@ export default function FlottePage() {
                           </span>
                         ) : null}
                       </div>
-                    </div>
+                    </Link>
                     <div className="flex flex-1 flex-col gap-3 p-5">
-                      <div>
-                        <h2 className="font-display text-lg font-bold text-neutral-900">
+                      <Link href={`/flotte/${vehicle.id}`}>
+                        <h2 className="font-display text-lg font-bold text-neutral-900 hover:text-amber-800">
                           {vehicle.brand} {vehicle.model}
                         </h2>
                         {vehicle.tagline ? (
                           <p className="mt-1 text-sm text-neutral-600">{vehicle.tagline}</p>
                         ) : null}
-                      </div>
+                      </Link>
 
                       <div className="flex flex-wrap gap-3 text-xs font-semibold text-neutral-700">
                         {vehicle.seats ? (
