@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -23,6 +23,8 @@ import {
 import { VehicleCategorySelector } from "@/components/sentrajet/VehicleCategorySelector";
 import { useVehicleCategoryRates } from "@/hooks/useVehicleCategoryRates";
 import { listBusinessRules, ruleNumber, ruleString } from "@/lib/engines/businessRules";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { reverseGeocode } from "@/lib/geocode";
 import {
   createBookingWaveCheckout,
   createPaymentForBooking,
@@ -343,6 +345,42 @@ function ReserverWizard() {
     setDraft((d) => ({ ...d, ...p }));
     setError(null);
   }
+
+  // Détection automatique de la position au départ, façon app VTC (Uber/Yango) : pas besoin de
+  // cliquer sur « Ma position » — on tente une fois, en silence, dès l'arrivée sur l'étape trajet
+  // sans départ renseigné. Un refus du navigateur ou une adresse déjà choisie n'affiche aucune
+  // erreur bloquante : l'utilisateur tape simplement son adresse comme avant.
+  const autoGeoAttemptedRef = useRef(false);
+  const { getPosition: getAutoPosition } = useGeolocation({ enableHighAccuracy: false, timeout: 8000 });
+  useEffect(() => {
+    if (!hydrated || draft.step !== "trajet" || draft.pickupPlace || autoGeoAttemptedRef.current) return;
+    autoGeoAttemptedRef.current = true;
+    void (async () => {
+      const res = await getAutoPosition();
+      if (!res.ok) return;
+      const address = await reverseGeocode(res.position.lat, res.position.lng);
+      if (!address) return;
+      setDraft((d) =>
+        d.pickupPlace
+          ? d
+          : {
+              ...d,
+              pickupPlace: {
+                id: `geo:${res.position.lat},${res.position.lng}`,
+                label: "Ma position",
+                address,
+                lat: res.position.lat,
+                lng: res.position.lng,
+                source: "geolocation",
+              },
+              pickup: address,
+              distanceKm: null,
+              distanceSource: null,
+            }
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, draft.step, draft.pickupPlace]);
 
   function go(step: Step) {
     patch({ step });
