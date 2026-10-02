@@ -141,10 +141,9 @@ export default function ComptePage() {
 
       <p className="sj-muted" style={{ marginTop: 24, fontSize: 12, textAlign: "center" }}>
         Besoin d&apos;un trajet interurbain économique et partagé ?{" "}
-        <a href="/allo-dakar" target="_blank" rel="noreferrer" style={{ color: "var(--sj-muted)", textDecoration: "underline" }}>
-          Découvrir SentraJet Allo Dakar
-        </a>{" "}
-        — offre indépendante, hors flotte Premium.
+        <a href="/allo-dakar" style={{ color: "var(--sj-muted)", textDecoration: "underline" }}>
+          Découvrir le covoiturage SentraJet Allo Dakar
+        </a>
       </p>
     </>
   );

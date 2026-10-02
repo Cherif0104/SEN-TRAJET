@@ -2,63 +2,52 @@
 
 import Link from "next/link";
 import { Car } from "lucide-react";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 /**
- * Habillage visuel dédié à SentraJet Allo Dakar — volontairement distinct de SentraJet Premium
- * (pas de logo, pas de palette navy/or, pas de navigation vers l'espace Premium) : Allo Dakar est
- * une offre à part, même si elle partage l'infrastructure technique (paiement, notifications).
+ * SentraJet Allo Dakar est une rubrique de la plateforme, pas une application à part : même
+ * Header/Footer, même identité visuelle que le reste du site (une seule app, un seul design
+ * system). Un simple bandeau de contexte (vert, cohérent avec la tuile « Allo Dakar » de
+ * l'accueil) rappelle que ce service fonctionne avec des chauffeurs partenaires indépendants et
+ * sa propre tarification — sans jamais ressembler à un site différent.
  */
-export function AlloDakarHeader() {
+export function AlloDakarContextBar() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#1f6b4a]/20 bg-gradient-to-r from-[#1f6b4a] to-[#2f8f63] text-white">
-      <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4 sm:px-6">
-        <Link href="/allo-dakar" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-white/15">
-            <Car className="h-4 w-4" />
+    <div className="border-b border-emerald-200 bg-emerald-50">
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 px-4 py-2.5 sm:px-6">
+        <Link href="/allo-dakar" className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+            <Car className="h-3.5 w-3.5" />
           </span>
-          <span>
-            <span className="block text-sm font-extrabold leading-tight">Allo Dakar</span>
-            <span className="block text-[10px] font-medium leading-tight text-white/70">by SentraJet</span>
-          </span>
+          Covoiturage interurbain · Allo Dakar
         </Link>
-        <div className="flex items-center gap-2">
-          <Link href="/allo-dakar/chauffeur" className="rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold hover:bg-white/10">
-            Chauffeur
+        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
+          <Link
+            href="/allo-dakar/chauffeur"
+            className="rounded-full border border-emerald-300 px-3 py-1 transition hover:bg-emerald-100"
+          >
+            Devenir chauffeur
           </Link>
-          <Link href="/allo-dakar/gestionnaire" className="hidden rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold hover:bg-white/10 sm:inline-block">
-            Gestionnaire de garage
+          <Link
+            href="/allo-dakar/gestionnaire"
+            className="hidden rounded-full border border-emerald-300 px-3 py-1 transition hover:bg-emerald-100 sm:inline-block"
+          >
+            Espace garage
           </Link>
         </div>
       </div>
-    </header>
-  );
-}
-
-export function AlloDakarFooter() {
-  return (
-    <footer className="border-t border-neutral-200 bg-white">
-      <div className="mx-auto max-w-2xl px-4 py-8 text-center sm:px-6">
-        <p className="text-xs text-neutral-500">
-          Allo Dakar est une offre de transport interurbain partagé, opérée par des chauffeurs partenaires
-          indépendants et supervisée par SentraJet.
-        </p>
-        <p className="mt-2 text-xs text-neutral-400">
-          Besoin d’un transfert privé, d’une mise à disposition ou d’un chauffeur dédié ?{" "}
-          <Link href="/" className="font-semibold text-[#1f6b4a] underline">
-            Découvrez SentraJet Premium
-          </Link>
-        </p>
-      </div>
-    </footer>
+    </div>
   );
 }
 
 export function AlloDakarShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
-      <AlloDakarHeader />
+      <Header />
+      <AlloDakarContextBar />
       <main className="flex-1">{children}</main>
-      <AlloDakarFooter />
+      <Footer />
     </div>
   );
 }

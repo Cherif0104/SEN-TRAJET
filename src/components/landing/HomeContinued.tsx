@@ -56,10 +56,10 @@ function useServiceTiles() {
 
 const alloDakarCard = {
   icon: Users2,
-  title: "SentraJet Allo Dakar",
-  text: "Trajets interurbains partagés, chauffeurs partenaires indépendants vérifiés — l'offre économique au départ de Dakar.",
+  title: "Allo Dakar — Covoiturage",
+  text: "Trajets interurbains partagés avec des chauffeurs partenaires vérifiés — l'option économique au départ de Dakar.",
   href: "/allo-dakar",
-  badge: "Offre indépendante",
+  badge: "Covoiturage",
 };
 
 const steps = [
