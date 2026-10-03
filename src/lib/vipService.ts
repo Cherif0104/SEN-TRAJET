@@ -35,6 +35,41 @@ export type VipBookingResult = {
   paymentStatus: string;
 };
 
+export type VipFleetRecommendation = {
+  passengers: number;
+  durationHours: number;
+  ownedFleet: Array<{ vehicleId: string; label: string; seats: number }>;
+  ownedVehiclesCount: number;
+  ownedSeatsAvailable: number;
+  additionalPassengersToCover: number;
+  externalPlan: {
+    type: string;
+    units: number;
+    nominalSeats?: number | null;
+    buses?: number;
+    minivans?: number;
+  };
+};
+
+export type VipQuoteRequest = {
+  id: string;
+  reference: string;
+  requester_type: string;
+  organization_name: string | null;
+  contact_phone: string;
+  pickup_location: string;
+  starts_at: string;
+  ends_at: string;
+  passengers: number;
+  vehicle_preference: string;
+  event_type: string | null;
+  fleet_recommendation: VipFleetRecommendation;
+  notes: string | null;
+  status: string;
+  quoted_amount_fcfa: number | null;
+  created_at: string;
+};
+
 export function vipPrice(offer: VipVehicleOffer, duration: VipDuration): number {
   return duration === 4
     ? offer.price4hFcfa
@@ -107,4 +142,48 @@ export async function startVipPayment(paymentId: string): Promise<{ simulation: 
     { method: "POST", body: JSON.stringify({ paymentId }) },
   );
   return { simulation: payload.simulation, checkoutUrl: payload.checkout_url };
+}
+
+export async function createVipQuote(input: {
+  requesterType: "particulier" | "conciergerie" | "hotel" | "entreprise" | "evenement";
+  organizationName?: string;
+  contactPhone: string;
+  pickupLocation: string;
+  startsAt: string;
+  endsAt: string;
+  passengers: number;
+  vehiclePreference: "optimal" | "minivans" | "bus" | "mixte";
+  eventType?: string;
+  notes?: string;
+}): Promise<{
+  quote: { id: string; reference: string; status: string };
+  recommendation: VipFleetRecommendation;
+}> {
+  return authFetch("/api/vip/quotes", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function listVipQuoteRequests(): Promise<VipQuoteRequest[]> {
+  const { data, error } = await supabase
+    .from("vip_quote_requests")
+    .select("*")
+    .in("status", ["nouvelle", "en_etude", "devis_envoye", "acceptee"])
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as VipQuoteRequest[];
+}
+
+export async function updateVipQuoteRequest(
+  id: string,
+  input: { status: string; quotedAmountFcfa?: number | null },
+): Promise<void> {
+  const patch: Record<string, unknown> = { status: input.status };
+  if (input.quotedAmountFcfa != null) {
+    patch.quoted_amount_fcfa = input.quotedAmountFcfa;
+    patch.quoted_at = new Date().toISOString();
+  }
+  const { error } = await supabase.from("vip_quote_requests").update(patch).eq("id", id);
+  if (error) throw error;
 }

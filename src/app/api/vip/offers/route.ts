@@ -35,11 +35,11 @@ export async function GET(request: NextRequest) {
       admin.from("vip_vehicle_offers").select(`
         id, vehicle_id, price_4h_fcfa, price_8h_fcfa, price_12h_fcfa,
         included_km_4h, included_km_8h, included_km_12h, extra_km_rate_fcfa,
-        vehicle:vehicles(
+        vehicle:vehicles!inner(
           id, brand, model, category, seats, color, photo_url, photo_urls,
-          tagline, luggage_capacity, is_verified, status
+          tagline, luggage_capacity, is_verified, status, fleet_source
         )
-      `).eq("status", "active"),
+      `).eq("status", "active").eq("vehicle.fleet_source", "owned"),
       admin
         .from("bookings")
         .select("requested_vehicle_id")

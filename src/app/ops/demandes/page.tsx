@@ -10,6 +10,11 @@ import {
   type PlatformBooking,
 } from "@/lib/platformOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
+import {
+  listVipQuoteRequests,
+  updateVipQuoteRequest,
+  type VipQuoteRequest,
+} from "@/lib/vipService";
 
 const PENDING_STATUSES = [
   "demande_recue",
@@ -23,7 +28,10 @@ const PENDING_STATUSES = [
 
 export default function OpsDemandesPage() {
   const [rows, setRows] = useState<PlatformBooking[]>([]);
+  const [vipRows, setVipRows] = useState<VipQuoteRequest[]>([]);
   const [selected, setSelected] = useState<PlatformBooking | null>(null);
+  const [selectedVip, setSelectedVip] = useState<VipQuoteRequest | null>(null);
+  const [vipQuoteAmount, setVipQuoteAmount] = useState("");
   const [quoteAmount, setQuoteAmount] = useState("");
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -31,12 +39,13 @@ export default function OpsDemandesPage() {
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(async () => {
-    const all = await listPlatformBookings();
+    const [all, vip] = await Promise.all([listPlatformBookings(), listVipQuoteRequests()]);
     setRows(
       all
         .filter((b) => PENDING_STATUSES.includes(b.status))
         .sort((a, b) => new Date(a.pickup_time).getTime() - new Date(b.pickup_time).getTime())
     );
+    setVipRows(vip);
   }, []);
 
   useEffect(() => {
@@ -67,6 +76,27 @@ export default function OpsDemandesPage() {
     }
   }
 
+  async function runVip(status: string) {
+    if (!selectedVip) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const amount = vipQuoteAmount.trim() ? Number(vipQuoteAmount) : null;
+      await updateVipQuoteRequest(selectedVip.id, {
+        status,
+        quotedAmountFcfa: amount != null && Number.isFinite(amount) ? amount : null,
+      });
+      setMessage(`Devis VIP ${selectedVip.reference} mis à jour.`);
+      setSelectedVip(null);
+      setVipQuoteAmount("");
+      await reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Mise à jour impossible");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
       <SjSectionHead eyebrow="Opérations" title="Demandes à traiter" />
@@ -76,6 +106,54 @@ export default function OpsDemandesPage() {
 
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
       {message ? <p style={{ color: "#6de0b0" }}>{message}</p> : null}
+
+      <SjSectionHead eyebrow="VIP & groupes" title="Offres spéciales à chiffrer" />
+      <div className="sj-list" style={{ marginBottom: 24 }}>
+        {vipRows.map((request) => (
+          <SjCard key={request.id}>
+            <div className="sj-between">
+              <div>
+                <b>{request.reference} · {request.organization_name || request.requester_type}</b>
+                <div className="sj-muted">
+                  {request.passengers} passagers · {new Date(request.starts_at).toLocaleDateString("fr-FR")} → {new Date(request.ends_at).toLocaleDateString("fr-FR")}
+                </div>
+                <div className="sj-muted">
+                  {request.pickup_location} · préférence {request.vehicle_preference}
+                </div>
+                <div className="sj-gold" style={{ marginTop: 6 }}>
+                  {request.fleet_recommendation.ownedVehiclesCount} véhicules internes / {request.fleet_recommendation.externalPlan.units} renforts estimés
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <SjBadge>{request.status.replaceAll("_", " ")}</SjBadge>
+                <button type="button" className="sj-btn sj-btn-primary" style={{ marginTop: 8 }} onClick={() => setSelectedVip(request)}>
+                  Chiffrer
+                </button>
+              </div>
+            </div>
+          </SjCard>
+        ))}
+        {!vipRows.length ? <SjCard><p className="sj-muted">Aucune offre spéciale VIP en attente.</p></SjCard> : null}
+      </div>
+
+      {selectedVip ? (
+        <SjCard style={{ marginBottom: 24 }}>
+          <h3>{selectedVip.reference} · {selectedVip.passengers} passagers</h3>
+          <p className="sj-muted">
+            Capacité interne : {selectedVip.fleet_recommendation.ownedSeatsAvailable} places · reste à couvrir : {selectedVip.fleet_recommendation.additionalPassengersToCover}
+          </p>
+          <div className="sj-field" style={{ marginTop: 12 }}>
+            <label>Montant du devis final (FCFA)</label>
+            <input type="number" value={vipQuoteAmount} onChange={(event) => setVipQuoteAmount(event.target.value)} placeholder="Ex. 850000" />
+          </div>
+          <div className="sj-toolbar" style={{ marginTop: 14, justifyContent: "flex-start" }}>
+            <button type="button" className="sj-btn" disabled={saving} onClick={() => void runVip("en_etude")}>Mettre en étude</button>
+            <button type="button" className="sj-btn sj-btn-primary" disabled={saving || !vipQuoteAmount} onClick={() => void runVip("devis_envoye")}>Envoyer le devis</button>
+            <button type="button" className="sj-btn" disabled={saving} onClick={() => void runVip("refusee")}>Refuser</button>
+            <button type="button" className="sj-btn" onClick={() => setSelectedVip(null)}>Fermer</button>
+          </div>
+        </SjCard>
+      ) : null}
 
       <div className="sj-list">
         {rows.map((b) => (
