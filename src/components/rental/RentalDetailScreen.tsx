@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -54,6 +55,8 @@ export function RentalDetailScreen() {
     void getRentalListing(id, startDate, endDate)
       .then(setListing)
       .catch(() => undefined);
+    // `listing` n'est qu'une garde ; l'ajouter relancerait l'effet après chaque réponse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endDate, id, startDate]); // vérification dynamique des dates
 
   const photos = useMemo(() => {

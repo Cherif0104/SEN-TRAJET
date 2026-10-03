@@ -29,12 +29,20 @@ export async function POST(request: NextRequest) {
 
     const { data: booking, error } = await admin
       .from("rental_bookings")
-      .select("id, client_id, total_fcfa, payment_status")
+      .select("id, client_id, total_fcfa, status, payment_status, expires_at")
       .eq("id", body.bookingId)
       .eq("client_id", user.id)
       .maybeSingle();
     if (error || !booking) {
       return NextResponse.json({ error: "Réservation introuvable." }, { status: 404 });
+    }
+    if (
+      booking.status === "expired" ||
+      (booking.status === "pending_payment" &&
+        new Date(booking.expires_at as string).getTime() < Date.now())
+    ) {
+      await admin.from("rental_bookings").update({ status: "expired" }).eq("id", booking.id);
+      return NextResponse.json({ error: "Le blocage du véhicule a expiré. Relancez la réservation." }, { status: 409 });
     }
     if (!["pending", "failed"].includes(booking.payment_status)) {
       return NextResponse.json({ error: "Cette réservation n’est plus en attente de paiement." }, { status: 409 });

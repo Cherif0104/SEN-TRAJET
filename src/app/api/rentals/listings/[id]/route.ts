@@ -11,6 +11,11 @@ export async function GET(
 ) {
   try {
     const admin = getSupabaseAdmin();
+    await admin
+      .from("rental_bookings")
+      .update({ status: "expired" })
+      .eq("status", "pending_payment")
+      .lt("expires_at", new Date().toISOString());
     const { data: row, error } = await admin
       .from("rental_listings")
       .select(RENTAL_LISTING_SELECT)

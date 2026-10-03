@@ -23,6 +23,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const admin = getSupabaseAdmin();
+    await admin
+      .from("rental_bookings")
+      .update({ status: "expired" })
+      .eq("status", "pending_payment")
+      .lt("expires_at", new Date().toISOString());
     const [{ data: rows, error }, { data: conflicts, error: conflictError }] = await Promise.all([
       admin.from("rental_listings").select(RENTAL_LISTING_SELECT).eq("status", "active"),
       admin

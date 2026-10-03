@@ -1,7 +1,7 @@
 -- Location transactionnelle SentraJet.
 -- `vehicles` reste la flotte d'exploitation ; `rental_listings` est le catalogue louable.
 
-create extension if not exists btree_gist;
+create extension if not exists btree_gist with schema extensions;
 
 create table if not exists public.rental_listings (
   id uuid primary key default gen_random_uuid(),
@@ -55,6 +55,7 @@ create table if not exists public.rental_bookings (
   notes text,
   cancellation_reason text,
   paid_at timestamptz,
+  expires_at timestamptz not null default (now() + interval '15 minutes'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint rental_bookings_dates_check check (end_date >= start_date),
@@ -113,6 +114,7 @@ begin
   new.total_fcfa := new.subtotal_fcfa + new.deposit_fcfa;
   new.status := 'pending_payment';
   new.payment_status := 'pending';
+  new.expires_at := now() + interval '15 minutes';
   return new;
 end;
 $$;
