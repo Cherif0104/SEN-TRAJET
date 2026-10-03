@@ -36,6 +36,7 @@ export function InstallAppPrompt() {
     "/chauffeur",
     "/partenaire",
     "/proprietaire",
+    "/reserver",
   ].some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
