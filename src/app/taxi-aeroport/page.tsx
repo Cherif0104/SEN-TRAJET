@@ -25,6 +25,7 @@ import {
   VEHICLE_CATEGORY_SEATS,
   type VehicleCategory,
 } from "@/lib/sentrajetPricing";
+import { supabase } from "@/lib/supabase";
 
 const AIBD: SelectedPlace = {
   id: "sentrajet:aibd",
@@ -202,9 +203,19 @@ export function InstantRidePage({
     setSubmitting(true);
     setError(null);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
       const response = await fetch("/api/bookings/instant", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           pickup,
           dropoff,

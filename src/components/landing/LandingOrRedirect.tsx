@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { ClientAppHome } from "@/components/landing/ClientAppHome";
+import { PublicLanding } from "@/components/landing/PublicLanding";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { workspaceForRole } from "@/lib/rbac";
 
@@ -22,5 +22,5 @@ export function LandingOrRedirect() {
 
   if (user) return <BrandedLoader fullScreen />;
 
-  return <ClientAppHome />;
+  return <PublicLanding />;
 }

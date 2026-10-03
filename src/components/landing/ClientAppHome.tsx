@@ -28,6 +28,7 @@ import {
   AddressAutocomplete,
   type SelectedPlace,
 } from "@/components/booking/AddressAutocomplete";
+import { useAuth } from "@/hooks/useAuth";
 
 const LOCATION_PRIMER_KEY = "sentrajet_location_primer_v1";
 
@@ -97,6 +98,7 @@ const suggestions = [
 
 export function ClientAppHome() {
   const router = useRouter();
+  const { profile, signOut } = useAuth();
   const { position, error: locationError, loading: locating, getPosition } = useGeolocation({
     enableHighAccuracy: false,
     timeout: 8_000,
@@ -194,7 +196,9 @@ export function ClientAppHome() {
           <div className="px-4 pb-8 pt-5 sm:px-6">
             <div className="mb-5 flex items-end justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-amber-700">Bonjour 👋</p>
+                <p className="text-sm font-semibold text-amber-700">
+                  Bonjour{profile?.full_name ? ` ${profile.full_name.split(" ")[0]}` : ""} 👋
+                </p>
                 <h1 className="mt-1 text-[1.75rem] font-extrabold leading-tight tracking-tight">
                   Où souhaitez-vous aller ?
                 </h1>
@@ -337,10 +341,10 @@ export function ClientAppHome() {
 
           <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid h-[74px] max-w-[720px] grid-cols-4 border-t border-slate-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:static lg:mt-4 lg:border lg:border-slate-200 lg:rounded-2xl lg:max-w-[calc(100%-48px)]">
             {[
-              { label: "Accueil", href: "/", icon: Home, active: true },
+              { label: "Accueil", href: "/compte", icon: Home, active: true },
               { label: "Réserver", href: "/course", icon: Navigation },
-              { label: "Mes trajets", href: "/connexion?next=/compte/reservations", icon: CalendarDays },
-              { label: "Profil", href: "/connexion", icon: UserRound },
+              { label: "Mes trajets", href: "/compte/reservations", icon: CalendarDays },
+              { label: "Profil", href: "/compte/profil", icon: UserRound },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -407,8 +411,15 @@ export function ClientAppHome() {
               <Link href="/reserver" className="rounded-2xl bg-amber-400 px-4 py-3.5">Réserver un trajet</Link>
               <Link href="/flotte" className="rounded-2xl bg-slate-100 px-4 py-3.5">Louer une voiture</Link>
               <Link href="/allo-dakar" className="rounded-2xl bg-emerald-50 px-4 py-3.5 text-emerald-800">Allo Dakar</Link>
-              <Link href="/connexion" className="rounded-2xl px-4 py-3.5">Se connecter</Link>
-              <Link href="/inscription" className="rounded-2xl px-4 py-3.5">Créer un compte</Link>
+              <Link href="/compte/reservations" className="rounded-2xl px-4 py-3.5">Mes réservations</Link>
+              <Link href="/compte/profil" className="rounded-2xl px-4 py-3.5">Mon profil</Link>
+              <button
+                type="button"
+                onClick={() => void signOut().then(() => window.location.replace("/"))}
+                className="rounded-2xl px-4 py-3.5 text-left text-red-700"
+              >
+                Se déconnecter
+              </button>
               <Link href="/faq" className="rounded-2xl px-4 py-3.5">Aide et assistance</Link>
             </nav>
             <p className="mt-auto rounded-2xl bg-slate-100 p-4 text-xs leading-relaxed text-slate-500">

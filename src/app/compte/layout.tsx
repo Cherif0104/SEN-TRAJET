@@ -40,6 +40,8 @@ export default function CompteLayout({ children }: { children: React.ReactNode }
   if (!profile) return <ProfileAccessRecovery />;
   if (profile.role !== "client") return <BrandedLoader fullScreen />;
 
+  if (pathname === "/compte") return <>{children}</>;
+
   return (
     <PremiumShell title={t("shell.clientTitle")} subtitle={t("shell.clientSubtitle")} nav={nav} variant="client">
       {children}

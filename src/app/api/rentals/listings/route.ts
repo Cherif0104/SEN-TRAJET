@@ -23,6 +23,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const admin = getSupabaseAdmin();
+    const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    const { data: authData } = bearer
+      ? await admin.auth.getUser(bearer)
+      : { data: { user: null } };
+    if (!authData.user) {
+      return NextResponse.json({ error: "Connectez-vous pour consulter les véhicules." }, { status: 401 });
+    }
     await admin
       .from("rental_bookings")
       .update({ status: "expired" })

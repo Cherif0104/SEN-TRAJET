@@ -10,6 +10,20 @@ import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
 import { workspaceForRole } from "@/lib/rbac";
 
 const MINIMUM_SPLASH_DISPLAY_MS = 1_000;
+const CLIENT_SERVICE_PREFIXES = [
+  "/course",
+  "/taxi-aeroport",
+  "/flotte",
+  "/reserver",
+  "/allo-dakar",
+  "/destinations",
+];
+
+function requiresClientAccount(pathname: string): boolean {
+  return CLIENT_SERVICE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
 
 function requestedInternalDestination(): string | null {
   const candidate = new URLSearchParams(window.location.search).get("next");
@@ -37,6 +51,12 @@ function BootstrapGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!minimumDisplayElapsed || !preferencesReady || authLoading) return;
+
+    if (!user && requiresClientAccount(pathname)) {
+      const requested = `${pathname}${window.location.search}`;
+      window.location.replace(`/connexion?next=${encodeURIComponent(requested)}`);
+      return;
+    }
 
     if (user && profile && (pathname === "/" || pathname === "/connexion")) {
       const destination =
