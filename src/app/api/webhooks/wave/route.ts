@@ -114,6 +114,31 @@ export async function POST(request: NextRequest) {
   const status = body.payment_status ?? body.checkout_status ?? "";
   const succeeded = status === "succeeded" || status === "complete";
 
+  if (ref.startsWith("rental:")) {
+    const rentalBookingId = ref.slice("rental:".length);
+    const { data: booking } = await supabaseAdmin
+      .from("rental_bookings")
+      .select("id, payment_status")
+      .eq("id", rentalBookingId)
+      .maybeSingle();
+    if (!booking || !["pending", "initiated"].includes(booking.payment_status)) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+    await supabaseAdmin
+      .from("rental_bookings")
+      .update(
+        succeeded
+          ? {
+              payment_status: "paid",
+              status: "confirmed",
+              paid_at: new Date().toISOString(),
+            }
+          : { payment_status: "failed" },
+      )
+      .eq("id", booking.id);
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
   if (ref.startsWith("alloDakar:")) {
     const alloDakarBookingId = ref.slice("alloDakar:".length);
     const { data: booking, error: bookingErr } = await supabaseAdmin

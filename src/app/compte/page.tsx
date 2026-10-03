@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plane, Route, Clock, CalendarCheck, Heart } from "lucide-react";
+import { Plane, Route, Clock, CalendarCheck, Heart, Car } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -35,6 +35,13 @@ const SERVICE_TILES = [
     title: "Mise à disposition",
     subtitle: "Chauffeur à l’heure ou à la journée",
     background: "linear-gradient(135deg, #3a2a12, #8a6a1f)",
+  },
+  {
+    href: "/flotte",
+    icon: Car,
+    title: "Louer une voiture",
+    subtitle: "Disponibilités et prix en direct",
+    background: "linear-gradient(135deg, #17263d, #b88a1d)",
   },
   {
     href: "/compte/reservations",

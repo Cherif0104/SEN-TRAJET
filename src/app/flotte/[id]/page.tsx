@@ -23,12 +23,13 @@ import {
   type PublicCatalogVehicle,
 } from "@/lib/vehicleCatalogPublic";
 import { listBusinessRules, ruleString } from "@/lib/engines/businessRules";
+import { RentalDetailScreen } from "@/components/rental/RentalDetailScreen";
 
 function capitalize(label: string): string {
   return label.length ? label[0].toUpperCase() + label.slice(1) : label;
 }
 
-export default function VehicleDetailPage() {
+export function LegacyVehicleDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [vehicle, setVehicle] = useState<PublicCatalogVehicle | null>(null);
@@ -274,3 +275,5 @@ export default function VehicleDetailPage() {
     </div>
   );
 }
+
+export default RentalDetailScreen;
