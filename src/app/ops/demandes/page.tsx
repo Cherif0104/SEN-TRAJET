@@ -125,7 +125,9 @@ export default function OpsDemandesPage() {
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <SjBadge>{request.status.replaceAll("_", " ")}</SjBadge>
+                <SjBadge tone={request.status === "acceptee" ? "success" : request.status === "devis_envoye" ? "info" : "warning"}>
+                  {request.status.replaceAll("_", " ")}
+                </SjBadge>
                 <button type="button" className="sj-btn sj-btn-primary" style={{ marginTop: 8 }} onClick={() => setSelectedVip(request)}>
                   Chiffrer
                 </button>
