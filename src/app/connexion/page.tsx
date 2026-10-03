@@ -50,6 +50,7 @@ function isAllowedNext(path: string): boolean {
     "/admin",
     "/dashboard",
     "/reserver",
+    "/vip",
     "/course",
     "/taxi-aeroport",
     "/flotte",

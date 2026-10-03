@@ -66,7 +66,7 @@ const services = [
   {
     title: "Premium",
     detail: "Chauffeur à disposition",
-    href: "/reserver?service=mise_a_disposition",
+    href: "/vip",
     icon: Sparkles,
     image: "/images/hero-sen-trajet.png",
     imagePosition: "20% center",
@@ -91,7 +91,7 @@ const suggestions = [
   {
     title: "Une journée avec chauffeur",
     detail: "8 h à Dakar · dès 50 000 F",
-    href: "/reserver?service=mise_a_disposition",
+    href: "/vip",
     icon: Clock3,
   },
 ];

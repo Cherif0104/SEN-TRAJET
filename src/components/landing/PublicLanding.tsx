@@ -10,6 +10,7 @@ const services = [
   { title: "Course en ville", detail: "Un chauffeur proche, en temps réel", href: "/course", icon: CarFront },
   { title: "Taxi AIBD", detail: "Transferts aéroport immédiats", href: "/taxi-aeroport", icon: Plane },
   { title: "Louer une voiture", detail: "Véhicules et disponibilités réelles", href: "/flotte", icon: Sparkles },
+  { title: "Chauffeur VIP", detail: "Mise à disposition 4 h, 8 h ou 12 h", href: "/vip", icon: ShieldCheck },
   { title: "Allo Dakar", detail: "Départs interurbains vérifiés", href: "/allo-dakar", icon: UsersRound },
 ] as const;
 
@@ -73,7 +74,7 @@ export function PublicLanding() {
                 key={title}
                 href={loginHref(href)}
                 className={`group flex min-h-40 items-end justify-between overflow-hidden rounded-3xl p-5 text-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${
-                  index === 3 ? "bg-emerald-900" : index === 2 ? "bg-gradient-to-br from-[#514016] to-[#07111f]" : "bg-[#0e1f36]"
+                  href === "/allo-dakar" ? "bg-emerald-900" : index >= 2 ? "bg-gradient-to-br from-[#514016] to-[#07111f]" : "bg-[#0e1f36]"
                 }`}
               >
                 <div>
