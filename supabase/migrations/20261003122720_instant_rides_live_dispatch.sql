@@ -180,8 +180,10 @@ begin
     raise exception 'valid_position_required';
   end if;
 
-  if not coalesce(p_available_services, array[]::text[])
-    <@ array['taxi_aeroport', 'premium', 'allo_dakar']::text[] then
+  if not (
+    coalesce(p_available_services, array[]::text[])
+    <@ array['taxi_aeroport', 'premium', 'allo_dakar']::text[]
+  ) then
     raise exception 'invalid_service';
   end if;
 
@@ -384,7 +386,7 @@ begin
   limit 1;
 
   if v_order_id is null then
-    v_order_number := 'SO-' || right(extract(epoch from clock_timestamp())::bigint::text, 8);
+    v_order_number := 'SO-' || upper(left(replace(p_booking_id::text, '-', ''), 12));
     insert into public.service_orders (booking_id, order_number, status)
     values (p_booking_id, v_order_number, 'assigned')
     returning id into v_order_id;
