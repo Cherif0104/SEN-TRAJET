@@ -6,80 +6,128 @@ import {
   ArrowRight,
   CalendarDays,
   CarFront,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  LocateFixed,
   MapPin,
+  Minus,
+  Plus,
+  Radar,
+  RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   UsersRound,
+  X,
 } from "lucide-react";
 import { AlloDakarShell } from "@/components/allo-dakar/AlloDakarShell";
-import { formatFcfa } from "@/lib/sentrajetPricing";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
   bookAlloDakarSeats,
   createAlloDakarRideRequest,
   createAlloDakarWaveCheckout,
   listAlloDakarCorridors,
-  listOpenAlloDakarRideRequests,
   searchAlloDakarDepartures,
   type AlloDakarCorridor,
   type AlloDakarDeparture,
   type AlloDakarPickupMode,
-  type AlloDakarRideRequest,
 } from "@/lib/alloDakarOps";
+import { formatFcfa } from "@/lib/sentrajetPricing";
 import { supabase } from "@/lib/supabase";
+
+type TravelMode = "maintenant" | "planifier";
+type SheetStep = "options" | "contact";
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+function departureTime(value: string) {
+  return new Date(value).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function departureDay(value: string) {
+  return new Date(value).toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
 
 export default function AlloDakarPage() {
   const [corridors, setCorridors] = useState<AlloDakarCorridor[]>([]);
+  const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
-  const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
-  const [rideRequests, setRideRequests] = useState<AlloDakarRideRequest[]>([]);
+  const [travelMode, setTravelMode] = useState<TravelMode>("maintenant");
+  const [travelDate, setTravelDate] = useState(today());
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [selected, setSelected] = useState<AlloDakarDeparture | null>(null);
-
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [sheetStep, setSheetStep] = useState<SheetStep>("options");
   const [seats, setSeats] = useState(1);
   const [pickupMode, setPickupMode] = useState<AlloDakarPickupMode>("point_relais");
   const [pickupDetail, setPickupDetail] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmedRef, setConfirmedRef] = useState<string | null>(null);
   const [payLink, setPayLink] = useState<string | null>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestStep, setRequestStep] = useState<SheetStep>("options");
+  const [requesting, setRequesting] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
 
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [reqCorridorId, setReqCorridorId] = useState("");
-  const [reqDate, setReqDate] = useState("");
-  const [reqSeats, setReqSeats] = useState(1);
-  const [reqName, setReqName] = useState("");
-  const [reqPhone, setReqPhone] = useState("");
-  const [reqPickupMode, setReqPickupMode] = useState<AlloDakarPickupMode>("point_relais");
-  const [reqPickupDetail, setReqPickupDetail] = useState("");
-  const [reqSubmitting, setReqSubmitting] = useState(false);
-  const [reqSent, setReqSent] = useState(false);
-  const [reqError, setReqError] = useState<string | null>(null);
+  const origins = useMemo(
+    () => Array.from(new Set(corridors.map((corridor) => corridor.origin_city))),
+    [corridors]
+  );
+  const destinations = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          corridors
+            .filter((corridor) => !origin || corridor.origin_city === origin)
+            .map((corridor) => corridor.destination_city)
+        )
+      ),
+    [corridors, origin]
+  );
+  const activeCorridor = useMemo(
+    () =>
+      corridors.find(
+        (corridor) =>
+          corridor.origin_city === origin && corridor.destination_city === destination
+      ) ?? null,
+    [corridors, origin, destination]
+  );
 
-  const origins = useMemo(() => Array.from(new Set(corridors.map((c) => c.origin_city))), [corridors]);
-  const destinations = useMemo(() => Array.from(new Set(corridors.map((c) => c.destination_city))), [corridors]);
-
-  async function runSearch() {
-    setSearching(true);
+  async function runSearch(options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      setSearching(true);
+      setHasSearched(true);
+    }
     try {
-      const results = await searchAlloDakarDepartures({
+      const fromDate =
+        travelMode === "planifier"
+          ? new Date(`${travelDate}T00:00:00`).toISOString()
+          : new Date().toISOString();
+      const rows = await searchAlloDakarDepartures({
         originCity: origin || undefined,
         destinationCity: destination || undefined,
-        fromDate: new Date().toISOString(),
+        fromDate,
       });
-      setDepartures(results);
+      const filtered =
+        travelMode === "planifier"
+          ? rows.filter((row) => row.departure_at.slice(0, 10) === travelDate)
+          : rows;
+      setDepartures(filtered);
     } finally {
       setSearching(false);
     }
-  }
-
-  async function loadRideRequests() {
-    const results = await listOpenAlloDakarRideRequests().catch(() => []);
-    setRideRequests(results);
   }
 
   useEffect(() => {
@@ -91,15 +139,54 @@ export default function AlloDakarPage() {
         setDestination(params.get("destination") || "");
       })
       .finally(() => setLoading(false));
-    void runSearch();
-    void loadRideRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void searchAlloDakarDepartures({ fromDate: new Date().toISOString() }).then(setDepartures);
   }, []);
 
-  async function handleBook(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    const channel = supabase
+      .channel("allo-dakar-public-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "allo_dakar_departures" },
+        () => void runSearch({ silent: true })
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+    // Les filtres courants sont volontairement repris lors d'un changement live.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin, destination, travelMode, travelDate]);
+
+  function swapCities() {
+    setOrigin(destination);
+    setDestination(origin);
+    setHasSearched(false);
+  }
+
+  function chooseDeparture(departure: AlloDakarDeparture) {
+    setSelected(departure);
+    setSheetStep("options");
+    setSeats(1);
+    setPickupMode("point_relais");
+    setPickupDetail("");
+    setBookingError(null);
+    setConfirmedRef(null);
+    setPayLink(null);
+  }
+
+  const selectedPrice = selected
+    ? pickupMode === "domicile"
+      ? selected.price_domicile_fcfa ?? selected.price_per_seat_fcfa
+      : selected.price_per_seat_fcfa
+    : 0;
+
+  async function confirmBooking() {
     if (!selected || !name.trim() || !phone.trim()) return;
-    if (pickupMode === "domicile" && !pickupDetail.trim()) return;
+    if (pickupMode === "domicile" && !pickupDetail.trim()) {
+      setBookingError("Ajoutez votre adresse de prise en charge.");
+      return;
+    }
     setBooking(true);
     setBookingError(null);
     try {
@@ -111,45 +198,57 @@ export default function AlloDakarPage() {
         pickupMode,
         pickupDetail: pickupDetail || null,
       });
-      setConfirmedRef(result.id.slice(0, 8));
-      const checkoutUrl = await createAlloDakarWaveCheckout(result.id).catch(() => null);
-      setPayLink(checkoutUrl);
-      await runSearch();
-    } catch (err) {
-      setBookingError(err instanceof Error ? err.message : "Impossible de réserver cette place.");
+      setConfirmedRef(result.id.slice(0, 8).toUpperCase());
+      setPayLink(await createAlloDakarWaveCheckout(result.id).catch(() => null));
+      await runSearch({ silent: true });
+    } catch (reason) {
+      setBookingError(
+        reason instanceof Error ? reason.message : "Impossible de réserver cette place."
+      );
     } finally {
       setBooking(false);
     }
   }
 
-  const selectedPrice = selected ? (pickupMode === "domicile" ? selected.price_domicile_fcfa ?? 0 : selected.price_per_seat_fcfa) : 0;
+  function openLiveRequest() {
+    setRequestOpen(true);
+    setRequestStep("options");
+    setRequestSent(false);
+    setRequestError(null);
+  }
 
-  async function handleCreateRequest(e: React.FormEvent) {
-    e.preventDefault();
-    if (!reqCorridorId || !reqDate || !reqName.trim() || !reqPhone.trim()) return;
-    if (reqPickupMode === "domicile" && !reqPickupDetail.trim()) return;
-    setReqSubmitting(true);
-    setReqError(null);
+  async function publishLiveRequest() {
+    if (!activeCorridor || !name.trim() || !phone.trim()) {
+      setRequestError("Choisissez un axe puis indiquez vos coordonnées.");
+      return;
+    }
+    if (pickupMode === "domicile" && !pickupDetail.trim()) {
+      setRequestError("Ajoutez votre adresse de prise en charge.");
+      return;
+    }
+    setRequesting(true);
+    setRequestError(null);
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       await createAlloDakarRideRequest({
         clientUserId: user?.id ?? null,
-        clientFullName: reqName,
-        clientPhone: reqPhone,
-        corridorId: reqCorridorId,
-        desiredDate: reqDate,
-        seatsNeeded: reqSeats,
-        pickupMode: reqPickupMode,
-        pickupDetail: reqPickupDetail || null,
+        clientFullName: name,
+        clientPhone: phone,
+        corridorId: activeCorridor.id,
+        desiredDate: travelMode === "maintenant" ? today() : travelDate,
+        seatsNeeded: seats,
+        pickupMode,
+        pickupDetail: pickupDetail || null,
       });
-      setReqSent(true);
-      await loadRideRequests();
-    } catch (err) {
-      setReqError(err instanceof Error ? err.message : "Impossible d’envoyer cette demande.");
+      setRequestSent(true);
+    } catch (reason) {
+      setRequestError(
+        reason instanceof Error ? reason.message : "Impossible de diffuser votre recherche."
+      );
     } finally {
-      setReqSubmitting(false);
+      setRequesting(false);
     }
   }
 
@@ -157,320 +256,406 @@ export default function AlloDakarPage() {
 
   return (
     <AlloDakarShell>
-      <div className="px-4 pb-8 pt-5 sm:px-6">
-        <div className="rounded-[1.5rem] bg-[#07111f] p-5 text-white">
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-300">
-            <CarFront className="h-3.5 w-3.5" /> Covoiturage interurbain
-          </span>
-          <h1 className="mt-4 text-3xl font-extrabold leading-tight text-white">
-            Trouvez une place pour votre prochain trajet.
-          </h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">
-            Allo Dakar est le service économique de SentraJet : départs publiés, chauffeurs vérifiés et réservation à la place.
-          </p>
-        </div>
+      <div className="pb-8">
+        <section className="relative overflow-hidden bg-[#07111f] px-4 pb-20 pt-6 text-white sm:px-6">
+          <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-emerald-400/10" />
+          <div className="relative">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-300">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+              Réseau Allo Dakar en direct
+            </span>
+            <h1 className="mt-4 max-w-lg text-3xl font-black leading-[1.05] tracking-tight text-white">
+              Où voulez-vous aller aujourd’hui ?
+            </h1>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-white/60">
+              Choisissez votre axe. Les départs publiés et les places restantes se mettent à jour automatiquement.
+            </p>
+          </div>
+        </section>
 
-        <section className="relative z-10 -mt-3 rounded-[1.4rem] border border-slate-200 bg-white p-3 shadow-[0_16px_40px_rgba(7,17,31,0.14)]">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <label className="rounded-2xl bg-slate-100 px-3 py-2">
-              <span className="block text-[9px] font-extrabold uppercase tracking-wide text-slate-400">Départ</span>
-              <select className="w-full bg-transparent text-sm font-bold text-slate-900 outline-none" value={origin} onChange={(e) => setOrigin(e.target.value)}>
-                <option value="">Toutes les villes</option>
-                {origins.map((city) => <option key={city} value={city}>{city}</option>)}
-              </select>
+        <section className="relative z-10 mx-4 -mt-14 rounded-[1.7rem] bg-white p-4 shadow-[0_22px_60px_rgba(7,17,31,0.2)] sm:mx-6">
+          <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+            {(["maintenant", "planifier"] as TravelMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setTravelMode(mode);
+                  setHasSearched(false);
+                }}
+                className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${
+                  travelMode === mode
+                    ? "bg-white text-[#07111f] shadow-sm"
+                    : "text-slate-400"
+                }`}
+              >
+                {mode === "maintenant" ? "Partir maintenant" : "Planifier"}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative mt-4 grid gap-2">
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <LocateFixed className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Départ</span>
+                <select
+                  value={origin}
+                  onChange={(event) => {
+                    setOrigin(event.target.value);
+                    setDestination("");
+                    setHasSearched(false);
+                  }}
+                  className="w-full bg-transparent text-sm font-black outline-none"
+                >
+                  <option value="">Choisir une ville</option>
+                  {origins.map((city) => <option key={city}>{city}</option>)}
+                </select>
+              </span>
             </label>
-            <ArrowRight className="h-4 w-4 text-slate-300" />
-            <label className="rounded-2xl bg-slate-100 px-3 py-2">
-              <span className="block text-[9px] font-extrabold uppercase tracking-wide text-slate-400">Arrivée</span>
-              <select className="w-full bg-transparent text-sm font-bold text-slate-900 outline-none" value={destination} onChange={(e) => setDestination(e.target.value)}>
-                <option value="">Toutes les villes</option>
-                {destinations.map((city) => <option key={city} value={city}>{city}</option>)}
-              </select>
+            <button
+              type="button"
+              onClick={swapCities}
+              disabled={!origin && !destination}
+              className="absolute right-5 top-[47px] z-10 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-black shadow-sm disabled:opacity-40"
+              aria-label="Inverser le trajet"
+            >
+              ↕
+            </button>
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Destination</span>
+                <select
+                  value={destination}
+                  onChange={(event) => {
+                    setDestination(event.target.value);
+                    setHasSearched(false);
+                  }}
+                  className="w-full bg-transparent text-sm font-black outline-none"
+                >
+                  <option value="">Choisir une ville</option>
+                  {destinations.map((city) => <option key={city}>{city}</option>)}
+                </select>
+              </span>
             </label>
           </div>
+
+          {travelMode === "planifier" ? (
+            <label className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-3">
+              <CalendarDays className="h-4 w-4 text-amber-700" />
+              <input
+                type="date"
+                min={today()}
+                value={travelDate}
+                onChange={(event) => {
+                  setTravelDate(event.target.value);
+                  setHasSearched(false);
+                }}
+                className="w-full bg-transparent text-sm font-bold outline-none"
+              />
+            </label>
+          ) : null}
+
           <button
             type="button"
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-4 py-3.5 text-sm font-extrabold text-[#07111f]"
             onClick={() => void runSearch()}
-            disabled={searching}
+            disabled={searching || !origin || !destination}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f] disabled:opacity-40"
           >
-            <Search className="h-4 w-4" />
-            {searching ? "Recherche des départs…" : "Rechercher un trajet"}
+            {searching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {searching ? "Recherche sur le réseau…" : "Voir les départs disponibles"}
           </button>
         </section>
 
-        <section className="mt-8">
-          <div className="flex items-end justify-between gap-3">
+        <section className="px-4 pt-8 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Disponibles maintenant</p>
-              <h2 className="mt-1 text-xl font-extrabold">Départs publiés</h2>
+              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                <Radar className="h-3.5 w-3.5" /> Mise à jour en direct
+              </p>
+              <h2 className="mt-1 text-xl font-black">
+                {hasSearched ? "Résultats de votre recherche" : "Prochains départs"}
+              </h2>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">
-              {departures.length} trajet{departures.length > 1 ? "s" : ""}
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500">
+              {departures.length}
             </span>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {departures.map((dep) => (
-              <article key={dep.id} className="rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-extrabold text-slate-900">
-                      {dep.corridor?.origin_city} <ArrowRight className="mx-1 inline h-3.5 w-3.5" /> {dep.corridor?.destination_city}
-                    </p>
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      {new Date(dep.departure_at).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-right text-sm font-extrabold text-emerald-700">
-                    {formatFcfa(dep.price_per_seat_fcfa)}
-                    <span className="block text-[9px] font-semibold text-slate-400">par place</span>
-                  </span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-3 text-xs">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <UsersRound className="h-3.5 w-3.5" /> {dep.seats_available} place{dep.seats_available > 1 ? "s" : ""}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <CarFront className="h-3.5 w-3.5" /> {dep.vehicle?.brand || "Véhicule"} {dep.vehicle?.model || ""}
-                  </span>
-                </div>
-                <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-400">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                  Chauffeur vérifié{dep.driver?.garage_name ? ` · Antenne ${dep.driver.garage_name}` : ""}
-                </p>
+
+          {searching ? (
+            <div className="mt-5 rounded-[1.6rem] bg-[#07111f] p-6 text-center text-white">
+              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/10">
+                <Radar className="h-8 w-8 animate-pulse text-emerald-400" />
+              </span>
+              <p className="mt-4 font-black text-white">Interrogation des chauffeurs et départs…</p>
+              <p className="mt-1 text-xs text-white/50">Places, horaires et véhicules sont vérifiés en temps réel.</p>
+            </div>
+          ) : departures.length ? (
+            <div className="mt-4 grid gap-3">
+              {departures.map((departure, index) => (
                 <button
+                  key={departure.id}
                   type="button"
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#07111f] px-4 py-3 text-sm font-extrabold text-white"
-                  onClick={() => {
-                    setSelected(dep);
-                    setConfirmedRef(null);
-                    setPayLink(null);
-                    setBookingError(null);
-                    setPickupMode("point_relais");
-                    setPickupDetail("");
-                    setSeats(1);
-                  }}
+                  onClick={() => chooseDeparture(departure)}
+                  className="w-full rounded-[1.5rem] border border-slate-200 bg-white p-4 text-left shadow-sm transition active:scale-[0.99]"
                 >
-                  Réserver cette place <ArrowRight className="h-4 w-4" />
-                </button>
-              </article>
-            ))}
-          </div>
-          {!departures.length ? (
-            <div className="mt-4 rounded-[1.4rem] border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-              <MapPin className="mx-auto h-7 w-7 text-slate-300" />
-              <p className="mt-2 text-sm font-bold text-slate-700">Aucun départ ne correspond pour le moment.</p>
-              <p className="mt-1 text-xs text-slate-400">Publiez votre besoin pour être contacté par un chauffeur.</p>
-            </div>
-          ) : null}
-        </section>
+                  <div className="flex items-center gap-3">
+                    <div className="w-[62px] shrink-0 text-center">
+                      <p className="text-xl font-black text-[#07111f]">{departureTime(departure.departure_at)}</p>
+                      <p className="mt-0.5 text-[10px] font-bold capitalize text-slate-400">{departureDay(departure.departure_at)}</p>
+                    </div>
+                    <div className="relative h-11 w-px bg-slate-200">
+                      <span className="absolute -left-[4px] top-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
+                      <span className="absolute -bottom-0 -left-[4px] h-2.5 w-2.5 rounded-full bg-amber-400 ring-4 ring-amber-50" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black">{departure.corridor?.origin_city}</p>
+                      <p className="mt-2 truncate text-sm font-black">{departure.corridor?.destination_city}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-300" />
+                  </div>
 
-        <section className="mt-9">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-amber-700">Demande communautaire</p>
-              <h2 className="mt-1 text-xl font-extrabold">Besoins des voyageurs</h2>
-            </div>
-            <button type="button" className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-extrabold text-amber-900" onClick={() => setShowRequestForm(true)}>
-              + Publier
-            </button>
-          </div>
-          <p className="mt-2 text-sm text-slate-500">
-            Les chauffeurs voient ces destinations et peuvent proposer un départ correspondant.
-          </p>
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-            {rideRequests.slice(0, 8).map((request) => (
-              <article key={request.id} className="min-w-[250px] rounded-[1.4rem] border border-slate-200 bg-white p-4">
-                <p className="font-extrabold text-slate-900">
-                  {request.corridor?.origin_city} <ArrowRight className="mx-1 inline h-3.5 w-3.5" /> {request.corridor?.destination_city}
-                </p>
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-                  <CalendarDays className="h-3.5 w-3.5" /> {new Date(request.desired_date).toLocaleDateString("fr-FR")}
-                </p>
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                  <UsersRound className="h-3.5 w-3.5" /> {request.seats_needed} place{request.seats_needed > 1 ? "s" : ""} recherchée{request.seats_needed > 1 ? "s" : ""}
-                </p>
-                <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
-                  Demande ouverte
-                </span>
-              </article>
-            ))}
-            {!rideRequests.length ? (
-              <div className="w-full rounded-[1.4rem] bg-slate-50 p-5 text-center text-sm text-slate-500">
-                Aucun besoin public actuellement. Soyez le premier à publier le vôtre.
-              </div>
-            ) : null}
-          </div>
-        </section>
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#07111f] text-xs font-black text-white">
+                        {(departure.driver?.full_name || "SJ").slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1 truncate text-xs font-bold">
+                          Chauffeur vérifié <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                        </span>
+                        <span className="block truncate text-[10px] text-slate-400">
+                          {departure.vehicle?.brand || "Véhicule"} {departure.vehicle?.model || ""} · {departure.seats_available} places
+                        </span>
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-black text-emerald-700">{formatFcfa(departure.price_per_seat_fcfa)}</span>
+                      <span className="block text-[9px] font-bold text-slate-400">par place</span>
+                    </span>
+                  </div>
 
-        <section className="mt-5 rounded-[1.4rem] border border-emerald-100 bg-emerald-50/70 p-4">
-          {reqSent ? (
-            <p className="text-sm font-bold text-emerald-800">
-              Demande envoyée ! Elle apparaît maintenant parmi les besoins voyageurs.
-            </p>
-          ) : showRequestForm ? (
-            <form onSubmit={handleCreateRequest} className="space-y-3">
-              <h3 className="text-base font-extrabold text-slate-900">Publier mon besoin de trajet</h3>
-              {reqError ? <p className="text-sm text-red-600">{reqError}</p> : null}
-              <select className="input-base" value={reqCorridorId} onChange={(e) => setReqCorridorId(e.target.value)} required>
-                <option value="">Choisir un axe</option>
-                {corridors.map((corridor) => (
-                  <option key={corridor.id} value={corridor.id}>{corridor.origin_city} → {corridor.destination_city}</option>
-                ))}
-              </select>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="date" className="input-base" value={reqDate} onChange={(e) => setReqDate(e.target.value)} required />
-                <input type="number" min={1} max={10} className="input-base" value={reqSeats} onChange={(e) => setReqSeats(Math.max(1, Number(e.target.value) || 1))} aria-label="Nombre de places" />
-              </div>
-              <input className="input-base" placeholder="Nom complet" value={reqName} onChange={(e) => setReqName(e.target.value)} required />
-              <input className="input-base" placeholder="Téléphone" value={reqPhone} onChange={(e) => setReqPhone(e.target.value)} required />
-              <div className="grid grid-cols-2 gap-2">
-                {(["point_relais", "domicile"] as AlloDakarPickupMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={`rounded-xl border px-3 py-2.5 text-xs font-bold ${
-                      reqPickupMode === mode ? "border-emerald-700 bg-emerald-700 text-white" : "border-emerald-200 bg-white text-emerald-900"
-                    }`}
-                    onClick={() => setReqPickupMode(mode)}
-                  >
-                    {mode === "point_relais" ? "Point relais" : "À domicile"}
-                  </button>
-                ))}
-              </div>
-              <input
-                className="input-base"
-                placeholder={reqPickupMode === "domicile" ? "Adresse de prise en charge" : "Point souhaité (optionnel)"}
-                value={reqPickupDetail}
-                onChange={(e) => setReqPickupDetail(e.target.value)}
-                required={reqPickupMode === "domicile"}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold" onClick={() => setShowRequestForm(false)}>
-                  Annuler
+                  {index === 0 ? (
+                    <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-700">
+                      Prochain départ
+                    </span>
+                  ) : null}
                 </button>
-                <button type="submit" className="rounded-2xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-[#07111f]" disabled={reqSubmitting}>
-                  {reqSubmitting ? "Publication…" : "Publier"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-extrabold text-emerald-950">Vous ne trouvez pas votre trajet ?</p>
-                <p className="mt-1 text-xs text-emerald-800/70">Indiquez votre besoin aux chauffeurs Allo Dakar.</p>
-              </div>
-              <button type="button" className="shrink-0 rounded-2xl bg-emerald-700 px-4 py-3 text-xs font-extrabold text-white" onClick={() => setShowRequestForm(true)}>
-                Publier
+              ))}
+            </div>
+          ) : hasSearched ? (
+            <div className="mt-4 rounded-[1.6rem] border border-dashed border-emerald-300 bg-emerald-50/60 p-5 text-center">
+              <Radar className="mx-auto h-9 w-9 text-emerald-600" />
+              <h3 className="mt-3 text-lg font-black">Aucun départ publié sur cet axe</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
+                Diffusez votre recherche au réseau. Un chauffeur pourra créer un départ correspondant.
+              </p>
+              <button
+                type="button"
+                onClick={openLiveRequest}
+                disabled={!activeCorridor}
+                className="mt-4 rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-black text-white disabled:opacity-40"
+              >
+                Rechercher un chauffeur
               </button>
             </div>
+          ) : (
+            <div className="mt-4 rounded-[1.6rem] bg-slate-50 p-5">
+              <p className="text-sm font-bold text-slate-700">Choisissez votre départ et votre destination.</p>
+              <p className="mt-1 text-xs text-slate-400">Les offres correspondant à votre trajet apparaîtront ici.</p>
+            </div>
           )}
-        </section>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
-          Vous êtes chauffeur ?{" "}
-          <Link href="/allo-dakar/chauffeur" className="font-bold text-emerald-700 underline">
-            Rejoindre le réseau SentraJet
-          </Link>
-        </p>
+          <div className="mt-7 grid grid-cols-3 gap-2">
+            {[
+              { icon: ShieldCheck, label: "Chauffeurs vérifiés" },
+              { icon: Sparkles, label: "Prix affichés" },
+              { icon: Clock3, label: "Places en direct" },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="rounded-2xl bg-slate-100 p-3 text-center">
+                  <Icon className="mx-auto h-5 w-5 text-emerald-700" />
+                  <p className="mt-2 text-[10px] font-black leading-tight text-slate-600">{item.label}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="mt-6 text-center text-xs text-slate-400">
+            Vous conduisez sur ces axes ?{" "}
+            <Link href="/allo-dakar/chauffeur" className="font-black text-emerald-700 underline">
+              Publier un départ
+            </Link>
+          </p>
+        </section>
       </div>
 
       {selected ? (
-        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-[#07111f]/60 p-3 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-[1.75rem] bg-white p-5 shadow-2xl sm:p-6">
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-[#07111f]/65 backdrop-blur-sm">
+          <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={() => setSelected(null)} />
+          <section className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
+            <button type="button" onClick={() => setSelected(null)} className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100" aria-label="Fermer">
+              <X className="h-4 w-4" />
+            </button>
+
             {confirmedRef ? (
-              <>
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <ShieldCheck className="h-7 w-7" />
+              <div className="py-4 text-center">
+                <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <CheckCircle2 className="h-9 w-9" />
                 </span>
-                <h3 className="mt-4 text-xl font-extrabold text-neutral-900">Réservation confirmée</h3>
-                <p className="mt-2 text-sm text-neutral-600">Référence {confirmedRef}. Le chauffeur vous contactera avant le départ.</p>
+                <h2 className="mt-5 text-2xl font-black">Votre place est réservée</h2>
+                <p className="mt-2 text-sm text-slate-500">Référence {confirmedRef} · les places ont été mises à jour en direct.</p>
                 {payLink ? (
-                  <a href={payLink} target="_blank" rel="noreferrer" className="mt-4 block rounded-2xl bg-amber-400 px-4 py-3.5 text-center text-sm font-extrabold text-[#07111f]">
-                    Payer maintenant via Wave
+                  <a href={payLink} target="_blank" rel="noreferrer" className="mt-5 block rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f]">
+                    Payer avec Wave
                   </a>
                 ) : (
-                  <p className="mt-4 text-xs text-neutral-500">Le paiement pourra être finalisé auprès du chauffeur.</p>
+                  <p className="mt-5 rounded-2xl bg-slate-100 p-3 text-xs text-slate-500">Le paiement sera finalisé avec le chauffeur.</p>
                 )}
-                <button type="button" className="mt-3 w-full rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-semibold" onClick={() => setSelected(null)}>
-                  Fermer
+                <button type="button" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" onClick={() => setSelected(null)}>
+                  Terminer
                 </button>
-              </>
+              </div>
             ) : (
-              <form onSubmit={handleBook}>
-                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-700">Allo Dakar · Réserver une place</span>
-                <h3 className="mt-2 text-xl font-extrabold text-neutral-900">
-                  {selected.corridor?.origin_city} → {selected.corridor?.destination_city}
-                </h3>
-                <p className="text-sm text-neutral-600">{new Date(selected.departure_at).toLocaleString("fr-FR")}</p>
-                {bookingError ? <p className="mt-2 text-sm text-red-600">{bookingError}</p> : null}
-                <div className="mt-4 space-y-3">
-                  <input className="input-base" placeholder="Nom complet" value={name} onChange={(e) => setName(e.target.value)} required />
-                  <input className="input-base" placeholder="Téléphone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-neutral-500">Nombre de places</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={selected.seats_available}
-                      className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm"
-                      value={seats}
-                      onChange={(e) => setSeats(Math.max(1, Math.min(selected.seats_available, Number(e.target.value) || 1)))}
-                    />
+              <>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                  {sheetStep === "options" ? "1 · Personnalisez votre trajet" : "2 · Confirmez votre place"}
+                </p>
+                <div className="mt-3 rounded-[1.4rem] bg-[#07111f] p-4 text-white">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-black text-white">{selected.corridor?.origin_city} → {selected.corridor?.destination_city}</p>
+                      <p className="mt-1 text-xs text-white/60">{departureDay(selected.departure_at)} · {departureTime(selected.departure_at)}</p>
+                    </div>
+                    <CarFront className="h-7 w-7 text-amber-400" />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-neutral-500">Prise en charge</label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold ${pickupMode === "point_relais" ? "border-[#07111f] bg-[#07111f] text-white" : "border-neutral-300 text-neutral-700"}`}
-                        onClick={() => setPickupMode("point_relais")}
-                      >
-                        Point relais · {formatFcfa(selected.price_per_seat_fcfa)}
-                      </button>
-                      {selected.price_domicile_fcfa ? (
-                        <button
-                          type="button"
-                          className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold ${pickupMode === "domicile" ? "border-[#07111f] bg-[#07111f] text-white" : "border-neutral-300 text-neutral-700"}`}
-                          onClick={() => setPickupMode("domicile")}
-                        >
-                          Domicile · {formatFcfa(selected.price_domicile_fcfa)}
+                </div>
+
+                {sheetStep === "options" ? (
+                  <div className="mt-5 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-black">Nombre de places</p>
+                        <p className="text-xs text-slate-400">{selected.seats_available} disponibles</p>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-full bg-slate-100 p-1">
+                        <button type="button" onClick={() => setSeats(Math.max(1, seats - 1))} className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"><Minus className="h-4 w-4" /></button>
+                        <span className="w-5 text-center font-black">{seats}</span>
+                        <button type="button" onClick={() => setSeats(Math.min(selected.seats_available, seats + 1))} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#07111f] text-white"><Plus className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-black">Prise en charge</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => setPickupMode("point_relais")} className={`rounded-2xl border p-3 text-left ${pickupMode === "point_relais" ? "border-[#07111f] bg-[#07111f] text-white" : "border-slate-200"}`}>
+                          <MapPin className="h-4 w-4" />
+                          <span className="mt-2 block text-xs font-black">Point relais</span>
+                          <span className="mt-1 block text-[10px] opacity-60">{formatFcfa(selected.price_per_seat_fcfa)}</span>
                         </button>
-                      ) : null}
+                        <button type="button" disabled={!selected.price_domicile_fcfa} onClick={() => setPickupMode("domicile")} className={`rounded-2xl border p-3 text-left disabled:opacity-35 ${pickupMode === "domicile" ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200"}`}>
+                          <LocateFixed className="h-4 w-4" />
+                          <span className="mt-2 block text-xs font-black">À domicile</span>
+                          <span className="mt-1 block text-[10px] opacity-60">{selected.price_domicile_fcfa ? formatFcfa(selected.price_domicile_fcfa) : "Indisponible"}</span>
+                        </button>
+                      </div>
+                      <input value={pickupDetail} onChange={(event) => setPickupDetail(event.target.value)} placeholder={pickupMode === "domicile" ? "Votre adresse exacte" : "Point souhaité (optionnel)"} className="input-base mt-2" />
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-2xl bg-emerald-50 p-4">
+                      <span className="text-xs font-bold text-emerald-800">Total, sans surprise</span>
+                      <span className="text-xl font-black text-emerald-950">{formatFcfa(selectedPrice * seats)}</span>
+                    </div>
+                    <button type="button" onClick={() => setSheetStep("contact")} className="w-full rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f]">
+                      Continuer <ArrowRight className="ml-1 inline h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-5 space-y-3">
+                    <label className="block rounded-2xl border border-slate-200 px-3 py-2.5">
+                      <span className="block text-[9px] font-black uppercase tracking-wide text-slate-400">Nom du passager</span>
+                      <input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full bg-transparent text-sm font-bold outline-none" placeholder="Votre nom complet" />
+                    </label>
+                    <label className="block rounded-2xl border border-slate-200 px-3 py-2.5">
+                      <span className="block text-[9px] font-black uppercase tracking-wide text-slate-400">Téléphone / WhatsApp</span>
+                      <input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" className="mt-1 w-full bg-transparent text-sm font-bold outline-none" placeholder="+221 77 000 00 00" />
+                    </label>
+                    <div className="rounded-2xl bg-slate-100 p-3 text-xs text-slate-500">
+                      <ShieldCheck className="mr-1 inline h-4 w-4 text-emerald-600" /> Vos coordonnées sont transmises au chauffeur uniquement après confirmation.
+                    </div>
+                    {bookingError ? <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{bookingError}</p> : null}
+                    <div className="grid grid-cols-[auto_1fr] gap-2">
+                      <button type="button" onClick={() => setSheetStep("options")} className="rounded-2xl border border-slate-200 px-4 py-4 text-sm font-bold">Retour</button>
+                      <button type="button" disabled={booking || !name.trim() || !phone.trim()} onClick={() => void confirmBooking()} className="rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f] disabled:opacity-40">
+                        {booking ? "Confirmation…" : `Confirmer · ${formatFcfa(selectedPrice * seats)}`}
+                      </button>
                     </div>
                   </div>
-                  {pickupMode === "domicile" ? (
-                    <input
-                      className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm"
-                      placeholder="Adresse de prise en charge"
-                      value={pickupDetail}
-                      onChange={(e) => setPickupDetail(e.target.value)}
-                      required
-                    />
-                  ) : (
-                    <input
-                      className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 text-sm"
-                      placeholder="Point de rendez-vous souhaité (optionnel)"
-                      value={pickupDetail}
-                      onChange={(e) => setPickupDetail(e.target.value)}
-                    />
-                  )}
-                </div>
-                <p className="mt-3 text-sm font-bold text-neutral-900">
-                  Total : {formatFcfa(selectedPrice * seats)}
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <button type="button" className="flex-1 rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-semibold" onClick={() => setSelected(null)} disabled={booking}>
-                    Annuler
-                  </button>
-                  <button type="submit" className="flex-1 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-extrabold text-[#07111f]" disabled={booking}>
-                    {booking ? "Réservation…" : "Confirmer"}
-                  </button>
-                </div>
-              </form>
+                )}
+              </>
             )}
-          </div>
+          </section>
+        </div>
+      ) : null}
+
+      {requestOpen ? (
+        <div className="fixed inset-0 z-[210] flex items-end justify-center bg-[#07111f]/65 backdrop-blur-sm">
+          <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={() => setRequestOpen(false)} />
+          <section className="relative w-full max-w-xl rounded-t-[2rem] bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
+            {requestSent ? (
+              <div className="py-5 text-center">
+                <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                  <Check className="h-8 w-8 text-emerald-700" />
+                </span>
+                <h2 className="mt-4 text-2xl font-black">Recherche diffusée</h2>
+                <p className="mt-2 text-sm text-slate-500">Les chauffeurs de l’axe {origin} → {destination} peuvent maintenant organiser un départ.</p>
+                <button type="button" onClick={() => setRequestOpen(false)} className="mt-5 w-full rounded-2xl bg-[#07111f] px-4 py-4 text-sm font-black text-white">Compris</button>
+              </div>
+            ) : (
+              <>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Recherche réseau · {requestStep === "options" ? "Préférences" : "Contact"}</p>
+                <h2 className="mt-2 text-xl font-black">{origin} → {destination}</h2>
+                {requestStep === "options" ? (
+                  <div className="mt-5 space-y-4">
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-100 p-3">
+                      <span className="text-sm font-bold"><UsersRound className="mr-2 inline h-4 w-4" /> Places recherchées</span>
+                      <div className="flex items-center gap-3">
+                        <button type="button" onClick={() => setSeats(Math.max(1, seats - 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white"><Minus className="h-3.5 w-3.5" /></button>
+                        <b>{seats}</b>
+                        <button type="button" onClick={() => setSeats(Math.min(10, seats + 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#07111f] text-white"><Plus className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setPickupMode("point_relais")} className={`rounded-2xl border p-3 text-xs font-black ${pickupMode === "point_relais" ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200"}`}>Point relais</button>
+                      <button type="button" onClick={() => setPickupMode("domicile")} className={`rounded-2xl border p-3 text-xs font-black ${pickupMode === "domicile" ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200"}`}>À domicile</button>
+                    </div>
+                    <input value={pickupDetail} onChange={(event) => setPickupDetail(event.target.value)} className="input-base" placeholder={pickupMode === "domicile" ? "Votre adresse" : "Point souhaité (optionnel)"} />
+                    <button type="button" onClick={() => setRequestStep("contact")} className="w-full rounded-2xl bg-emerald-700 px-4 py-4 text-sm font-black text-white">Continuer</button>
+                  </div>
+                ) : (
+                  <div className="mt-5 space-y-3">
+                    <input value={name} onChange={(event) => setName(event.target.value)} className="input-base" placeholder="Nom complet" />
+                    <input value={phone} onChange={(event) => setPhone(event.target.value)} className="input-base" type="tel" placeholder="Téléphone / WhatsApp" />
+                    {requestError ? <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-700">{requestError}</p> : null}
+                    <div className="grid grid-cols-[auto_1fr] gap-2">
+                      <button type="button" onClick={() => setRequestStep("options")} className="rounded-2xl border border-slate-200 px-4 py-4 text-sm font-bold">Retour</button>
+                      <button type="button" disabled={requesting || !name.trim() || !phone.trim()} onClick={() => void publishLiveRequest()} className="rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f] disabled:opacity-40">
+                        {requesting ? "Diffusion…" : "Diffuser ma recherche"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
         </div>
       ) : null}
     </AlloDakarShell>
