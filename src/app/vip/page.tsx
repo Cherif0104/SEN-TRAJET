@@ -62,11 +62,19 @@ export default function VipPage() {
   const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
 
   async function refreshOffers(nextDuration = duration, nextPassengers = passengers) {
+    const start = new Date(pickupTime);
+    if (!Number.isFinite(start.getTime())) {
+      setOffers([]);
+      setSelected(null);
+      setError("Sélectionnez une date et une heure valides.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const rows = await listVipOffers({
-        pickupTime: new Date(pickupTime).toISOString(),
+        pickupTime: start.toISOString(),
         durationHours: nextDuration,
         passengers: nextPassengers,
       });
