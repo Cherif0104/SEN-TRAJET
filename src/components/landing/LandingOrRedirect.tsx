@@ -3,10 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { HeroSection } from "@/components/landing/HeroSection";
-import { HomeContinued } from "@/components/landing/HomeContinued";
+import { ClientAppHome } from "@/components/landing/ClientAppHome";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { workspaceForRole } from "@/lib/rbac";
 
@@ -25,14 +22,5 @@ export function LandingOrRedirect() {
 
   if (user) return <BrandedLoader fullScreen />;
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">
-        <HeroSection />
-        <HomeContinued />
-      </main>
-      <Footer />
-    </div>
-  );
+  return <ClientAppHome />;
 }

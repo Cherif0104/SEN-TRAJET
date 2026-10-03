@@ -1,5 +1,6 @@
 "use client";
 
+import { CarFront, CheckCircle2, UsersRound } from "lucide-react";
 import {
   DEFAULT_FLAT_RATE_MAX_KM,
   VEHICLE_CATEGORY_LABELS,
@@ -38,54 +39,45 @@ export function VehicleCategorySelector({
   label = "Catégorie de véhicule",
 }: Props) {
   return (
-    <div style={{ gridColumn: "1 / -1" }}>
-      <p
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          opacity: 0.65,
-          marginBottom: 6,
-        }}
-      >
+    <div className="col-span-full">
+      <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
         {label}
       </p>
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-        }}
-      >
+      <div className="grid gap-3">
         {ORDER.map((category) => {
           const isSelected = value === category;
           const rate = rates[category];
+          const CategoryIcon = category === "van" ? UsersRound : CarFront;
           return (
             <button
               key={category}
               type="button"
               onClick={() => onChange(category)}
-              style={{
-                textAlign: "left",
-                borderRadius: 14,
-                border: isSelected ? "2px solid #d4a83f" : "1px solid rgba(148,163,184,0.4)",
-                background: isSelected ? "rgba(212,168,63,0.14)" : "transparent",
-                padding: "10px 12px",
-                cursor: "pointer",
-                color: "inherit",
-                font: "inherit",
-              }}
+              className={`relative flex min-h-[116px] items-center gap-4 rounded-[1.25rem] border p-4 text-left transition ${
+                isSelected
+                  ? "border-amber-500 bg-amber-50 ring-1 ring-amber-500"
+                  : "border-slate-200 bg-white hover:border-amber-300"
+              }`}
             >
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{VEHICLE_CATEGORY_LABELS[category]}</div>
-              <div style={{ fontSize: 11, opacity: 0.65, marginTop: 2 }}>
-                {VEHICLE_CATEGORY_SEATS[category]} places · {CATEGORY_HINTS[category]}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 6 }}>
-                à partir de {formatFcfa(rate.baseFcfa)}
-              </div>
-              <div style={{ fontSize: 10, opacity: 0.6, marginTop: 1 }}>
-                {flatRateMaxKm} km inclus, puis {formatFcfa(rate.extraKmFcfa)}/km
+              <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
+                isSelected ? "bg-amber-400 text-[#07111f]" : "bg-slate-100 text-slate-600"
+              }`}>
+                <CategoryIcon className="h-7 w-7" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-base font-extrabold text-slate-900">{VEHICLE_CATEGORY_LABELS[category]}</span>
+                  {isSelected ? <CheckCircle2 className="h-5 w-5 shrink-0 text-amber-700" /> : null}
+                </div>
+                <div className="mt-1 text-xs leading-relaxed text-slate-500">
+                  {VEHICLE_CATEGORY_SEATS[category]} places · {CATEGORY_HINTS[category]}
+                </div>
+                <div className="mt-2 text-sm font-extrabold text-slate-900">
+                  Dès {formatFcfa(rate.baseFcfa)}
+                </div>
+                <div className="mt-0.5 text-[10px] text-slate-400">
+                  {flatRateMaxKm} km inclus · puis {formatFcfa(rate.extraKmFcfa)}/km
+                </div>
               </div>
             </button>
           );

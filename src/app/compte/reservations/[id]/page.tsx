@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, MapPin, MessageSquareWarning, Phone, Star } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Clock3,
+  MapPin,
+  MessageSquareWarning,
+  Navigation,
+  Phone,
+  ShieldCheck,
+  Star,
+} from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import {
   BOOKING_STATUS_LABEL,
@@ -41,6 +52,7 @@ export default function CompteReservationDetailPage() {
   const [complaintSending, setComplaintSending] = useState(false);
   const [complaintSent, setComplaintSent] = useState(false);
   const [complaintError, setComplaintError] = useState<string | null>(null);
+  const [shareLivePosition, setShareLivePosition] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -135,6 +147,33 @@ export default function CompteReservationDetailPage() {
       />
       {error ? <p style={{ color: "var(--color-error)" }}>{error}</p> : null}
 
+      <div className="mb-5 overflow-hidden rounded-[1.4rem] bg-[#07111f] p-5 text-white">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-[#f0c86b]">
+            {TERMINAL.includes(booking.status) ? (
+              <CheckCircle2 className="h-5 w-5" />
+            ) : driver ? (
+              <Navigation className="h-5 w-5" />
+            ) : (
+              <Clock3 className="h-5 w-5" />
+            )}
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-[#f0c86b]">
+              État de votre trajet
+            </p>
+            <h2 className="mt-1 text-xl font-extrabold text-white">
+              {BOOKING_STATUS_LABEL[booking.status] ?? booking.status}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/65">
+              {driver
+                ? "Votre véhicule est affecté. Retrouvez ici sa position et les prochaines étapes."
+                : "Votre demande est en cours de traitement. Aucun chauffeur n’est affecté avant la validation SentraJet."}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="sj-grid sj-grid-2">
         <SjCard>
           <h3>Trajet</h3>
@@ -182,7 +221,26 @@ export default function CompteReservationDetailPage() {
         <>
           <SjSectionHead title="Suivi en direct" />
           <SjCard>
-            <BookingLiveMap bookingId={booking.id} userRole="client" trackingEnabled={false} />
+            <div className="mb-3 flex flex-col gap-3 rounded-2xl bg-emerald-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                <p className="text-xs leading-relaxed text-emerald-900">
+                  Partagez votre position uniquement pendant la prise en charge pour aider le chauffeur à vous retrouver.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareLivePosition((value) => !value)}
+                className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold ${
+                  shareLivePosition
+                    ? "bg-emerald-700 text-white"
+                    : "border border-emerald-300 bg-white text-emerald-800"
+                }`}
+              >
+                {shareLivePosition ? "Position partagée" : "Partager ma position"}
+              </button>
+            </div>
+            <BookingLiveMap bookingId={booking.id} userRole="client" trackingEnabled={shareLivePosition} />
           </SjCard>
         </>
       ) : null}
