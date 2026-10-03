@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Header } from "@/components/layout/Header";
 import { AuthPageScaffold, AuthPageFallback } from "@/components/layout/AuthPageScaffold";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
