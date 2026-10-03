@@ -123,6 +123,41 @@ export const DEFAULT_VEHICLE_CATEGORY_RATES: VehicleCategoryRates = {
 
 export const DEFAULT_FLAT_RATE_MAX_KM = 100;
 
+export const INSTANT_TAXI_RATES: Record<
+  VehicleCategory,
+  { minimumFcfa: number; perKmFcfa: number }
+> = {
+  berline: { minimumFcfa: 25_000, perKmFcfa: 600 },
+  suv: { minimumFcfa: 30_000, perKmFcfa: 700 },
+  van: { minimumFcfa: 45_000, perKmFcfa: 900 },
+};
+
+export function computeInstantTaxiPrice(
+  distanceKm: number,
+  vehicleCategory: VehicleCategory
+): {
+  amountFcfa: number;
+  distanceKm: number;
+  minimumFcfa: number;
+  perKmFcfa: number;
+  formula: string;
+} {
+  const km = Math.max(1, ceilDistanceKm(distanceKm));
+  const rate = INSTANT_TAXI_RATES[vehicleCategory];
+  const distanceAmount = km * rate.perKmFcfa;
+  const amountFcfa = Math.ceil(Math.max(rate.minimumFcfa, distanceAmount) / 500) * 500;
+  return {
+    amountFcfa,
+    distanceKm: km,
+    minimumFcfa: rate.minimumFcfa,
+    perKmFcfa: rate.perKmFcfa,
+    formula:
+      distanceAmount <= rate.minimumFcfa
+        ? `Minimum ${rate.minimumFcfa.toLocaleString("fr-FR")} FCFA`
+        : `${km} km × ${rate.perKmFcfa.toLocaleString("fr-FR")} FCFA/km, arrondi à 500 FCFA`,
+  };
+}
+
 /**
  * Services pour lesquels une catégorie de véhicule peut être choisie et pilote le prix.
  * Les mises à disposition suivent un modèle différent (zone Dakar/hors Dakar + forfait 8h,

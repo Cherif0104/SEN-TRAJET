@@ -30,15 +30,6 @@ const LOCATION_PRIMER_KEY = "sentrajet_location_primer_v1";
 
 const services = [
   {
-    title: "Taxi AIBD",
-    detail: "Transfert aéroport",
-    href: "/reserver?service=transfert_aibd",
-    icon: Plane,
-    image: "/images/hero-sen-trajet.png",
-    imagePosition: "72% center",
-    tone: "from-[#07111f]/10 to-[#07111f]/80",
-  },
-  {
     title: "Allo Dakar",
     detail: "Voyager à la place",
     href: "/allo-dakar",
@@ -46,6 +37,17 @@ const services = [
     image: "/hero-landing.png",
     imagePosition: "48% center",
     tone: "from-emerald-900/5 to-emerald-950/85",
+    layout: "col-span-2 row-span-2",
+  },
+  {
+    title: "Taxi AIBD",
+    detail: "Trouver un chauffeur",
+    href: "/taxi-aeroport",
+    icon: Plane,
+    image: "/images/hero-sen-trajet.png",
+    imagePosition: "72% center",
+    tone: "from-[#07111f]/10 to-[#07111f]/80",
+    layout: "col-span-1 row-span-1",
   },
   {
     title: "Louer une voiture",
@@ -55,6 +57,7 @@ const services = [
     image: "/brand/sentrajet-vehicle-hero.webp",
     imagePosition: "50% center",
     tone: "from-[#07111f]/5 to-[#07111f]/85",
+    layout: "col-span-1 row-span-1",
   },
   {
     title: "Premium",
@@ -64,14 +67,15 @@ const services = [
     image: "/images/hero-sen-trajet.png",
     imagePosition: "20% center",
     tone: "from-amber-900/5 to-[#07111f]/85",
+    layout: "col-span-3 row-span-1",
   },
 ];
 
 const suggestions = [
   {
     title: "Aéroport AIBD",
-    detail: "Diass · transfert dès 25 000 F",
-    href: "/reserver?service=transfert_aibd",
+    detail: "Diass · taxi en direct",
+    href: "/taxi-aeroport",
     icon: Plane,
   },
   {
@@ -191,47 +195,9 @@ export function ClientAppHome() {
               </span>
             </div>
 
-            <section aria-label="Services SentraJet" className="grid grid-cols-2 gap-3">
-              {services.map((service, index) => {
-                const Icon = service.icon;
-                return (
-                  <Link
-                    key={service.title}
-                    href={service.href}
-                    className={`group relative overflow-hidden rounded-[1.4rem] ${
-                      index === 0 ? "col-span-2 h-44 sm:col-span-1 sm:h-48" : "h-48"
-                    }`}
-                  >
-                    <Image
-                      src={service.image}
-                      alt=""
-                      fill
-                      priority={index < 2}
-                      sizes="(max-width: 640px) 100vw, 360px"
-                      className="object-cover transition duration-500 group-hover:scale-105"
-                      style={{ objectPosition: service.imagePosition }}
-                    />
-                    <div className={`absolute inset-0 bg-gradient-to-b ${service.tone}`} />
-                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4 text-white">
-                      <div>
-                        <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#07111f] shadow-sm">
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <h2 className="text-base font-extrabold text-white">{service.title}</h2>
-                        <p className="mt-0.5 text-xs font-medium text-white/75">{service.detail}</p>
-                      </div>
-                      <span className="mb-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#07111f]">
-                        <ArrowRight className="h-4 w-4" />
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </section>
-
             <form
               onSubmit={submitDestination}
-              className="relative z-10 -mt-3 rounded-[1.4rem] border border-slate-200 bg-white p-3 shadow-[0_16px_40px_rgba(7,17,31,0.14)]"
+              className="relative z-10 rounded-[1.4rem] border border-slate-200 bg-white p-3 shadow-[0_16px_40px_rgba(7,17,31,0.14)]"
             >
               <div className="flex items-center gap-3 rounded-2xl bg-slate-100 px-3 py-2">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-amber-700 shadow-sm">
@@ -257,6 +223,58 @@ export function ClientAppHome() {
                 </button>
               </div>
             </form>
+
+            <div className="mb-3 mt-7 flex items-center justify-between">
+              <h2 className="text-base font-extrabold">Choisissez un service</h2>
+              <span className="text-xs font-semibold text-slate-400">Tout SentraJet</span>
+            </div>
+            <section aria-label="Services SentraJet" className="grid auto-rows-[116px] grid-cols-3 gap-3 sm:auto-rows-[132px]">
+              {services.map((service, index) => {
+                const Icon = service.icon;
+                return (
+                  <Link
+                    key={service.title}
+                    href={service.href}
+                    className={`group relative overflow-hidden rounded-[1.4rem] ${service.layout}`}
+                  >
+                    <Image
+                      src={service.image}
+                      alt=""
+                      fill
+                      priority={index < 2}
+                      sizes="(max-width: 640px) 100vw, 360px"
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                      style={{ objectPosition: service.imagePosition }}
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-b ${service.tone}`} />
+                    <div className={`absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 text-white ${
+                      index === 0 || service.layout.includes("col-span-3") ? "p-4" : "p-3"
+                    }`}>
+                      <div>
+                        <span className={`mb-2 items-center justify-center rounded-full bg-white/90 text-[#07111f] shadow-sm ${
+                          index === 0 || service.layout.includes("col-span-3") ? "flex h-9 w-9" : "hidden h-7 w-7 sm:flex"
+                        }`}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <h3 className={`${index === 0 ? "text-lg" : "text-xs sm:text-sm"} font-extrabold leading-tight text-white`}>
+                          {service.title}
+                        </h3>
+                        <p className={`mt-0.5 font-medium text-white/75 ${
+                          index === 0 || service.layout.includes("col-span-3") ? "text-xs" : "hidden sm:block sm:text-[10px]"
+                        }`}>
+                          {service.detail}
+                        </p>
+                      </div>
+                      <span className={`mb-1 shrink-0 items-center justify-center rounded-full bg-white text-[#07111f] ${
+                        index === 0 || service.layout.includes("col-span-3") ? "flex h-8 w-8" : "hidden"
+                      }`}>
+                        <ArrowRight className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </section>
 
             <section className="mt-7">
               <div className="mb-2 flex items-center justify-between">

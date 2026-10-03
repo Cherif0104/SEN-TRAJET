@@ -811,6 +811,25 @@ export async function setOwnDriverStatus(userId: string, status: string): Promis
   if (error) throw error;
 }
 
+export async function setOwnDriverLiveStatus(input: {
+  isOnline: boolean;
+  lat?: number | null;
+  lng?: number | null;
+  accuracyM?: number | null;
+  heading?: number | null;
+  availableServices?: string[];
+}): Promise<void> {
+  const { error } = await supabase.rpc("set_driver_live_status", {
+    p_is_online: input.isOnline,
+    p_lat: input.lat ?? null,
+    p_lng: input.lng ?? null,
+    p_accuracy_m: input.accuracyM ?? null,
+    p_heading: input.heading ?? null,
+    p_available_services: input.availableServices ?? ["taxi_aeroport", "premium"],
+  });
+  if (error) throw error;
+}
+
 /** Statuts d'une mission que le chauffeur peut lui-même faire progresser, dans l'ordre. */
 export const MISSION_STATUS_FLOW = [
   "chauffeur_assigne",
