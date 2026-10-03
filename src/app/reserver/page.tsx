@@ -3,8 +3,19 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import {
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  MapPinned,
+  Plane,
+  ShieldCheck,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
+import { Logo } from "@/components/layout/Logo";
 import { AddressAutocomplete, type SelectedPlace } from "@/components/booking/AddressAutocomplete";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,6 +52,22 @@ import {
 } from "@/lib/simulationDraft";
 
 type Step = SimulationDraft["step"];
+
+const STEP_LABELS: Array<{ steps: Step[]; label: string }> = [
+  { steps: ["service"], label: "Service" },
+  { steps: ["trajet"], label: "Trajet" },
+  { steps: ["vehicule"], label: "Véhicule" },
+  { steps: ["prix"], label: "Tarif" },
+  { steps: ["compte", "confirm", "done"], label: "Confirmation" },
+];
+
+const SERVICE_ICONS: Partial<Record<ServiceType, typeof Plane>> = {
+  transfert_aibd: Plane,
+  interurbain: MapPinned,
+  mise_a_disposition: Clock3,
+  ceremonie: UsersRound,
+  autre: Sparkles,
+};
 
 /** Offre publique courte — le reste passe par « Autre / devis ». */
 const SERVICE_CARDS: { value: ServiceType; title: TranslationKey; hint: TranslationKey }[] = [
@@ -144,6 +171,7 @@ function ReserverWizard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [doneRef, setDoneRef] = useState<string | null>(null);
+  const [doneBookingId, setDoneBookingId] = useState<string | null>(null);
   const [payLink, setPayLink] = useState<string | null>(null);
   const [pendingResumeDraft, setPendingResumeDraft] = useState<SimulationDraft | null>(null);
 
@@ -206,6 +234,7 @@ function ReserverWizard() {
     setPendingResumeDraft(null);
     setDraft(emptyDraft());
     setDoneRef(null);
+    setDoneBookingId(null);
     setPayLink(null);
     router.replace("/reserver");
   }
@@ -445,6 +474,14 @@ function ReserverWizard() {
   }
 
   async function submitDemande() {
+    if (
+      draft.validatedQuoteFcfa != null &&
+      quote.amountFcfa !== draft.validatedQuoteFcfa
+    ) {
+      patch({ validatedQuoteFcfa: null, step: "prix" });
+      setError("Le tarif a été actualisé. Vérifiez le nouveau montant avant de confirmer.");
+      return;
+    }
     const phoneDigits = draft.phone.replace(/\D/g, "");
     if (phoneDigits.length < 9) {
       setError("Indiquez un numéro joignable (ex. +221 77 000 00 00).");
@@ -526,6 +563,7 @@ function ReserverWizard() {
       }
 
       setDoneRef(booking.reference || booking.id.slice(0, 8));
+      setDoneBookingId(booking.id);
       clearSimulationDraft();
       patch({ step: "done" });
     } catch (err) {
@@ -546,7 +584,6 @@ function ReserverWizard() {
     }
   }
 
-  const progress = Math.min(100, ((stepIndex(draft.step) + 1) / (STEP_ORDER.length - 1)) * 100);
   const waHref = doneRef
     ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
         `Bonjour SentraJet Premium, réservation ${doneRef} — ${draft.pickup} → ${draft.dropoff} le ${draft.date} à ${draft.time}.`
@@ -604,15 +641,59 @@ function ReserverWizard() {
     SERVICE_CARDS.find((service) => service.value === draft.serviceType)?.title ??
       "landing.service.travel"
   );
+  const activeJourneyStep = STEP_LABELS.findIndex((item) => item.steps.includes(draft.step));
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-10">
-      <div className="overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(7,17,31,0.45)]">
-        <div className="bg-[#07111f] px-5 py-6 text-white sm:px-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f0c86b]">
-            SentraJet Premium
+    <div className="mx-auto w-full max-w-3xl px-0 pb-8 sm:px-6 sm:py-8">
+      <div className="min-h-screen overflow-hidden bg-white sm:min-h-0 sm:rounded-[28px] sm:border sm:border-neutral-200/80 sm:shadow-[0_20px_50px_-28px_rgba(7,17,31,0.45)]">
+        <div className="border-b border-slate-100 bg-white px-4 pb-5 pt-4 sm:px-7 sm:pt-6">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              aria-label="Retour"
+              onClick={() => {
+                if (draft.step === "service") {
+                  router.push("/");
+                  return;
+                }
+                const index = stepIndex(draft.step);
+                go(STEP_ORDER[Math.max(0, index - 1)]);
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <Logo className="[&_img]:!h-8" />
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+              Étape {Math.max(1, activeJourneyStep + 1)}/{STEP_LABELS.length}
+            </span>
+          </div>
+
+          {draft.step !== "done" ? (
+            <ol className="mt-5 grid grid-cols-5 gap-1" aria-label="Progression de la réservation">
+              {STEP_LABELS.map((item, index) => (
+                <li key={item.label} className="min-w-0">
+                  <span
+                    className={`block h-1.5 rounded-full ${
+                      index <= activeJourneyStep ? "bg-amber-500" : "bg-slate-200"
+                    }`}
+                  />
+                  <span
+                    className={`mt-1.5 hidden truncate text-[9px] font-bold sm:block ${
+                      index === activeJourneyStep ? "text-amber-800" : "text-slate-400"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+
+          <p className="mt-5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-amber-700">
+            Réservation SentraJet
           </p>
-          <h1 className="mt-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className="mt-1.5 font-display text-2xl font-extrabold tracking-tight text-[#07111f] sm:text-3xl">
             {draft.step === "service" && t("booking.step.serviceTitle")}
             {draft.step === "trajet" && t("booking.step.journeyTitle")}
             {draft.step === "vehicule" && "Choisissez votre véhicule"}
@@ -621,7 +702,7 @@ function ReserverWizard() {
             {draft.step === "confirm" && t("booking.step.confirmTitle")}
             {draft.step === "done" && t("booking.step.doneTitle")}
           </h1>
-          <p className="mt-2 text-sm text-white/70">
+          <p className="mt-2 text-sm text-slate-500">
             {draft.step === "service"
               ? t("booking.step.serviceSubtitle")
               : draft.step === "trajet"
@@ -633,18 +714,13 @@ function ReserverWizard() {
                       ? "Cotation manuelle SentraJet."
                       : "Basé sur vos points GPS et l’itinéraire calculé."
                     : draft.step === "done"
-                      ? "Nous validons puis envoyons le paiement Wave."
-                      : "Flotte SentraJet · devis clair · Wave."}
+                      ? "Votre demande suit maintenant le processus de validation SentraJet."
+                      : "Vérifiez les informations avant l’envoi à notre équipe."}
           </p>
-          {draft.step !== "done" ? (
-            <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/15">
-              <div className="h-full rounded-full bg-[#d5a64a] transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          ) : null}
           {draft.step !== "service" && draft.step !== "done" ? (
             <button
               type="button"
-              className="mt-3 text-xs font-semibold text-white/60 underline underline-offset-2 hover:text-white/90"
+              className="mt-3 text-xs font-semibold text-slate-400 underline underline-offset-2 hover:text-slate-700"
               onClick={() => {
                 if (window.confirm("Recommencer une nouvelle réservation ? Les informations déjà saisies seront perdues.")) {
                   startFreshDraft();
@@ -656,33 +732,47 @@ function ReserverWizard() {
           ) : null}
         </div>
 
-        <div className="px-5 py-6 sm:px-7">
+        <div className="px-4 py-5 sm:px-7 sm:py-7">
       {draft.step === "service" ? (
-        <div className="grid gap-3">
-          {SERVICE_CARDS.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => {
-                const next: Partial<SimulationDraft> = {
-                  serviceType: s.value,
-                  vehicleCategory: VEHICLE_CATEGORY_PRICED_SERVICES.includes(s.value) ? "berline" : null,
-                  step: "trajet",
-                  distanceKm: null,
-                  distanceSource: null,
-                };
-                if (s.value === "transfert_aibd") {
-                  next.dropoffPlace = AIBD_PLACE;
-                  next.dropoff = AIBD_PLACE.address;
-                }
-                patch(next);
-              }}
-              className="rounded-2xl border border-neutral-200 bg-neutral-50/80 px-4 py-4 text-start transition hover:border-amber-400 hover:bg-amber-50/50"
-            >
-              <p className="font-semibold text-neutral-900">{t(s.title)}</p>
-              <p className="mt-1 text-sm text-neutral-500">{t(s.hint)}</p>
-            </button>
-          ))}
+        <div className="grid grid-cols-2 gap-3">
+          {SERVICE_CARDS.map((s, index) => {
+            const Icon = SERVICE_ICONS[s.value] ?? Sparkles;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => {
+                  const next: Partial<SimulationDraft> = {
+                    serviceType: s.value,
+                    vehicleCategory: VEHICLE_CATEGORY_PRICED_SERVICES.includes(s.value) ? "berline" : null,
+                    step: "trajet",
+                    distanceKm: null,
+                    distanceSource: null,
+                  };
+                  if (s.value === "transfert_aibd") {
+                    next.dropoffPlace = AIBD_PLACE;
+                    next.dropoff = AIBD_PLACE.address;
+                  }
+                  patch(next);
+                }}
+                className={`group flex min-h-40 flex-col items-start justify-between rounded-[1.4rem] border p-4 text-start transition ${
+                  index === 0
+                    ? "col-span-2 border-amber-300 bg-amber-50"
+                    : "border-slate-200 bg-slate-50 hover:border-amber-300"
+                }`}
+              >
+                <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                  index === 0 ? "bg-amber-400 text-[#07111f]" : "bg-white text-slate-700 shadow-sm"
+                }`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>
+                  <span className="block font-extrabold text-slate-900">{t(s.title)}</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">{t(s.hint)}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
 
@@ -789,6 +879,26 @@ function ReserverWizard() {
             </div>
           </div>
 
+          {draft.serviceType === "transfert_aibd" || draft.serviceType === "aibd_retour" ? (
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
+              <label htmlFor="booking-flight" className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-800">
+                Numéro de vol <span className="font-medium normal-case tracking-normal text-sky-600">(recommandé)</span>
+              </label>
+              <input
+                id="booking-flight"
+                name="flight_number"
+                type="text"
+                className="input-base mt-1.5"
+                value={draft.flightNumber}
+                onChange={(e) => patch({ flightNumber: e.target.value.toUpperCase() })}
+                placeholder="Ex. AF718"
+              />
+              <p className="mt-2 text-xs leading-relaxed text-sky-700">
+                Nous pouvons anticiper un retard et ajuster la prise en charge.
+              </p>
+            </div>
+          ) : null}
+
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">{t("booking.type")}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -887,7 +997,7 @@ function ReserverWizard() {
           <button
             type="button"
             disabled={!canSimulate() || distanceLoading}
-            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b] disabled:opacity-45"
+            className="sticky bottom-3 z-20 w-full rounded-2xl bg-[#d5a64a] px-4 py-4 text-sm font-extrabold text-[#07111f] shadow-[0_12px_30px_rgba(7,17,31,0.2)] hover:bg-[#f0c86b] disabled:opacity-45"
             onClick={launchSimulation}
           >
             {distanceLoading
@@ -986,47 +1096,74 @@ function ReserverWizard() {
           ) : null}
           <button
             type="button"
-            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] hover:bg-[#f0c86b]"
+            className="sticky bottom-3 z-20 w-full rounded-2xl bg-[#d5a64a] px-4 py-4 text-sm font-extrabold text-[#07111f] shadow-[0_12px_30px_rgba(7,17,31,0.2)] hover:bg-[#f0c86b]"
             onClick={() => go("prix")}
           >
-            Continuer
+            Voir mon tarif
           </button>
         </div>
       ) : null}
 
       {draft.step === "prix" ? (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-neutral-900 px-5 py-6 text-white">
-            <p className="text-xs uppercase tracking-wide text-amber-300">
+          <div className="relative overflow-hidden rounded-[1.5rem] bg-[#07111f] px-5 py-6 text-white">
+            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-amber-400/10" />
+            <p className="relative text-xs font-bold uppercase tracking-wide text-amber-300">
               {quote.surDevis ? "Cotation manuelle" : "Tarif selon distance réelle"}
             </p>
-            <p className="mt-2 font-display text-3xl font-extrabold">
+            <p className="relative mt-2 font-display text-4xl font-extrabold text-white">
               {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"}
             </p>
-            <p className="mt-2 text-sm text-neutral-300">{quote.formulaApplied}</p>
+            <p className="relative mt-2 text-sm text-white/60">{quote.formulaApplied}</p>
+            {user && quote.discountPercent > 0 ? (
+              <span className="relative mt-4 inline-flex rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-bold text-emerald-300">
+                Avantage compte −{quote.discountPercent} % appliqué
+              </span>
+            ) : null}
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-            <p>
-              <span className="text-neutral-500">Départ</span> · {draft.pickup}
-            </p>
-            <p className="mt-1">
-              <span className="text-neutral-500">Arrivée</span> · {draft.dropoff}
-            </p>
-            <p className="mt-1">
-              <span className="text-neutral-500">Distance routière</span> ·{" "}
+
+          <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-sm text-slate-700">
+            <h2 className="mb-3 text-sm font-extrabold text-slate-900">Détails de la prestation</h2>
+            <div className="flex gap-3">
+              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Départ</span>
+                <span className="font-semibold">{draft.pickup}</span>
+              </div>
+            </div>
+            <div className="my-2 ml-1 h-5 border-l border-dashed border-slate-300" />
+            <div className="flex gap-3">
+              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Arrivée</span>
+                <span className="font-semibold">{draft.dropoff}</span>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-3 text-xs">
+              <p>
+                <span className="block text-slate-400">Distance</span>
               {draft.distanceKm ? `${draft.distanceKm} km aller` : "—"}
               {quote.returnKm ? ` · ${quote.returnKm} km retour · ${quote.billableKm} km total` : ""}
-              {draft.durationMinutes ? ` · ~${draft.durationMinutes} min` : ""}
-            </p>
+              </p>
+              <p>
+                <span className="block text-slate-400">Durée estimée</span>
+                {draft.durationMinutes ? `~${draft.durationMinutes} min` : "À confirmer"}
+              </p>
+              <p>
+                <span className="block text-slate-400">Passagers</span>
+                {draft.passengers}
+              </p>
+              <p>
+                <span className="block text-slate-400">Bagages</span>
+                {draft.luggage}
+              </p>
+            </div>
             {quote.ratePerKm ? (
-              <p className="mt-1">
+              <p className="mt-3 text-xs">
                 <span className="text-neutral-500">Tarif/km</span> · {quote.ratePerKm} FCFA
                 {quote.tariffVersionCode ? ` · ${quote.tariffVersionCode}` : ""}
               </p>
             ) : null}
-            <p className="mt-1">
-              <span className="text-neutral-500">Passagers / valises</span> · {draft.passengers} / {draft.luggage}
-            </p>
             {quote.feeLines?.filter((l) => l.key !== "transport").length ? (
               <ul className="mt-3 space-y-1 text-xs text-neutral-500">
                 {quote.feeLines
@@ -1054,12 +1191,26 @@ function ReserverWizard() {
               </ul>
             ) : null}
           </div>
+
+          <div className="rounded-[1.25rem] border border-emerald-100 bg-emerald-50/70 p-4">
+            <p className="flex items-center gap-2 text-sm font-extrabold text-emerald-950">
+              <ShieldCheck className="h-5 w-5 text-emerald-700" />
+              Ce qui se passe ensuite
+            </p>
+            <ol className="mt-3 grid gap-2 text-xs text-emerald-900/75">
+              {["Vérification de votre demande", "Validation du véhicule disponible", "Paiement sécurisé puis affectation"].map((label) => (
+                <li key={label} className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-700" /> {label}
+                </li>
+              ))}
+            </ol>
+          </div>
           <button
             type="button"
-            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f]"
+            className="sticky bottom-3 z-20 w-full rounded-2xl bg-[#d5a64a] px-4 py-4 text-sm font-extrabold text-[#07111f] shadow-[0_12px_30px_rgba(7,17,31,0.2)]"
             onClick={validateQuote}
           >
-            Valider cette estimation
+            Continuer avec ce tarif
           </button>
           <button type="button" className="w-full rounded-xl border px-4 py-3 text-sm font-semibold" onClick={() => go("trajet")}>
             Modifier l’itinéraire
@@ -1069,10 +1220,15 @@ function ReserverWizard() {
 
       {draft.step === "compte" ? (
         <div className="space-y-3">
-          <p className="text-sm text-neutral-600">Votre simulation est sauvegardée — reprise après compte.</p>
+          <div className="rounded-[1.25rem] border border-amber-200 bg-amber-50 p-4">
+            <p className="font-extrabold text-slate-900">Économisez {discountPercent} % avec un compte</p>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              Votre simulation est sauvegardée. Vous retrouverez aussi le paiement, le chauffeur et le suivi en direct dans votre espace.
+            </p>
+          </div>
           <Link
             href={`/inscription?role=client&next=${encodeURIComponent(resumeUrl())}`}
-            className="flex w-full items-center justify-center rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f]"
+            className="flex w-full items-center justify-center rounded-2xl bg-[#d5a64a] px-4 py-4 text-sm font-extrabold text-[#07111f]"
           >
             Créer un compte et continuer
           </Link>
@@ -1090,53 +1246,94 @@ function ReserverWizard() {
 
       {draft.step === "confirm" ? (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm">
-            <p className="font-semibold">{currentServiceTitle}</p>
-            <p className="mt-1">{draft.pickup} → {draft.dropoff}</p>
-            <p>
+          <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 text-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-extrabold text-slate-900">{currentServiceTitle}</p>
+                <p className="mt-1 text-slate-500">{draft.pickup} → {draft.dropoff}</p>
+              </div>
+              <button type="button" onClick={() => go("trajet")} className="text-xs font-bold text-amber-800">
+                Modifier
+              </button>
+            </div>
+            <p className="mt-3 text-slate-600">
               {draft.date} {draft.time}
               {draft.distanceKm ? ` · ${draft.distanceKm} km` : ""}
             </p>
-            <p className="mt-2 font-bold text-amber-800">
+            <p className="mt-3 text-xl font-extrabold text-slate-900">
               {quote.amountFcfa > 0 ? formatFcfa(quote.amountFcfa) : "Sur devis"}
             </p>
           </div>
-          <div>
+          <div className="rounded-[1.25rem] border border-slate-200 p-4">
             <label htmlFor="booking-phone" className="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Téléphone</label>
             <input id="booking-phone" name="phone" type="tel" className="input-base mt-1.5" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+221 …" />
+            <p className="mt-2 text-xs text-slate-400">Utilisé uniquement pour confirmer la prise en charge.</p>
+          </div>
+          <div className="rounded-[1.25rem] border border-sky-100 bg-sky-50/70 p-4 text-xs leading-relaxed text-sky-900">
+            L’envoi crée une demande, pas une affectation immédiate. SentraJet vérifie la disponibilité du véhicule avant le dispatch.
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button
             type="button"
             disabled={saving}
             onClick={() => void submitDemande()}
-            className="w-full rounded-2xl bg-[#d5a64a] px-4 py-3.5 text-sm font-bold text-[#07111f] disabled:opacity-60"
+            className="sticky bottom-3 z-20 w-full rounded-2xl bg-[#d5a64a] px-4 py-4 text-sm font-extrabold text-[#07111f] shadow-[0_12px_30px_rgba(7,17,31,0.2)] disabled:opacity-60"
           >
-            {saving ? "Envoi…" : "Envoyer ma demande"}
+            {saving ? "Envoi sécurisé…" : "Confirmer et envoyer ma demande"}
           </button>
         </div>
       ) : null}
 
       {draft.step === "done" && doneRef ? (
-        <div className="space-y-4">
-          <p className="text-sm text-neutral-600">
-            Réf. <strong>{doneRef}</strong> — SentraJet vous recontacte pour valider le devis et le paiement.
-          </p>
+        <div className="space-y-4 text-center">
+          <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <CheckCircle2 className="h-10 w-10" />
+          </span>
+          <div>
+            <p className="text-xl font-extrabold text-slate-900">Demande bien reçue</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              Référence <strong className="text-slate-900">{doneRef}</strong>. Notre équipe vérifie maintenant la disponibilité avant l’affectation.
+            </p>
+          </div>
+          <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 text-left">
+            {[
+              { label: "Demande enregistrée", done: true },
+              { label: "Validation SentraJet", done: false },
+              { label: "Véhicule et chauffeur affectés", done: false },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-3 py-2 text-sm font-semibold text-slate-700">
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                  item.done ? "bg-emerald-600 text-white" : "border border-slate-300 bg-white text-slate-300"
+                }`}>
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+                {item.label}
+              </div>
+            ))}
+          </div>
           {payLink ? (
             <a
               href={payLink}
               target="_blank"
               rel="noreferrer"
-              className="flex w-full items-center justify-center rounded-2xl bg-amber-500 px-4 py-3.5 text-sm font-bold text-white"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1dc173] px-4 py-4 text-sm font-extrabold text-white"
             >
-              Payer maintenant via Wave
+              <CreditCard className="h-4 w-4" /> Payer maintenant via Wave
             </a>
+          ) : null}
+          {user && doneBookingId ? (
+            <Link
+              href={`/compte/reservations/${doneBookingId}`}
+              className="flex w-full items-center justify-center rounded-2xl bg-[#07111f] px-4 py-4 text-sm font-extrabold text-white"
+            >
+              Suivre ma réservation
+            </Link>
           ) : null}
           <a
             href={waHref}
             target="_blank"
             rel="noreferrer"
-            className="flex w-full items-center justify-center rounded-2xl bg-[#25D366] px-4 py-3.5 text-sm font-bold text-white"
+            className="flex w-full items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-bold text-emerald-800"
           >
             Continuer sur WhatsApp
           </a>
@@ -1167,14 +1364,10 @@ function ReserverWizard() {
 
 export default function ReserverPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(ellipse_at_top,_#e8eef6_0%,_#f4f4f5_50%,_#eceff3_100%)]">
-      <Header />
-      <main className="flex-1">
-        <Suspense fallback={<BrandedLoader />}>
-          <ReserverWizard />
-        </Suspense>
-      </main>
-      <Footer />
-    </div>
+    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#e8eef6_0%,_#f4f4f5_50%,_#eceff3_100%)]">
+      <Suspense fallback={<BrandedLoader />}>
+        <ReserverWizard />
+      </Suspense>
+    </main>
   );
 }
