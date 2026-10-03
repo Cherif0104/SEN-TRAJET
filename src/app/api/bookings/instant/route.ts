@@ -18,6 +18,7 @@ type InstantBody = {
   vehicleCategory?: VehicleCategory;
   passengers?: number;
   phone?: string;
+  rideKind?: "airport" | "city";
 };
 
 function cleanPhone(value: string | undefined): string {
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
   }
 
   const category = body.vehicleCategory;
+  const rideKind = body.rideKind === "city" ? "city" : "airport";
   const phone = cleanPhone(body.phone);
   const passengers = Math.max(1, Math.min(10, Number(body.passengers) || 1));
   const route = {
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     );
   }
-  const quote = computeInstantTaxiPrice(distance.distanceKm, category);
+  const quote = computeInstantTaxiPrice(distance.distanceKm, category, rideKind);
 
   try {
     const admin = getSupabaseAdmin();
@@ -139,15 +141,15 @@ export async function POST(request: NextRequest) {
         pickup: body.pickup.address.trim(),
         dropoff: body.dropoff.address.trim(),
         pickup_time: new Date().toISOString(),
-        service_type: "transfert_aibd",
+        service_type: rideKind === "airport" ? "transfert_aibd" : "autre",
         estimated_price: quote.amountFcfa,
         final_amount_fcfa: quote.amountFcfa,
         passengers,
         phone,
         distance_km: quote.distanceKm,
         pricing_segment: "client",
-        source: "instant_taxi",
-        tariff_version_code: "INSTANT_TAXI_V1",
+        source: rideKind === "airport" ? "instant_airport" : "instant_city",
+        tariff_version_code: rideKind === "airport" ? "INSTANT_TAXI_V1" : "INSTANT_CITY_V1",
         notes: `Catégorie véhicule : ${VEHICLE_CATEGORY_LABELS[category]}\nTarif : ${quote.formula}`,
         pickup_lat: route.fromLat,
         pickup_lng: route.fromLng,

@@ -9,7 +9,15 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
-import { Users, Car, ArrowLeft, Building2, CarTaxiFront, Plane } from "lucide-react";
+import {
+  Car,
+  ArrowLeft,
+  Building2,
+  CarTaxiFront,
+  Plane,
+  ChevronRight,
+  ShieldCheck,
+} from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
@@ -199,14 +207,20 @@ function InscriptionPageContent() {
 
   return (
     <AuthPageScaffold
-      title="Créer un compte"
-      subtitle="Compte client SentraJet Premium (−10 %). Partenaires : contact & certification uniquement."
+      eyebrow="Bienvenue"
+      title="Comment utiliserez-vous SentraJet ?"
+      subtitle="Un seul écosystème, avec un espace adapté à votre activité."
     >
-        {/* Étape 1 : Choix Client / Partenaire / Propriétaire */}
         {step === "choice" && (
           <>
-            <p className="mt-8 text-sm font-semibold text-slate-800">Je suis</p>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div className="mt-6 rounded-[1.6rem] bg-[#07111f] p-5 text-white">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+                SentraJet
+              </p>
+              <h2 className="mt-2 text-xl font-black text-white">Je souhaite me déplacer</h2>
+              <p className="mt-2 text-sm leading-relaxed text-white/60">
+                Course immédiate, aéroport, Allo Dakar et location depuis le même compte.
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -214,76 +228,86 @@ function InscriptionPageContent() {
                   setStep("form");
                   setError(null);
                 }}
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
+                className="mt-5 flex w-full items-center justify-between rounded-2xl bg-amber-400 px-4 py-3.5 text-left text-[#07111f]"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Users className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Client</span>
-                <span className="text-sm text-slate-600">
-                  Je réserve une prestation SentraJet (−10 % avec compte)
+                <span>
+                  <span className="block text-sm font-black">Créer mon compte client</span>
+                  <span className="mt-0.5 block text-[11px] font-semibold opacity-70">
+                    Réserver et suivre mes trajets
+                  </span>
                 </span>
+                <ChevronRight className="h-5 w-5" />
               </button>
-              <Link
-                href="/devenir-partenaire"
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Building2 className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Professionnel ?</span>
-                <span className="text-sm text-slate-600">
-                  Devenir partenaire — diagnostic SentraJet (pas de compte auto)
-                </span>
-              </Link>
+            </div>
+
+            <div className="mt-7 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-black text-slate-900">Je travaille avec SentraJet</p>
+                <p className="mt-0.5 text-xs text-slate-400">SentraJet Pro · dossier contrôlé</p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-700">
+                Pro
+              </span>
+            </div>
+
+            <div className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white">
               <Link
                 href="/devenir-chauffeur"
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-amber-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
+                className="flex items-center gap-3 p-4 transition hover:bg-slate-50"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Plane className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Chauffeur taxi AIBD</span>
-                <span className="text-sm text-slate-600">
-                  Courses à proximité — dossier et véhicule validés par SentraJet
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                  <Plane className="h-5 w-5" />
                 </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-slate-900">Chauffeur taxi</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Courses urbaines et transferts AIBD</span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-300" />
               </Link>
               <Link
                 href="/allo-dakar/chauffeur"
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-emerald-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-emerald-400/80 hover:bg-emerald-50/40"
+                className="flex items-center gap-3 p-4 transition hover:bg-slate-50"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700">
-                  <CarTaxiFront className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Chauffeur Allo Dakar</span>
-                <span className="text-sm text-slate-600">
-                  Publier des départs interurbains — validation SentraJet obligatoire
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <CarTaxiFront className="h-5 w-5" />
                 </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-slate-900">Chauffeur Allo Dakar</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Publier mes départs interurbains</span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-300" />
+              </Link>
+              <Link
+                href="/devenir-partenaire"
+                className="flex items-center gap-3 p-4 transition hover:bg-slate-50"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                  <Building2 className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-slate-900">Entreprise ou apporteur</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Réserver pour des clients ou collaborateurs</span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-300" />
               </Link>
               <Link
                 href="/devenir-partenaire?profil=proprietaire"
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
+                className="flex items-center gap-3 p-4 transition hover:bg-slate-50"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Car className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Propriétaire / investisseur</span>
-                <span className="text-sm text-slate-600">
-                  Contact commercial — contrat d’actifs, pas d’inscription libre
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
+                  <Car className="h-5 w-5" />
                 </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-slate-900">Propriétaire de véhicule</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Confier un véhicule et suivre son exploitation</span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-300" />
               </Link>
             </div>
 
-            <p className="mt-6 text-center text-sm text-slate-500">
-              Chaque profil professionnel suit son propre contrôle. Aucun chauffeur ni véhicule
-              n’est activé automatiquement après l’inscription.
-            </p>
-
-            <p className="mt-3 text-center text-xs text-slate-400">
-              Besoin d’un trajet interurbain économique et partagé plutôt qu’un service premium ?{" "}
-              <a href="/allo-dakar" className="underline hover:text-slate-600">
-                Découvrir le covoiturage SentraJet Allo Dakar
-              </a>
+            <p className="mt-4 flex items-start gap-2 rounded-2xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              Les espaces professionnels sont activés après vérification des documents par SentraJet.
             </p>
           </>
         )}

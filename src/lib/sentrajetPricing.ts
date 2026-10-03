@@ -132,9 +132,19 @@ export const INSTANT_TAXI_RATES: Record<
   van: { minimumFcfa: 45_000, perKmFcfa: 900 },
 };
 
+export const INSTANT_CITY_RATES: Record<
+  VehicleCategory,
+  { minimumFcfa: number; perKmFcfa: number }
+> = {
+  berline: { minimumFcfa: 3_000, perKmFcfa: 450 },
+  suv: { minimumFcfa: 5_000, perKmFcfa: 550 },
+  van: { minimumFcfa: 8_000, perKmFcfa: 700 },
+};
+
 export function computeInstantTaxiPrice(
   distanceKm: number,
-  vehicleCategory: VehicleCategory
+  vehicleCategory: VehicleCategory,
+  rideKind: "airport" | "city" = "airport"
 ): {
   amountFcfa: number;
   distanceKm: number;
@@ -143,7 +153,10 @@ export function computeInstantTaxiPrice(
   formula: string;
 } {
   const km = Math.max(1, ceilDistanceKm(distanceKm));
-  const rate = INSTANT_TAXI_RATES[vehicleCategory];
+  const rate =
+    rideKind === "city"
+      ? INSTANT_CITY_RATES[vehicleCategory]
+      : INSTANT_TAXI_RATES[vehicleCategory];
   const distanceAmount = km * rate.perKmFcfa;
   const amountFcfa = Math.ceil(Math.max(rate.minimumFcfa, distanceAmount) / 500) * 500;
   return {

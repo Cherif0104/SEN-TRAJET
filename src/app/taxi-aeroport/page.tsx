@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -55,9 +55,19 @@ type LiveBooking = {
 
 const categories: VehicleCategory[] = ["berline", "suv", "van"];
 
-export default function TaxiAeroportPage() {
+export function InstantRidePage({
+  defaultDestination = AIBD,
+  rideKind = "airport",
+  eyebrow = "Taxi aéroport",
+  title = "Un chauffeur, maintenant.",
+}: {
+  defaultDestination?: SelectedPlace | null;
+  rideKind?: "airport" | "city";
+  eyebrow?: string;
+  title?: string;
+}) {
   const [pickup, setPickup] = useState<SelectedPlace | null>(null);
-  const [dropoff, setDropoff] = useState<SelectedPlace | null>(AIBD);
+  const [dropoff, setDropoff] = useState<SelectedPlace | null>(defaultDestination);
   const [category, setCategory] = useState<VehicleCategory>("berline");
   const [passengers, setPassengers] = useState(1);
   const [phone, setPhone] = useState("");
@@ -68,11 +78,50 @@ export default function TaxiAeroportPage() {
   const [error, setError] = useState<string | null>(null);
   const [booking, setBooking] = useState<LiveBooking | null>(null);
   const [searchToken, setSearchToken] = useState<string | null>(null);
+  const locationRequested = useRef(false);
 
   const quote = useMemo(
-    () => (distanceKm ? computeInstantTaxiPrice(distanceKm, category) : null),
-    [distanceKm, category]
+    () => (distanceKm ? computeInstantTaxiPrice(distanceKm, category, rideKind) : null),
+    [distanceKm, category, rideKind]
   );
+
+  useEffect(() => {
+    if (
+      rideKind !== "city" ||
+      pickup ||
+      locationRequested.current ||
+      !navigator.geolocation
+    ) return;
+    locationRequested.current = true;
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const response = await fetch(`/api/geocode/reverse?lat=${latitude}&lng=${longitude}`);
+        const payload = response.ok
+          ? ((await response.json()) as {
+              display_name?: string;
+              label?: string;
+              fallback?: string;
+            })
+          : {};
+        const address =
+          payload.display_name ||
+          payload.label ||
+          payload.fallback ||
+          `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        setPickup({
+          id: `geo:${latitude},${longitude}`,
+          label: "Ma position",
+          address,
+          lat: latitude,
+          lng: longitude,
+          source: "geolocation",
+        });
+      },
+      () => undefined,
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 30_000 }
+    );
+  }, [rideKind, pickup]);
 
   useEffect(() => {
     if (!pickup || !dropoff) {
@@ -162,6 +211,7 @@ export default function TaxiAeroportPage() {
           vehicleCategory: category,
           passengers,
           phone,
+          rideKind,
         }),
       });
       const payload = (await response.json()) as {
@@ -198,8 +248,8 @@ export default function TaxiAeroportPage() {
         </header>
 
         <section className="px-4 pb-28 pt-5">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Taxi aéroport</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight">Un chauffeur, maintenant.</h1>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">{eyebrow}</p>
+          <h1 className="mt-1 text-3xl font-black tracking-tight">{title}</h1>
           <p className="mt-2 text-sm text-slate-500">Position, prix et affectation traités automatiquement.</p>
 
           {booking ? (
@@ -232,8 +282,8 @@ export default function TaxiAeroportPage() {
                   <Clock3 className="h-9 w-9 text-amber-700" />
                   <h2 className="mt-3 text-xl font-black">Aucun chauffeur immédiat</h2>
                   <p className="mt-2 text-sm text-slate-600">La recherche est terminée. Planifiez le trajet pour que l’équipe organise votre prise en charge.</p>
-                  <Link href="/reserver?service=transfert_aibd" className="mt-4 inline-flex rounded-2xl bg-[#07111f] px-4 py-3 text-sm font-black text-white">
-                    Planifier mon transfert
+                  <Link href={rideKind === "airport" ? "/reserver?service=transfert_aibd" : "/reserver"} className="mt-4 inline-flex rounded-2xl bg-[#07111f] px-4 py-3 text-sm font-black text-white">
+                    Planifier ce trajet
                   </Link>
                 </div>
               ) : (
@@ -264,7 +314,7 @@ export default function TaxiAeroportPage() {
                 </button>
                 <AddressAutocomplete
                   label="Destination"
-                  placeholder="AIBD ou une autre adresse"
+                  placeholder={rideKind === "airport" ? "AIBD ou une autre adresse" : "Quartier, rue ou lieu"}
                   value={dropoff}
                   onSelect={setDropoff}
                   onClear={() => setDropoff(null)}
@@ -279,7 +329,7 @@ export default function TaxiAeroportPage() {
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {categories.map((item) => {
-                    const itemQuote = distanceKm ? computeInstantTaxiPrice(distanceKm, item) : null;
+                    const itemQuote = distanceKm ? computeInstantTaxiPrice(distanceKm, item, rideKind) : null;
                     return (
                       <button
                         key={item}
@@ -350,4 +400,8 @@ export default function TaxiAeroportPage() {
       </div>
     </main>
   );
+}
+
+export default function TaxiAeroportPage() {
+  return <InstantRidePage />;
 }
