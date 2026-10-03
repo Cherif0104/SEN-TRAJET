@@ -41,8 +41,8 @@ const services = [
   },
   {
     title: "Taxi AIBD",
-    detail: "Transfert aéroport",
-    href: "/reserver?service=transfert_aibd",
+    detail: "Trouver un chauffeur",
+    href: "/taxi-aeroport",
     icon: Plane,
     image: "/images/hero-sen-trajet.png",
     imagePosition: "72% center",
@@ -74,8 +74,8 @@ const services = [
 const suggestions = [
   {
     title: "Aéroport AIBD",
-    detail: "Diass · transfert dès 25 000 F",
-    href: "/reserver?service=transfert_aibd",
+    detail: "Diass · taxi en direct",
+    href: "/taxi-aeroport",
     icon: Plane,
   },
   {
