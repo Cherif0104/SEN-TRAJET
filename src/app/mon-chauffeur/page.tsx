@@ -1,21 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
   BadgeCheck,
   CalendarClock,
   CarFront,
+  ChevronRight,
   CheckCircle2,
   Clock3,
   Languages,
+  MapPin,
+  Phone,
   Radar,
   ShieldCheck,
-  Sparkles,
   Star,
   UserRound,
+  WalletCards,
 } from "lucide-react";
 import {
   AddressAutocomplete,
@@ -66,6 +68,7 @@ export default function MyDriverPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
 
   useEffect(() => {
     if (!name && profile?.full_name) setName(profile.full_name);
@@ -143,185 +146,102 @@ export default function MyDriverPage() {
     }
   }
 
+  const canContinue = step === 1 ? Boolean(pickup && startsAt) : true;
+
   return (
-    <main className="min-h-screen bg-[#f3f5f8] text-[#07111f]">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          <Link href="/compte" className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100" aria-label="Retour">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+    <main className="min-h-screen bg-[#f5f4f0] pb-28 text-[#07111f]">
+      <header className="sticky top-0 z-40 border-b border-black/5 bg-[#f5f4f0]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-xl items-center gap-3 px-4">
+          <Link href={step > 1 && !mission ? "#" : "/compte"} onClick={(event) => { if (step > 1 && !mission) { event.preventDefault(); setStep(step - 1); } }} className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm" aria-label="Retour"><ArrowLeft className="h-5 w-5" /></Link>
           <Logo className="flex-1 [&_img]:!h-7" />
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-900">
-            Mon Chauffeur
-          </span>
+          <Link href="/mon-chauffeur/pro" className="rounded-full bg-[#07111f] px-3 py-2 text-[11px] font-extrabold text-white">Espace chauffeur</Link>
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-[#07111f] px-4 pb-20 pt-8 text-white sm:pb-24 sm:pt-12">
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-500/15" />
-        <div className="relative mx-auto max-w-6xl">
-          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-violet-300">
-            <Sparkles className="h-4 w-4" /> Votre voiture, notre chauffeur
-          </span>
-          <h1 className="mt-3 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">
-            Un chauffeur vérifié, exactement quand vous en avez besoin.
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-            Pour quelques heures, une journée, un remplacement ou un recrutement. SentraJet
-            sélectionne le profil compatible et encaisse le paiement en toute sécurité.
-          </p>
-        </div>
-      </section>
+      <div className="mx-auto max-w-xl px-4 pt-5">
+        {!mission ? (
+          <>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3].map((item) => <span key={item} className={`h-1.5 flex-1 rounded-full ${item <= step ? "bg-amber-400" : "bg-slate-200"}`} />)}
+            </div>
+            <p className="mt-3 text-xs font-bold text-slate-500">Étape {step} sur 3</p>
 
-      <div className="mx-auto -mt-12 grid max-w-6xl gap-6 px-4 pb-20 sm:px-6 lg:grid-cols-[1.2fr_.8fr]">
-        <section className="space-y-5">
-          <div className="rounded-3xl bg-white p-4 shadow-lg shadow-slate-900/5 sm:p-6">
-            <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">1 · Votre besoin</p>
-            <h2 className="mt-1 text-lg font-black">Quel type de mission ?</h2>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {missionTypes.map(([value, label]) => (
-                <button key={value} type="button" onClick={() => setMissionType(value)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-black ${missionType === value ? "bg-[#07111f] text-white" : "bg-slate-100 text-slate-600"}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4">
-              <AddressAutocomplete
-                label="Lieu de prise en charge"
-                placeholder="Domicile, bureau, hôtel…"
-                value={pickup}
-                textValue={pickupText}
-                onSelect={(place) => {
-                  setPickup(place);
-                  setPickupText(place.address);
-                }}
-                onClear={() => {
-                  setPickup(null);
-                  setPickupText("");
-                }}
-                showMyLocation
-                accent="pickup"
-              />
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="rounded-2xl border border-slate-200 p-3">
-                <span className="flex items-center gap-2 text-xs font-bold text-slate-500"><CalendarClock className="h-4 w-4" /> Début</span>
-                <input type="datetime-local" value={startsAt} min={initialStart} onChange={(event) => setStartsAt(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold outline-none" />
-              </label>
-              <label className="rounded-2xl border border-slate-200 p-3">
-                <span className="flex items-center gap-2 text-xs font-bold text-slate-500"><Clock3 className="h-4 w-4" /> Durée</span>
-                <select value={durationHours} onChange={(event) => setDurationHours(Number(event.target.value))} className="mt-2 w-full bg-transparent text-sm font-bold outline-none">
-                  <option value={2}>2 heures</option>
-                  <option value={4}>4 heures</option>
-                  <option value={8}>1 journée · 8 h</option>
-                  <option value={16}>2 journées</option>
-                  <option value={40}>5 journées</option>
-                  <option value={160}>Mission longue · 1 mois</option>
-                </select>
-              </label>
-            </div>
-          </div>
+            {step === 1 ? (
+              <section className="mt-3">
+                <h1 className="text-3xl font-black leading-tight tracking-tight">Quand avez-vous besoin d’un chauffeur ?</h1>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Il conduit votre propre véhicule, pour quelques heures ou plusieurs jours.</p>
+                <div className="mt-6 grid grid-cols-2 gap-2">
+                  {missionTypes.map(([value, label]) => (
+                    <button key={value} type="button" onClick={() => setMissionType(value)} className={`min-h-14 rounded-2xl border px-3 text-left text-sm font-extrabold transition ${missionType === value ? "border-[#07111f] bg-[#07111f] text-white shadow-lg" : "border-slate-200 bg-white"}`}>{label}</button>
+                  ))}
+                </div>
+                <div className="mt-5 rounded-3xl bg-white p-3 shadow-sm">
+                  <AddressAutocomplete label="Prise en charge" placeholder="Domicile, bureau, hôtel…" value={pickup} textValue={pickupText} onSelect={(place) => { setPickup(place); setPickupText(place.address); }} onClear={() => { setPickup(null); setPickupText(""); }} showMyLocation accent="pickup" />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <label className="rounded-2xl bg-white p-4 shadow-sm"><span className="flex items-center gap-2 text-xs font-bold text-slate-500"><CalendarClock className="h-4 w-4 text-amber-600" /> Début</span><input type="datetime-local" value={startsAt} min={initialStart} onChange={(event) => setStartsAt(event.target.value)} className="mt-2 w-full bg-transparent text-xs font-extrabold outline-none" /></label>
+                  <label className="rounded-2xl bg-white p-4 shadow-sm"><span className="flex items-center gap-2 text-xs font-bold text-slate-500"><Clock3 className="h-4 w-4 text-amber-600" /> Durée</span><select value={durationHours} onChange={(event) => setDurationHours(Number(event.target.value))} className="mt-2 w-full bg-transparent text-xs font-extrabold outline-none"><option value={2}>2 heures</option><option value={4}>4 heures</option><option value={8}>1 journée</option><option value={16}>2 journées</option><option value={40}>5 journées</option><option value={160}>1 mois</option></select></label>
+                </div>
+              </section>
+            ) : null}
 
-          <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6">
-            <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">2 · Votre véhicule</p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <label className="rounded-2xl border border-slate-200 p-3">
-                <span className="text-xs font-bold text-slate-500">Type</span>
-                <select value={vehicleType} onChange={(event) => setVehicleType(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold outline-none">
-                  {["citadine", "berline", "suv", "van", "minibus", "bus", "utilitaire"].map((type) => <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>)}
-                </select>
-              </label>
-              <label className="rounded-2xl border border-slate-200 p-3">
-                <span className="text-xs font-bold text-slate-500">Transmission</span>
-                <select value={transmission} onChange={(event) => setTransmission(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold outline-none">
-                  <option value="manuelle">Manuelle</option>
-                  <option value="automatique">Automatique</option>
-                </select>
-              </label>
-              <label className="rounded-2xl border border-slate-200 p-3">
-                <span className="flex items-center gap-2 text-xs font-bold text-slate-500"><Languages className="h-4 w-4" /> Langue souhaitée</span>
-                <select value={language} onChange={(event) => setLanguage(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold outline-none">
-                  <option value="">Sans préférence</option>
-                  <option>Français</option>
-                  <option>Wolof</option>
-                  <option>Anglais</option>
-                  <option>Arabe</option>
-                </select>
-              </label>
-              <label className="rounded-2xl border border-slate-200 p-3">
-                <span className="text-xs font-bold text-slate-500">Budget maximum</span>
-                <input type="number" min={3000} step={500} value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="Facultatif" className="mt-2 w-full bg-transparent text-sm font-bold outline-none" />
-              </label>
-            </div>
-            <label className="mt-3 block">
-              <span className="text-xs font-bold text-slate-500">Consignes</span>
-              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Programme, tenue, expérience particulière…" className="mt-1 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:border-violet-400" />
-            </label>
-          </div>
-        </section>
+            {step === 2 ? (
+              <section className="mt-3">
+                <h1 className="text-3xl font-black leading-tight tracking-tight">Parlez-nous de votre véhicule</h1>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Nous proposerons uniquement des chauffeurs qui maîtrisent sa catégorie et sa transmission.</p>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  {["citadine", "berline", "suv", "van", "minibus", "bus", "utilitaire"].map((type) => <button key={type} type="button" onClick={() => setVehicleType(type)} className={`flex min-h-20 flex-col justify-between rounded-2xl border p-4 text-left ${vehicleType === type ? "border-amber-400 bg-amber-50 ring-2 ring-amber-400" : "border-slate-200 bg-white"}`}><CarFront className="h-5 w-5" /><span className="text-sm font-extrabold capitalize">{type}</span></button>)}
+                </div>
+                <div className="mt-5">
+                  <p className="text-xs font-extrabold text-slate-500">Transmission</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">{["manuelle", "automatique"].map((item) => <button key={item} type="button" onClick={() => setTransmission(item)} className={`min-h-12 rounded-2xl text-sm font-extrabold capitalize ${transmission === item ? "bg-[#07111f] text-white" : "bg-white"}`}>{item}</button>)}</div>
+                </div>
+                <label className="mt-5 block rounded-2xl bg-white p-4"><span className="flex items-center gap-2 text-xs font-bold text-slate-500"><Languages className="h-4 w-4 text-amber-600" /> Langue souhaitée</span><select value={language} onChange={(event) => setLanguage(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-extrabold outline-none"><option value="">Sans préférence</option><option>Français</option><option>Wolof</option><option>Anglais</option><option>Arabe</option></select></label>
+              </section>
+            ) : null}
 
-        <aside className="h-fit rounded-3xl bg-white p-5 shadow-lg ring-1 ring-slate-200 sm:p-6 lg:sticky lg:top-20">
-          <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">3 · Matching SentraJet</p>
-          <h2 className="mt-1 text-lg font-black">Trouvez votre chauffeur</h2>
-          {mission ? (
-            <div className="mt-4">
-              {mission.assigned_driver ? (
-                <div className="overflow-hidden rounded-2xl bg-[#07111f] p-4 text-white">
-                  <div className="flex items-center gap-3">
-                    {mission.assigned_driver.photo_url ? (
-                      <Image src={mission.assigned_driver.photo_url} alt="" width={52} height={52} className="h-13 w-13 rounded-full object-cover" />
-                    ) : (
-                      <span className="flex h-13 w-13 items-center justify-center rounded-full bg-white/10"><UserRound className="h-6 w-6" /></span>
-                    )}
-                    <div>
-                      <p className="font-black text-white">{mission.assigned_driver.full_name}</p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-emerald-300"><BadgeCheck className="h-3.5 w-3.5" /> Dossier SentraJet vérifié</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/10 pt-3 text-center text-xs">
-                    <div><Star className="mx-auto h-4 w-4 text-amber-300" /><b className="mt-1 block">{mission.assigned_driver.average_rating || "Nouveau"}</b></div>
-                    <div><Clock3 className="mx-auto h-4 w-4 text-violet-300" /><b className="mt-1 block">{mission.assigned_driver.years_experience} ans</b></div>
-                    <div><CheckCircle2 className="mx-auto h-4 w-4 text-emerald-300" /><b className="mt-1 block">{mission.assigned_driver.completed_jobs} missions</b></div>
+            {step === 3 ? (
+              <section className="mt-3">
+                <h1 className="text-3xl font-black leading-tight tracking-tight">Vérifiez votre demande</h1>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Le système cherchera immédiatement le meilleur profil disponible.</p>
+                <div className="mt-6 overflow-hidden rounded-3xl bg-[#07111f] text-white shadow-xl">
+                  <div className="p-5"><p className="text-xs font-bold text-white/50">Votre mission</p><h2 className="mt-1 text-xl font-black capitalize text-white">{missionType.replaceAll("_", " ")} · {vehicleType}</h2></div>
+                  <div className="grid gap-3 border-t border-white/10 p-5 text-sm">
+                    <p className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" /><span>{pickup?.address}</span></p>
+                    <p className="flex items-center gap-3"><CalendarClock className="h-5 w-5 text-amber-400" /><span>{new Date(startsAt).toLocaleString("fr-FR")} · {durationHours} h</span></p>
+                    <p className="flex items-center gap-3"><CarFront className="h-5 w-5 text-amber-400" /><span className="capitalize">{vehicleType} · {transmission}</span></p>
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-2xl bg-violet-50 p-5 text-center">
-                  <Radar className="mx-auto h-8 w-8 animate-pulse text-violet-700" />
-                  <p className="mt-2 font-black">Recherche en cours</p>
-                  <p className="mt-1 text-xs text-slate-500">Les profils disponibles sont classés automatiquement.</p>
+                <div className="mt-4 grid gap-3">
+                  <label className="rounded-2xl bg-white p-4"><span className="text-xs font-bold text-slate-500">Votre nom</span><input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full bg-transparent text-sm font-extrabold outline-none" /></label>
+                  <label className="rounded-2xl bg-white p-4"><span className="flex items-center gap-2 text-xs font-bold text-slate-500"><Phone className="h-4 w-4" /> Téléphone</span><input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" className="mt-1 w-full bg-transparent text-sm font-extrabold outline-none" /></label>
+                  <label className="rounded-2xl bg-white p-4"><span className="text-xs font-bold text-slate-500">Budget maximum · facultatif</span><input type="number" min={3000} step={500} value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="Ex. 10 000 FCFA" className="mt-1 w-full bg-transparent text-sm font-extrabold outline-none" /></label>
+                  <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} placeholder="Consignes particulières…" className="resize-none rounded-2xl bg-white p-4 text-sm outline-none" />
                 </div>
-              )}
-              <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm">
-                <div className="flex justify-between gap-3"><span>Statut</span><b>{mission.status.replaceAll("_", " ")}</b></div>
-                {mission.amount_fcfa ? <div className="mt-2 flex justify-between gap-3"><span>Total SentraJet</span><b>{formatFcfa(mission.amount_fcfa)}</b></div> : null}
+              </section>
+            ) : null}
+
+            {error ? <p role="alert" className="mt-4 rounded-2xl bg-red-50 p-3 text-xs font-bold text-red-700">{error}</p> : null}
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
+              <div className="mx-auto max-w-xl">
+                {step < 3 ? <button type="button" disabled={!canContinue} onClick={() => { setError(null); setStep(step + 1); }} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 font-black text-[#07111f] disabled:opacity-40">Continuer <ChevronRight className="h-5 w-5" /></button> : <button type="button" onClick={() => void searchDriver()} disabled={submitting || !pickup} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#07111f] px-5 font-black text-white disabled:opacity-40">{submitting ? <><Radar className="h-5 w-5 animate-spin" /> Recherche en cours…</> : "Trouver mon chauffeur"}</button>}
+                <p className="mt-2 text-center text-[10px] font-semibold text-slate-400"><ShieldCheck className="mr-1 inline h-3 w-3" /> Chauffeurs contrôlés · paiement sécurisé</p>
               </div>
-              {mission.status === "chauffeur_propose" ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-xs font-semibold text-amber-900">Le chauffeur dispose de 5 minutes pour accepter la mission. Sinon, le système en propose un autre.</p> : null}
-              {mission.status === "en_attente_paiement" ? (
-                <button type="button" onClick={() => void pay()} disabled={paying} className="mt-4 min-h-14 w-full rounded-2xl bg-amber-400 px-4 font-black text-[#07111f] disabled:opacity-50">
-                  {paying ? "Ouverture de Wave…" : `Payer SentraJet · ${formatFcfa(mission.amount_fcfa ?? 0)}`}
-                </button>
-              ) : null}
-              {simulationMessage ? <p className="mt-3 rounded-2xl bg-emerald-50 p-3 text-xs font-bold text-emerald-800">{simulationMessage}</p> : null}
             </div>
-          ) : (
-            <>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {[["Permis", ShieldCheck], ["Tarif", Sparkles], ["Disponibilité", Radar]].map(([label, Icon]) => {
-                  const Component = Icon as typeof ShieldCheck;
-                  return <div key={String(label)} className="rounded-2xl bg-slate-50 p-3 text-center"><Component className="mx-auto h-5 w-5 text-violet-700" /><span className="mt-2 block text-[10px] font-black">{String(label)}</span></div>;
-                })}
-              </div>
-              <label className="mt-4 block"><span className="text-xs font-bold text-slate-500">Votre nom</span><input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 min-h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none" /></label>
-              <label className="mt-3 block"><span className="text-xs font-bold text-slate-500">Téléphone</span><input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" className="mt-1 min-h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none" /></label>
-              <button type="button" onClick={() => void searchDriver()} disabled={submitting || !pickup} className="mt-5 min-h-14 w-full rounded-2xl bg-violet-700 px-4 font-black text-white disabled:opacity-40">
-                {submitting ? "Matching en cours…" : "Trouver mon chauffeur"}
-              </button>
-            </>
-          )}
-          {error ? <p role="alert" className="mt-4 rounded-2xl bg-red-50 p-3 text-xs font-bold text-red-700">{error}</p> : null}
-          <p className="mt-4 flex items-start gap-2 text-[11px] leading-4 text-slate-500"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Vous payez exclusivement SentraJet. Les coordonnées privées sont communiquées après confirmation.</p>
-          <Link href="/mon-chauffeur/pro" className="mt-4 block text-center text-xs font-black text-violet-700 underline">Je suis chauffeur sans véhicule</Link>
-        </aside>
+          </>
+        ) : (
+          <section className="pt-3">
+            <p className="text-xs font-black uppercase tracking-[.18em] text-amber-700">Demande {mission.reference}</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">{mission.assigned_driver ? "Votre chauffeur est trouvé" : "Nous cherchons pour vous"}</h1>
+            {!mission.assigned_driver ? <div className="mt-8 rounded-[2rem] bg-[#07111f] p-8 text-center text-white shadow-xl"><span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/10"><Radar className="h-10 w-10 animate-pulse text-amber-400" /></span><p className="mt-5 text-lg font-black text-white">Matching en temps réel</p><p className="mt-2 text-sm leading-6 text-white/60">Nous vérifions compétences, disponibilité, tarif et expérience.</p></div> : <div className="mt-6 overflow-hidden rounded-[2rem] bg-[#07111f] p-5 text-white shadow-xl"><div className="flex items-center gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400 text-[#07111f]"><UserRound className="h-7 w-7" /></span><div><h2 className="text-xl font-black text-white">{mission.assigned_driver.full_name}</h2><p className="mt-1 flex items-center gap-1 text-xs text-emerald-300"><BadgeCheck className="h-4 w-4" /> Profil contrôlé par SentraJet</p></div></div><div className="mt-5 grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-center text-xs"><div><Star className="mx-auto h-4 w-4 text-amber-400" /><b className="mt-1 block">{mission.assigned_driver.average_rating || "Nouveau"}</b></div><div><Clock3 className="mx-auto h-4 w-4 text-amber-400" /><b className="mt-1 block">{mission.assigned_driver.years_experience} ans</b></div><div><CheckCircle2 className="mx-auto h-4 w-4 text-amber-400" /><b className="mt-1 block">{mission.assigned_driver.completed_jobs} missions</b></div></div></div>}
+            <div className="mt-4 rounded-3xl bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><span className="text-sm text-slate-500">Statut</span><b className="rounded-full bg-amber-100 px-3 py-1 text-xs capitalize text-amber-900">{mission.status.replaceAll("_", " ")}</b></div>{mission.amount_fcfa ? <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4"><span className="flex items-center gap-2 text-sm text-slate-500"><WalletCards className="h-4 w-4" /> Total SentraJet</span><b>{formatFcfa(mission.amount_fcfa)}</b></div> : null}</div>
+            {mission.status === "chauffeur_propose" ? <p className="mt-3 rounded-2xl bg-amber-50 p-4 text-xs font-semibold leading-5 text-amber-900">Le chauffeur a 5 minutes pour répondre. En cas de refus, un autre profil sera recherché automatiquement.</p> : null}
+            {mission.status === "en_attente_paiement" ? <button type="button" onClick={() => void pay()} disabled={paying} className="mt-4 min-h-14 w-full rounded-2xl bg-amber-400 px-4 font-black text-[#07111f] disabled:opacity-50">{paying ? "Ouverture de Wave…" : `Payer SentraJet · ${formatFcfa(mission.amount_fcfa ?? 0)}`}</button> : null}
+            {simulationMessage ? <p className="mt-3 rounded-2xl bg-emerald-50 p-4 text-xs font-bold text-emerald-800">{simulationMessage}</p> : null}
+            {error ? <p role="alert" className="mt-4 rounded-2xl bg-red-50 p-3 text-xs font-bold text-red-700">{error}</p> : null}
+            <p className="mt-5 flex items-start gap-2 text-[11px] leading-5 text-slate-500"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> Le paiement est encaissé uniquement par SentraJet. Vos coordonnées restent protégées avant confirmation.</p>
+          </section>
+        )}
       </div>
     </main>
   );
