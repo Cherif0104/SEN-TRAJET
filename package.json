@@ -7,7 +7,8 @@
     "build": "node ./node_modules/next/dist/bin/next build",
     "start": "node ./node_modules/next/dist/bin/next start",
     "lint": "node ./node_modules/next/dist/bin/next lint",
-    "test:pricing": "node --experimental-strip-types scripts/live-ride-pricing.selftest.mjs"
+    "test:pricing": "node --experimental-strip-types scripts/live-ride-pricing.selftest.mjs",
+    "test:wave": "node --experimental-strip-types scripts/wave-webhook.selftest.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
