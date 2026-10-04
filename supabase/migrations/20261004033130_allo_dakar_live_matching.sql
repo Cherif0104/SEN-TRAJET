@@ -358,6 +358,9 @@ after insert or update of status, departure_at, accepts_auto_dispatch
 on public.allo_dakar_departures
 for each row execute function public.auto_match_allo_dakar_departure();
 
+revoke all on function public.auto_match_allo_dakar_departure()
+from public, anon, authenticated;
+
 create or replace function public.expire_allo_dakar_live_requests()
 returns integer
 language plpgsql
