@@ -79,6 +79,9 @@ export default function AlloDakarDriverSpace() {
   const [vPlate, setVPlate] = useState("");
   const [vBrand, setVBrand] = useState("");
   const [vModel, setVModel] = useState("");
+  const [vType, setVType] = useState<AlloDakarVehicle["vehicle_type"]>("berline");
+  const [vColor, setVColor] = useState("");
+  const [vYear, setVYear] = useState("");
   const [vSeats, setVSeats] = useState(7);
   const [uploadingVehicleId, setUploadingVehicleId] = useState<string | null>(null);
   const [greyCardLinks, setGreyCardLinks] = useState<Record<string, string>>({});
@@ -89,6 +92,7 @@ export default function AlloDakarDriverSpace() {
   const [depTime, setDepTime] = useState("");
   const [depPrice, setDepPrice] = useState("");
   const [depPriceDomicile, setDepPriceDomicile] = useState("");
+  const [depMode, setDepMode] = useState<"planifie" | "en_ligne">("planifie");
 
   async function reload() {
     if (!user) return;
@@ -142,10 +146,21 @@ export default function AlloDakarDriverSpace() {
     e.preventDefault();
     if (!driver || !vPlate.trim()) return;
     try {
-      await addAlloDakarVehicle({ alloDakarDriverId: driver.id, plateNumber: vPlate, brand: vBrand || null, model: vModel || null, seatsTotal: vSeats });
+      await addAlloDakarVehicle({
+        alloDakarDriverId: driver.id,
+        plateNumber: vPlate,
+        brand: vBrand || null,
+        model: vModel || null,
+        vehicleType: vType,
+        color: vColor || null,
+        modelYear: vYear ? Number(vYear) : null,
+        seatsTotal: vSeats,
+      });
       setVPlate("");
       setVBrand("");
       setVModel("");
+      setVColor("");
+      setVYear("");
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible d’ajouter ce véhicule.");
@@ -166,11 +181,14 @@ export default function AlloDakarDriverSpace() {
         pricePerSeatFcfa: Number(depPrice),
         priceDomicileFcfa: depPriceDomicile ? Number(depPriceDomicile) : null,
         seatsTotal: Math.max(1, vehicle.seats_total - 1),
+        dispatchMode: depMode,
+        acceptsAutoDispatch: true,
       });
       setDepDate("");
       setDepTime("");
       setDepPrice("");
       setDepPriceDomicile("");
+      setDepMode("planifie");
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de publier ce départ.");
@@ -287,7 +305,11 @@ export default function AlloDakarDriverSpace() {
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">En attente de validation</span>
               )}
             </div>
-            <p className="text-neutral-500">{v.plate_number} · {v.seats_total} places (dont chauffeur)</p>
+            <p className="text-neutral-500">
+              {v.vehicle_type.charAt(0).toUpperCase() + v.vehicle_type.slice(1)} · {v.plate_number} · {v.seats_total} places
+              {v.model_year ? ` · ${v.model_year}` : ""}
+              {v.color ? ` · ${v.color}` : ""}
+            </p>
             {v.rejection_reason ? <p className="mt-1 text-xs text-red-700">Motif : {v.rejection_reason}</p> : null}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {v.grey_card_url ? (
@@ -325,6 +347,14 @@ export default function AlloDakarDriverSpace() {
         <input className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Plaque d’immatriculation" value={vPlate} onChange={(e) => setVPlate(e.target.value)} required />
         <input className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Marque" value={vBrand} onChange={(e) => setVBrand(e.target.value)} />
         <input className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Modèle" value={vModel} onChange={(e) => setVModel(e.target.value)} />
+        <select className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={vType} onChange={(e) => setVType(e.target.value as AlloDakarVehicle["vehicle_type"])}>
+          <option value="citadine">Citadine</option>
+          <option value="berline">Berline</option>
+          <option value="suv">SUV</option>
+          <option value="van">Van</option>
+        </select>
+        <input className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Couleur" value={vColor} onChange={(e) => setVColor(e.target.value)} />
+        <input type="number" min={1990} max={2100} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Année" value={vYear} onChange={(e) => setVYear(e.target.value)} />
         <label className="col-span-2 text-xs text-neutral-500">Nombre de places total (carte grise, chauffeur inclus)</label>
         <input type="number" min={2} max={30} className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={vSeats} onChange={(e) => setVSeats(Number(e.target.value) || 2)} />
         <button type="submit" className="col-span-2 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-bold text-white">Ajouter le véhicule</button>
@@ -349,6 +379,19 @@ export default function AlloDakarDriverSpace() {
         <>
           <h2 className="mt-8 text-base font-bold text-neutral-900">Publier un départ</h2>
           <form onSubmit={handlePublish} className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-neutral-200 bg-white p-3">
+            <div className="col-span-2 grid grid-cols-2 rounded-xl bg-neutral-100 p-1">
+              <button type="button" onClick={() => setDepMode("planifie")} className={`rounded-lg px-3 py-2 text-xs font-bold ${depMode === "planifie" ? "bg-white shadow-sm" : "text-neutral-500"}`}>
+                Départ planifié
+              </button>
+              <button type="button" onClick={() => setDepMode("en_ligne")} className={`rounded-lg px-3 py-2 text-xs font-bold ${depMode === "en_ligne" ? "bg-emerald-700 text-white" : "text-neutral-500"}`}>
+                Je me mets en ligne
+              </button>
+            </div>
+            <p className="col-span-2 text-xs text-neutral-500">
+              {depMode === "en_ligne"
+                ? "Le système affecte automatiquement les clients compatibles avec votre direction et votre horaire."
+                : "Les clients voient ce créneau et peuvent réserver leurs places à l’avance."}
+            </p>
             <select className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depCorridor} onChange={(e) => setDepCorridor(e.target.value)} required>
               <option value="">Corridor…</option>
               {corridors.filter((c) => hasActiveSubscription(subscriptions, c.id)).map((c) => (
@@ -357,8 +400,8 @@ export default function AlloDakarDriverSpace() {
             </select>
             <select className="col-span-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depVehicle} onChange={(e) => setDepVehicle(e.target.value)} required>
               <option value="">Véhicule…</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>{v.brand} {v.model} · {v.plate_number}</option>
+              {vehicles.filter((v) => v.is_verified).map((v) => (
+                <option key={v.id} value={v.id}>{v.vehicle_type} · {v.brand} {v.model} · {v.plate_number}</option>
               ))}
             </select>
             <input type="date" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" value={depDate} onChange={(e) => setDepDate(e.target.value)} required />
@@ -366,7 +409,7 @@ export default function AlloDakarDriverSpace() {
             <input type="number" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Prix point relais (FCFA)" value={depPrice} onChange={(e) => setDepPrice(e.target.value)} required />
             <input type="number" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" placeholder="Prix domicile (FCFA, optionnel)" value={depPriceDomicile} onChange={(e) => setDepPriceDomicile(e.target.value)} />
             <p className="col-span-2 text-xs text-neutral-400">
-              Les réservations se ferment automatiquement 30 minutes avant l&apos;heure de départ.
+              Les réservations se ferment automatiquement 30 minutes avant le départ. Seuls les véhicules validés peuvent être dispatchés.
             </p>
             <button type="submit" className="col-span-2 rounded-xl bg-[#1f6b4a] px-3 py-2 text-sm font-bold text-white">Publier ce départ</button>
           </form>

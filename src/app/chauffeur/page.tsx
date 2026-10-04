@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MapPin, Phone } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
@@ -12,11 +12,12 @@ import {
   bookingStatusTone,
   listMissionsForDriverUser,
   nextMissionStatus,
-  setOwnDriverStatus,
+  setOwnDriverLiveStatus,
   type PlatformBooking,
 } from "@/lib/platformOps";
 import { supabase } from "@/lib/supabase";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 const TERMINAL = ["terminee", "annulee_client", "annulee_sentrajet", "no_show"];
 
@@ -27,6 +28,22 @@ export default function ChauffeurHomePage() {
   const [loading, setLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
+  const geo = useGeolocation({
+    watch: available === true,
+    enableHighAccuracy: true,
+    maximumAge: 10_000,
+    minDistanceMeters: 20,
+  });
+  const latestPosition = useRef(geo.position);
+
+  useEffect(() => {
+    latestPosition.current = geo.position;
+  }, [geo.position]);
+
+  const reloadMissions = useCallback(async () => {
+    if (!user) return;
+    setMissions(await listMissionsForDriverUser(user.id).catch(() => []));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -46,6 +63,44 @@ export default function ChauffeurHomePage() {
     })();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`driver-assignments-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dispatch_assignments" },
+        () => void reloadMissions()
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bookings" },
+        () => void reloadMissions()
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, reloadMissions]);
+
+  useEffect(() => {
+    if (!available || !geo.position) return;
+    const sendHeartbeat = () => {
+      const current = latestPosition.current;
+      if (!current) return;
+      void setOwnDriverLiveStatus({
+        isOnline: true,
+        lat: current.lat,
+        lng: current.lng,
+        accuracyM: current.accuracy,
+        heading: current.heading,
+      }).catch(() => setStatusMsg("Position live momentanément indisponible."));
+    };
+    sendHeartbeat();
+    const timer = window.setInterval(sendHeartbeat, 15_000);
+    return () => window.clearInterval(timer);
+  }, [available, geo.position]);
+
   const next = missions.find((m) => !TERMINAL.includes(m.status));
   const nextStatus = next ? nextMissionStatus(next.status) : null;
 
@@ -53,9 +108,28 @@ export default function ChauffeurHomePage() {
     if (!user || available === null) return;
     const target = !available;
     try {
-      await setOwnDriverStatus(user.id, target ? "available" : "offline");
+      if (target) {
+        const result = await geo.getPosition();
+        if (!result.ok) {
+          setStatusMsg(result.error);
+          return;
+        }
+        await setOwnDriverLiveStatus({
+          isOnline: true,
+          lat: result.position.lat,
+          lng: result.position.lng,
+          accuracyM: result.position.accuracy,
+          heading: result.position.heading,
+        });
+      } else {
+        await setOwnDriverLiveStatus({ isOnline: false });
+      }
       setAvailable(target);
-      setStatusMsg(target ? "Vous êtes désormais disponible." : "Vous êtes désormais hors ligne.");
+      setStatusMsg(
+        target
+          ? "Vous êtes disponible et visible par le dispatch à proximité."
+          : "Vous êtes désormais hors ligne."
+      );
     } catch {
       setStatusMsg("Impossible de mettre à jour votre disponibilité pour le moment.");
     }
@@ -90,8 +164,14 @@ export default function ChauffeurHomePage() {
         }
       />
       <p className="sj-muted" style={{ marginTop: -8, marginBottom: 16 }}>
-        Pas de marketplace : SentraJet vous affecte les missions. Vous ne choisissez ni n’acceptez de courses.
+        Activez votre disponibilité pour recevoir automatiquement les courses proches. SentraJet
+        affecte la mission : vous ne choisissez ni ne négociez le tarif.
       </p>
+      {available && geo.position ? (
+        <p className="sj-muted" style={{ marginTop: -10, marginBottom: 16 }}>
+          Position live active · précision {Math.round(geo.position.accuracy ?? 0)} m
+        </p>
+      ) : null}
       {statusMsg ? <p style={{ color: "#6de0b0" }}>{statusMsg}</p> : null}
 
       {loading ? <BrandedLoader /> : null}

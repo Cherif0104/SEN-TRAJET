@@ -5,6 +5,7 @@ import { ceilDistanceKm } from "@/lib/routeDistances";
 type DistanceResult = {
   distanceKm: number;
   durationMinutes: number;
+  baselineDurationMinutes: number;
   source: string;
 };
 
@@ -35,13 +36,20 @@ async function googleDrivingDistance(params: {
   url.searchParams.set("destinations", destination);
   url.searchParams.set("mode", "driving");
   url.searchParams.set("language", "fr");
+  url.searchParams.set("departure_time", "now");
+  url.searchParams.set("traffic_model", "best_guess");
   url.searchParams.set("key", key);
 
   const response = await fetch(url.toString(), { cache: "no-store" });
   if (!response.ok) return null;
   const payload = (await response.json()) as {
     rows?: Array<{
-      elements?: Array<{ status?: string; distance?: { value: number }; duration?: { value: number } }>;
+      elements?: Array<{
+        status?: string;
+        distance?: { value: number };
+        duration?: { value: number };
+        duration_in_traffic?: { value: number };
+      }>;
     }>;
   };
   const element = payload.rows?.[0]?.elements?.[0];
@@ -50,7 +58,11 @@ async function googleDrivingDistance(params: {
   }
   return {
     distanceKm: ceilDistanceKm(element.distance.value / 1000),
-    durationMinutes: Math.max(1, Math.round(element.duration.value / 60)),
+    durationMinutes: Math.max(
+      1,
+      Math.round((element.duration_in_traffic?.value ?? element.duration.value) / 60),
+    ),
+    baselineDurationMinutes: Math.max(1, Math.round(element.duration.value / 60)),
     source: "google_distance_matrix",
   };
 }
@@ -78,6 +90,7 @@ async function osrmDrivingDistance(
   return {
     distanceKm: ceilDistanceKm(meters / 1000),
     durationMinutes: Math.max(1, Math.round(seconds / 60)),
+    baselineDurationMinutes: Math.max(1, Math.round(seconds / 60)),
     source: "osrm",
   };
 }
@@ -168,6 +181,7 @@ export async function POST(request: NextRequest) {
     toLng: body.toLng ?? null,
     distanceKm: result.distanceKm,
     durationMinutes: result.durationMinutes,
+    baselineDurationMinutes: result.baselineDurationMinutes,
     source: result.source,
     rounded: "ceil_km",
     personalized: true,

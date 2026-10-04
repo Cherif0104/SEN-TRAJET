@@ -1,3 +1,4 @@
+import { authApiFetch } from "@/lib/authSession";
 import { supabase } from "@/lib/supabase";
 import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
 
@@ -48,6 +49,10 @@ export type AlloDakarVehicle = {
   plate_number: string;
   brand: string | null;
   model: string | null;
+  vehicle_type: "citadine" | "berline" | "suv" | "van";
+  color: string | null;
+  model_year: number | null;
+  photo_url: string | null;
   seats_total: number;
   grey_card_number: string | null;
   grey_card_url: string | null;
@@ -79,6 +84,8 @@ export type AlloDakarDeparture = {
   price_domicile_fcfa: number | null;
   seats_total: number;
   seats_available: number;
+  dispatch_mode: "planifie" | "en_ligne";
+  accepts_auto_dispatch: boolean;
   status: "publie" | "complet" | "en_cours" | "termine" | "annule";
   notes: string | null;
   corridor?: AlloDakarCorridor;
@@ -112,6 +119,11 @@ export type AlloDakarRideRequest = {
   corridor_id: string;
   desired_date: string;
   desired_time_hint: string | null;
+  requested_at: string;
+  request_mode: "reservation" | "instant";
+  search_window_minutes: number;
+  expires_at: string | null;
+  max_price_fcfa: number | null;
   seats_needed: number;
   pickup_mode: AlloDakarPickupMode;
   pickup_detail: string | null;
@@ -285,19 +297,10 @@ export async function createGarageWithManager(input: {
   phone: string;
   city?: string | null;
 }): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const res = await fetch("/api/admin/allo-dakar/create-garage", {
+  await authApiFetch("/api/admin/allo-dakar/create-garage", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    },
     body: JSON.stringify(input),
-  });
-  const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Impossible de créer le garage.");
+  }, { fallbackError: "Impossible de créer le garage." });
 }
 
 export async function listAllGarages(): Promise<AlloDakarGarage[]> {
@@ -341,7 +344,7 @@ export async function addDriverToGarage(input: {
 // Véhicules Allo Dakar
 // ---------------------------------------------------------------------------
 const VEHICLE_SELECT =
-  "id, allo_dakar_driver_id, plate_number, brand, model, seats_total, grey_card_number, grey_card_url, rejection_reason, verified_at, is_verified";
+  "id, allo_dakar_driver_id, plate_number, brand, model, vehicle_type, color, model_year, photo_url, seats_total, grey_card_number, grey_card_url, rejection_reason, verified_at, is_verified";
 
 export async function listAlloDakarVehicles(driverId: string): Promise<AlloDakarVehicle[]> {
   const { data, error } = await supabase
@@ -394,6 +397,9 @@ export async function addAlloDakarVehicle(input: {
   plateNumber: string;
   brand?: string | null;
   model?: string | null;
+  vehicleType: AlloDakarVehicle["vehicle_type"];
+  color?: string | null;
+  modelYear?: number | null;
   seatsTotal: number;
   greyCardNumber?: string | null;
 }): Promise<void> {
@@ -402,6 +408,9 @@ export async function addAlloDakarVehicle(input: {
     plate_number: input.plateNumber.trim(),
     brand: input.brand ?? null,
     model: input.model ?? null,
+    vehicle_type: input.vehicleType,
+    color: input.color ?? null,
+    model_year: input.modelYear ?? null,
     seats_total: input.seatsTotal,
     grey_card_number: input.greyCardNumber ?? null,
   });
@@ -478,7 +487,7 @@ export function formatSubscriptionPeriod(sub: AlloDakarSubscription): string {
 // Départs
 // ---------------------------------------------------------------------------
 const DEPARTURE_SELECT =
-  "id, allo_dakar_driver_id, allo_dakar_vehicle_id, corridor_id, departure_at, price_per_seat_fcfa, price_domicile_fcfa, seats_total, seats_available, status, notes, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active), driver:allo_dakar_drivers(id, full_name, phone, garage_name), vehicle:allo_dakar_vehicles(id, plate_number, brand, model, seats_total)";
+  "id, allo_dakar_driver_id, allo_dakar_vehicle_id, corridor_id, departure_at, price_per_seat_fcfa, price_domicile_fcfa, seats_total, seats_available, dispatch_mode, accepts_auto_dispatch, status, notes, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active), driver:allo_dakar_drivers(id, full_name, phone, garage_name), vehicle:allo_dakar_vehicles(id, plate_number, brand, model, vehicle_type, color, model_year, photo_url, seats_total, is_verified)";
 
 export async function searchAlloDakarDepartures(input: {
   originCity?: string;
@@ -535,6 +544,8 @@ export async function publishAlloDakarDeparture(input: {
   pricePerSeatFcfa: number;
   priceDomicileFcfa?: number | null;
   seatsTotal: number;
+  dispatchMode?: "planifie" | "en_ligne";
+  acceptsAutoDispatch?: boolean;
 }): Promise<void> {
   const { error } = await supabase.from("allo_dakar_departures").insert({
     allo_dakar_driver_id: input.alloDakarDriverId,
@@ -545,6 +556,8 @@ export async function publishAlloDakarDeparture(input: {
     price_domicile_fcfa: input.priceDomicileFcfa ?? null,
     seats_total: input.seatsTotal,
     seats_available: input.seatsTotal,
+    dispatch_mode: input.dispatchMode ?? "planifie",
+    accepts_auto_dispatch: input.acceptsAutoDispatch ?? true,
   });
   if (error) throw error;
 }
@@ -620,7 +633,7 @@ export async function listAllAlloDakarBookings(): Promise<AlloDakarBooking[]> {
 // Demandes clients (marketplace inversé) : le client publie un besoin, un chauffeur le confirme
 // ---------------------------------------------------------------------------
 const RIDE_REQUEST_SELECT =
-  "id, client_user_id, client_full_name, client_phone, corridor_id, desired_date, desired_time_hint, seats_needed, pickup_mode, pickup_detail, status, confirmed_by_driver_id, matched_departure_id, matched_booking_id, created_at, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active)";
+  "id, client_user_id, client_full_name, client_phone, corridor_id, desired_date, desired_time_hint, requested_at, request_mode, search_window_minutes, expires_at, max_price_fcfa, seats_needed, pickup_mode, pickup_detail, status, confirmed_by_driver_id, matched_departure_id, matched_booking_id, created_at, corridor:allo_dakar_corridors(id, origin_city, destination_city, reference_price_fcfa, reference_price_domicile_fcfa, is_active)";
 
 export async function createAlloDakarRideRequest(input: {
   clientUserId?: string | null;
@@ -650,6 +663,44 @@ export async function createAlloDakarRideRequest(input: {
     .single();
   if (error) throw error;
   return data as unknown as AlloDakarRideRequest;
+}
+
+export type AlloDakarLiveMatchResult = {
+  requestId: string;
+  expiresAt: string;
+  matched: boolean;
+  booking: AlloDakarBooking | null;
+  departure: AlloDakarDeparture | null;
+};
+
+/** Recherche instantanée sécurisée : le serveur crée le besoin puis réserve atomiquement la
+ * meilleure navette compatible. Si aucun départ ne convient, le besoin reste ouvert et sera
+ * automatiquement réévalué lorsqu’un chauffeur publiera un départ sur le même axe. */
+export async function requestAlloDakarLiveMatch(input: {
+  clientFullName: string;
+  clientPhone: string;
+  corridorId: string;
+  requestedAt: string;
+  seatsNeeded: number;
+  pickupMode: AlloDakarPickupMode;
+  pickupDetail?: string | null;
+  searchWindowMinutes?: number;
+  maxPriceFcfa?: number | null;
+}): Promise<AlloDakarLiveMatchResult> {
+  return authApiFetch<AlloDakarLiveMatchResult>("/api/allo-dakar/match", {
+    method: "POST",
+    body: JSON.stringify(input),
+  }, { fallbackError: "La recherche automatique est indisponible." });
+}
+
+export async function getAlloDakarLiveMatchStatus(
+  requestId: string,
+): Promise<AlloDakarLiveMatchResult> {
+  return authApiFetch<AlloDakarLiveMatchResult>(
+    `/api/allo-dakar/match?requestId=${encodeURIComponent(requestId)}`,
+    undefined,
+    { fallbackError: "Statut indisponible." },
+  );
 }
 
 /** Demandes ouvertes, visibles par tout chauffeur pour trouver des clients sur ses corridors. */
@@ -709,20 +760,15 @@ export async function confirmAlloDakarRideRequest(requestId: string, departureId
 export async function createAlloDakarWaveCheckout(bookingId: string): Promise<string | null> {
   if (typeof window === "undefined") return null;
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const res = await fetch("/api/checkout/wave/allo-dakar", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    const data = await authApiFetch<{ checkout_url?: string | null }>(
+      "/api/checkout/wave/allo-dakar",
+      {
+        method: "POST",
+        body: JSON.stringify({ bookingId }),
       },
-      body: JSON.stringify({ bookingId }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { checkout_url?: string | null };
-    if (!res.ok || !data.checkout_url) return null;
-    return data.checkout_url;
+      { fallbackError: "Paiement indisponible." },
+    );
+    return data.checkout_url ?? null;
   } catch {
     return null;
   }

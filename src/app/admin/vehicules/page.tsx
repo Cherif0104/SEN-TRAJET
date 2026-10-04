@@ -21,6 +21,7 @@ const emptyForm = {
   model: "",
   plate_number: "",
   category: "berline",
+  service_class: "confort",
   seats: "4",
   status: "available",
   driver_id: "",
@@ -57,6 +58,12 @@ export default function AdminVehiculesPage() {
       model: vehicle.model,
       plate_number: vehicle.plate_number,
       category: vehicle.category,
+      service_class:
+        vehicle.service_class === "confort_plus"
+          ? "confort_plus"
+          : vehicle.service_class === "premium" || vehicle.service_class === "premium_plus"
+            ? "premium_plus"
+            : "confort",
       seats: String(vehicle.seats ?? 4),
       status: vehicle.status,
       driver_id: vehicle.driver_id ?? "",
@@ -79,6 +86,7 @@ export default function AdminVehiculesPage() {
         model: form.model,
         plate_number: form.plate_number,
         category: form.category,
+        service_class: form.service_class,
         seats: Number(form.seats) || null,
         status: form.status,
         driver_id: form.driver_id || null,
@@ -155,6 +163,14 @@ export default function AdminVehiculesPage() {
                 </div>
               ))}
               <div className="sj-field">
+                <label>Classe SentraJet</label>
+                <select value={form.service_class} onChange={(event) => setForm((current) => ({ ...current, service_class: event.target.value }))}>
+                  <option value="confort">Comfort</option>
+                  <option value="confort_plus">Comfort Plus</option>
+                  <option value="premium_plus">VIP</option>
+                </select>
+              </div>
+              <div className="sj-field">
                 <label>Chauffeur affecté</label>
                 <select value={form.driver_id} onChange={(event) => setForm((current) => ({ ...current, driver_id: event.target.value }))}>
                   <option value="">Non affecté</option>
@@ -203,7 +219,13 @@ export default function AdminVehiculesPage() {
               <SjBadge tone={bookingStatusTone(v.status)}>{v.status}</SjBadge>
             </div>
             <div className="sj-muted">
-              {v.seats ?? "?"} places · {v.category}
+              {v.seats ?? "?"} places · {v.category} · {
+                v.service_class === "premium_plus"
+                  ? "VIP"
+                  : v.service_class === "confort_plus"
+                    ? "Comfort Plus"
+                    : "Comfort"
+              }
             </div>
             <div className="sj-section-head" style={{ margin: "18px 0 0" }}>
               <span className="sj-muted">Immatriculation</span>

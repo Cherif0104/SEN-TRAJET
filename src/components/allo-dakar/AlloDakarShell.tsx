@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Car } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ArrowLeft, Car, Home, Navigation, UserRound } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { Logo } from "@/components/layout/Logo";
 
 /**
  * SentraJet Allo Dakar est une rubrique de la plateforme, pas une application à part : même
@@ -42,6 +44,65 @@ export function AlloDakarContextBar() {
 }
 
 export function AlloDakarShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const clientExperience =
+    pathname === "/allo-dakar" || pathname.startsWith("/allo-dakar/confirmation/");
+
+  if (clientExperience) {
+    return (
+      <div className="min-h-screen bg-[#f4f5f7] text-[#07111f]">
+        <div className="mx-auto min-h-screen max-w-3xl bg-white shadow-sm">
+          <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur-xl sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <Link
+                href="/compte"
+                aria-label="Retour à l’accueil"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-700"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+              <div className="flex flex-col items-center">
+                <Logo className="[&_img]:!h-7" />
+                <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-emerald-700">
+                  Service Allo Dakar
+                </span>
+              </div>
+              <Link
+                href="/allo-dakar/chauffeur"
+                className="flex h-11 items-center rounded-full bg-emerald-50 px-3 text-[10px] font-extrabold text-emerald-800"
+              >
+                Chauffeur
+              </Link>
+            </div>
+          </header>
+          <main className="min-h-[calc(100vh-72px)] pb-24">{children}</main>
+          <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-[74px] max-w-3xl grid-cols-4 border-t border-slate-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+            {[
+              { label: "Accueil", href: "/compte", icon: Home },
+              { label: "Allo Dakar", href: "/allo-dakar", icon: Car, active: true },
+              { label: "Mes trajets", href: "/compte/reservations", icon: Navigation },
+              { label: "Profil", href: "/compte/profil", icon: UserRound },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center gap-1 text-[10px] font-bold ${
+                    item.active ? "text-emerald-700" : "text-slate-400"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <Header />

@@ -134,7 +134,7 @@ export default function DestinationsPage() {
                                 <MessageCircle className="h-4 w-4" />
                               </a>
                               <Button
-                                href={`/reserver?service=interurbain&destination=${encodeURIComponent(route.destination_city)}`}
+                                href={`/interurbain?destination=${encodeURIComponent(route.destination_city)}`}
                                 size="sm"
                                 className="bg-amber-500 text-neutral-900 hover:bg-amber-400"
                               >
@@ -155,12 +155,11 @@ export default function DestinationsPage() {
         <div className="mt-12 rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-600 sm:p-8">
           <p>
             <strong className="text-neutral-900">Votre région n’est pas listée ?</strong> Indiquez
-            simplement votre destination sur{" "}
-            <Link href="/reserver?service=interurbain" className="font-semibold text-amber-800 underline">
-              /reserver
+            simplement votre destination dans{" "}
+            <Link href="/interurbain" className="font-semibold text-amber-800 underline">
+              la recherche Voyager
             </Link>{" "}
-            — SentraJet dessert tout le territoire sénégalais, le tarif est calculé sur la distance
-            réelle.
+            ou choisissez un voyage privé sur mesure.
           </p>
         </div>
       </main>
