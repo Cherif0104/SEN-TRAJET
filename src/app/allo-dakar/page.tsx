@@ -26,18 +26,20 @@ import { AlloDakarShell } from "@/components/allo-dakar/AlloDakarShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
   bookAlloDakarSeats,
-  createAlloDakarRideRequest,
   createAlloDakarWaveCheckout,
+  getAlloDakarLiveMatchStatus,
   listAlloDakarCorridors,
   searchAlloDakarDepartures,
+  requestAlloDakarLiveMatch,
   type AlloDakarCorridor,
   type AlloDakarDeparture,
   type AlloDakarPickupMode,
+  type AlloDakarLiveMatchResult,
 } from "@/lib/alloDakarOps";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { supabase } from "@/lib/supabase";
 
-type TravelMode = "maintenant" | "planifier";
+type TravelMode = "direct" | "reservation";
 type SheetStep = "options" | "contact";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -59,7 +61,7 @@ export default function AlloDakarPage() {
   const [departures, setDepartures] = useState<AlloDakarDeparture[]>([]);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
-  const [travelMode, setTravelMode] = useState<TravelMode>("maintenant");
+  const [travelMode, setTravelMode] = useState<TravelMode>("direct");
   const [travelDate, setTravelDate] = useState(today());
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -80,6 +82,8 @@ export default function AlloDakarPage() {
   const [requesting, setRequesting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [liveResult, setLiveResult] = useState<AlloDakarLiveMatchResult | null>(null);
+  const [livePayLink, setLivePayLink] = useState<string | null>(null);
 
   const origins = useMemo(
     () => Array.from(new Set(corridors.map((corridor) => corridor.origin_city))),
@@ -112,7 +116,7 @@ export default function AlloDakarPage() {
     }
     try {
       const fromDate =
-        travelMode === "planifier"
+        travelMode === "reservation"
           ? new Date(`${travelDate}T00:00:00`).toISOString()
           : new Date().toISOString();
       const rows = await searchAlloDakarDepartures({
@@ -121,9 +125,12 @@ export default function AlloDakarPage() {
         fromDate,
       });
       const filtered =
-        travelMode === "planifier"
+        travelMode === "reservation"
           ? rows.filter((row) => row.departure_at.slice(0, 10) === travelDate)
-          : rows;
+          : rows.filter(
+              (row) =>
+                new Date(row.departure_at).getTime() <= Date.now() + 3 * 60 * 60_000,
+            );
       setDepartures(filtered);
     } finally {
       setSearching(false);
@@ -157,6 +164,26 @@ export default function AlloDakarPage() {
     // Les filtres courants sont volontairement repris lors d'un changement live.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origin, destination, travelMode, travelDate]);
+
+  useEffect(() => {
+    if (!requestSent || !liveResult || liveResult.matched) return;
+    const timer = window.setInterval(() => {
+      void getAlloDakarLiveMatchStatus(liveResult.requestId)
+        .then(async (next) => {
+          setLiveResult(next);
+          if (next.matched && next.booking) {
+            setLivePayLink(
+              await createAlloDakarWaveCheckout(next.booking.id).catch(() => null),
+            );
+            await runSearch({ silent: true });
+          }
+        })
+        .catch(() => undefined);
+    }, 10_000);
+    return () => window.clearInterval(timer);
+    // runSearch reprend volontairement les filtres courants.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveResult, requestSent]);
 
   function swapCities() {
     setOrigin(destination);
@@ -215,6 +242,8 @@ export default function AlloDakarPage() {
     setRequestStep("options");
     setRequestSent(false);
     setRequestError(null);
+    setLiveResult(null);
+    setLivePayLink(null);
   }
 
   async function publishLiveRequest() {
@@ -229,19 +258,30 @@ export default function AlloDakarPage() {
     setRequesting(true);
     setRequestError(null);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      await createAlloDakarRideRequest({
-        clientUserId: user?.id ?? null,
+      const maxPrice =
+        pickupMode === "domicile"
+          ? activeCorridor.reference_price_domicile_fcfa
+          : activeCorridor.reference_price_fcfa;
+      const result = await requestAlloDakarLiveMatch({
         clientFullName: name,
         clientPhone: phone,
         corridorId: activeCorridor.id,
-        desiredDate: travelMode === "maintenant" ? today() : travelDate,
+        requestedAt:
+          travelMode === "direct"
+            ? new Date().toISOString()
+            : new Date(`${travelDate}T12:00:00`).toISOString(),
         seatsNeeded: seats,
         pickupMode,
         pickupDetail: pickupDetail || null,
+        searchWindowMinutes: travelMode === "direct" ? 180 : 720,
+        maxPriceFcfa: maxPrice,
       });
+      setLiveResult(result);
+      if (result.booking) {
+        setLivePayLink(
+          await createAlloDakarWaveCheckout(result.booking.id).catch(() => null),
+        );
+      }
       setRequestSent(true);
     } catch (reason) {
       setRequestError(
@@ -275,7 +315,7 @@ export default function AlloDakarPage() {
 
         <section className="relative z-10 mx-4 -mt-14 rounded-[1.7rem] bg-white p-4 shadow-[0_22px_60px_rgba(7,17,31,0.2)] sm:mx-6">
           <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-            {(["maintenant", "planifier"] as TravelMode[]).map((mode) => (
+            {(["direct", "reservation"] as TravelMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -289,7 +329,7 @@ export default function AlloDakarPage() {
                     : "text-slate-400"
                 }`}
               >
-                {mode === "maintenant" ? "Partir maintenant" : "Planifier"}
+                {mode === "direct" ? "Partir maintenant" : "Réserver un départ"}
               </button>
             ))}
           </div>
@@ -345,7 +385,7 @@ export default function AlloDakarPage() {
             </label>
           </div>
 
-          {travelMode === "planifier" ? (
+          {travelMode === "reservation" ? (
             <label className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-3">
               <CalendarDays className="h-4 w-4 text-amber-700" />
               <input
@@ -368,9 +408,51 @@ export default function AlloDakarPage() {
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f] disabled:opacity-40"
           >
             {searching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            {searching ? "Recherche sur le réseau…" : "Voir les départs disponibles"}
+            {searching
+              ? "Recherche sur le réseau…"
+              : travelMode === "direct"
+                ? "Voir les départs dans les 3 heures"
+                : "Voir les départs de cette journée"}
           </button>
+          {travelMode === "direct" && activeCorridor ? (
+            <button
+              type="button"
+              onClick={openLiveRequest}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-4 py-4 text-sm font-black text-white"
+            >
+              <Radar className="h-4 w-4" /> Me dispatcher automatiquement
+            </button>
+          ) : null}
         </section>
+
+        {liveResult ? (
+          <button
+            type="button"
+            onClick={() => setRequestOpen(true)}
+            className={`mx-4 mt-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-2xl p-4 text-left sm:mx-6 sm:w-[calc(100%-3rem)] ${
+              liveResult.matched
+                ? "bg-emerald-700 text-white"
+                : "bg-amber-50 text-amber-950"
+            }`}
+          >
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+              liveResult.matched ? "bg-white/15" : "bg-amber-200"
+            }`}>
+              <Radar className={`h-5 w-5 ${liveResult.matched ? "" : "animate-pulse"}`} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-black">
+                {liveResult.matched ? "Navette trouvée" : "Recherche automatique active"}
+              </span>
+              <span className={`block truncate text-xs ${liveResult.matched ? "text-white/70" : "text-amber-800"}`}>
+                {liveResult.matched && liveResult.departure
+                  ? `Départ à ${departureTime(liveResult.departure.departure_at)} · voir le chauffeur et le véhicule`
+                  : "Le système surveille les nouvelles annonces de chauffeurs."}
+              </span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0" />
+          </button>
+        ) : null}
 
         <section className="px-4 pt-8 sm:px-6">
           <div className="flex items-center justify-between gap-3">
@@ -427,10 +509,16 @@ export default function AlloDakarPage() {
                       </span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-1 truncate text-xs font-bold">
-                          Chauffeur vérifié <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                          {departure.driver?.full_name || "Chauffeur vérifié"} <ShieldCheck className="h-3 w-3 text-emerald-600" />
                         </span>
                         <span className="block truncate text-[10px] text-slate-400">
-                          {departure.vehicle?.brand || "Véhicule"} {departure.vehicle?.model || ""} · {departure.seats_available} places
+                          {departure.vehicle?.vehicle_type
+                            ? `${departure.vehicle.vehicle_type.charAt(0).toUpperCase()}${departure.vehicle.vehicle_type.slice(1)} · `
+                            : ""}
+                          {departure.vehicle?.brand || "Véhicule"} {departure.vehicle?.model || ""}
+                          {departure.vehicle?.model_year ? ` · ${departure.vehicle.model_year}` : ""}
+                          {departure.vehicle?.color ? ` · ${departure.vehicle.color}` : ""}
+                          {" · "}{departure.seats_available} places
                         </span>
                       </span>
                     </div>
@@ -440,10 +528,19 @@ export default function AlloDakarPage() {
                     </span>
                   </div>
 
-                  {index === 0 ? (
-                    <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-700">
-                      Prochain départ
-                    </span>
+                  {index === 0 || departure.dispatch_mode === "en_ligne" ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {index === 0 ? (
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-700">
+                          Prochain départ
+                        </span>
+                      ) : null}
+                      {departure.dispatch_mode === "en_ligne" ? (
+                        <span className="inline-flex rounded-full bg-[#07111f] px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white">
+                          Chauffeur en ligne
+                        </span>
+                      ) : null}
+                    </div>
                   ) : null}
                 </button>
               ))}
@@ -615,8 +712,44 @@ export default function AlloDakarPage() {
                 <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
                   <Check className="h-8 w-8 text-emerald-700" />
                 </span>
-                <h2 className="mt-4 text-2xl font-black">Recherche diffusée</h2>
-                <p className="mt-2 text-sm text-slate-500">Les chauffeurs de l’axe {origin} → {destination} peuvent maintenant organiser un départ.</p>
+                <h2 className="mt-4 text-2xl font-black">
+                  {liveResult?.matched ? "Votre navette est trouvée" : "Recherche activée"}
+                </h2>
+                {liveResult?.matched && liveResult.departure ? (
+                  <div className="mt-4 rounded-2xl bg-[#07111f] p-4 text-left text-white">
+                    <p className="font-black text-white">
+                      Départ à {departureTime(liveResult.departure.departure_at)}
+                    </p>
+                    <p className="mt-1 text-xs text-white/60">
+                      {liveResult.departure.driver?.full_name} ·{" "}
+                      {liveResult.departure.vehicle?.vehicle_type} ·{" "}
+                      {liveResult.departure.vehicle?.brand}{" "}
+                      {liveResult.departure.vehicle?.model}
+                    </p>
+                    <p className="mt-3 text-lg font-black text-amber-300">
+                      {liveResult.booking
+                        ? formatFcfa(liveResult.booking.amount_fcfa)
+                        : "Prix confirmé"}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Aucun départ compatible pour l’instant. Votre besoin reste actif jusqu’à{" "}
+                    {liveResult?.expiresAt
+                      ? new Date(liveResult.expiresAt).toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "la fin de la recherche"}
+                    . Dès qu’un chauffeur vérifié publie la même direction, le système vous
+                    affecte automatiquement.
+                  </p>
+                )}
+                {livePayLink ? (
+                  <a href={livePayLink} target="_blank" rel="noreferrer" className="mt-4 block rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f]">
+                    Payer avec Wave
+                  </a>
+                ) : null}
                 <button type="button" onClick={() => setRequestOpen(false)} className="mt-5 w-full rounded-2xl bg-[#07111f] px-4 py-4 text-sm font-black text-white">Compris</button>
               </div>
             ) : (
@@ -638,6 +771,10 @@ export default function AlloDakarPage() {
                       <button type="button" onClick={() => setPickupMode("domicile")} className={`rounded-2xl border p-3 text-xs font-black ${pickupMode === "domicile" ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200"}`}>À domicile</button>
                     </div>
                     <input value={pickupDetail} onChange={(event) => setPickupDetail(event.target.value)} className="input-base" placeholder={pickupMode === "domicile" ? "Votre adresse" : "Point souhaité (optionnel)"} />
+                    <p className="rounded-2xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                      Le système cherche les départs {travelMode === "direct" ? "des 3 prochaines heures" : "compatibles avec cette journée"},
+                      vérifie les places, le véhicule, le chauffeur et le plafond tarifaire de cet axe.
+                    </p>
                     <button type="button" onClick={() => setRequestStep("contact")} className="w-full rounded-2xl bg-emerald-700 px-4 py-4 text-sm font-black text-white">Continuer</button>
                   </div>
                 ) : (
@@ -648,7 +785,7 @@ export default function AlloDakarPage() {
                     <div className="grid grid-cols-[auto_1fr] gap-2">
                       <button type="button" onClick={() => setRequestStep("options")} className="rounded-2xl border border-slate-200 px-4 py-4 text-sm font-bold">Retour</button>
                       <button type="button" disabled={requesting || !name.trim() || !phone.trim()} onClick={() => void publishLiveRequest()} className="rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-[#07111f] disabled:opacity-40">
-                        {requesting ? "Diffusion…" : "Diffuser ma recherche"}
+                        {requesting ? "Recherche et dispatch…" : "Lancer le dispatch automatique"}
                       </button>
                     </div>
                   </div>
