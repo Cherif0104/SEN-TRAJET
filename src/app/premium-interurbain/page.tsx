@@ -1,3 +1,3 @@
-import { PremiumIntercityPage } from "@/app/interurbain/page";
+import { PremiumIntercityPage } from "@/components/intercity/PremiumIntercityPage";
 
 export default PremiumIntercityPage;
