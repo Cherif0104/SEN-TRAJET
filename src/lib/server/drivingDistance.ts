@@ -5,6 +5,7 @@ import { ceilDistanceKm } from "@/lib/routeDistances";
 export type DrivingDistance = {
   distanceKm: number;
   durationMinutes: number;
+  baselineDurationMinutes: number;
   source: "google_distance_matrix" | "osrm";
 };
 
@@ -40,13 +41,20 @@ async function googleDistance(route: RouteCoordinates): Promise<DrivingDistance 
   url.searchParams.set("destinations", `${route.toLat},${route.toLng}`);
   url.searchParams.set("mode", "driving");
   url.searchParams.set("language", "fr");
+  url.searchParams.set("departure_time", "now");
+  url.searchParams.set("traffic_model", "best_guess");
   url.searchParams.set("key", key);
 
   const response = await fetch(url.toString(), { cache: "no-store" });
   if (!response.ok) return null;
   const payload = (await response.json()) as {
     rows?: Array<{
-      elements?: Array<{ status?: string; distance?: { value: number }; duration?: { value: number } }>;
+      elements?: Array<{
+        status?: string;
+        distance?: { value: number };
+        duration?: { value: number };
+        duration_in_traffic?: { value: number };
+      }>;
     }>;
   };
   const result = payload.rows?.[0]?.elements?.[0];
@@ -54,7 +62,11 @@ async function googleDistance(route: RouteCoordinates): Promise<DrivingDistance 
 
   return {
     distanceKm: ceilDistanceKm(result.distance.value / 1000),
-    durationMinutes: Math.max(1, Math.round(result.duration.value / 60)),
+    durationMinutes: Math.max(
+      1,
+      Math.round((result.duration_in_traffic?.value ?? result.duration.value) / 60),
+    ),
+    baselineDurationMinutes: Math.max(1, Math.round(result.duration.value / 60)),
     source: "google_distance_matrix",
   };
 }
@@ -79,6 +91,7 @@ async function osrmDistance(route: RouteCoordinates): Promise<DrivingDistance | 
   return {
     distanceKm: ceilDistanceKm(result.distance / 1000),
     durationMinutes: Math.max(1, Math.round((result.duration ?? 0) / 60)),
+    baselineDurationMinutes: Math.max(1, Math.round((result.duration ?? 0) / 60)),
     source: "osrm",
   };
 }

@@ -825,7 +825,7 @@ export async function setOwnDriverLiveStatus(input: {
     p_lng: input.lng ?? null,
     p_accuracy_m: input.accuracyM ?? null,
     p_heading: input.heading ?? null,
-    p_available_services: input.availableServices ?? ["taxi_aeroport", "premium"],
+    p_available_services: input.availableServices ?? ["course_urbaine", "taxi_aeroport"],
   });
   if (error) throw error;
 }

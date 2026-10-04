@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
-  Clock3,
   CreditCard,
   MapPinned,
   Plane,
@@ -64,7 +63,6 @@ const STEP_LABELS: Array<{ steps: Step[]; label: string }> = [
 const SERVICE_ICONS: Partial<Record<ServiceType, typeof Plane>> = {
   transfert_aibd: Plane,
   interurbain: MapPinned,
-  mise_a_disposition: Clock3,
   ceremonie: UsersRound,
   autre: Sparkles,
 };
@@ -73,7 +71,6 @@ const SERVICE_ICONS: Partial<Record<ServiceType, typeof Plane>> = {
 const SERVICE_CARDS: { value: ServiceType; title: TranslationKey; hint: TranslationKey }[] = [
   { value: "transfert_aibd", title: "landing.service.airport", hint: "landing.service.airportDetail" },
   { value: "interurbain", title: "landing.service.travel", hint: "landing.service.travelDetail" },
-  { value: "mise_a_disposition", title: "landing.service.hourly", hint: "landing.service.hourlyDetail" },
   { value: "ceremonie", title: "booking.service.ceremony", hint: "booking.service.ceremonyDetail" },
   { value: "autre", title: "booking.service.other", hint: "booking.service.otherDetail" },
 ];

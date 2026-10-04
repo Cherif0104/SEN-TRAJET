@@ -7,11 +7,10 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
 const services = [
-  { title: "Course en ville", detail: "Un chauffeur proche, en temps réel", href: "/course", icon: CarFront },
+  { title: "Course privée", detail: "Ville ou région · Comfort à VIP", href: "/course", icon: CarFront },
   { title: "Taxi AIBD", detail: "Transferts aéroport immédiats", href: "/taxi-aeroport", icon: Plane },
   { title: "Louer une voiture", detail: "Véhicules et disponibilités réelles", href: "/flotte", icon: Sparkles },
-  { title: "Chauffeur VIP", detail: "Mise à disposition 4 h, 8 h ou 12 h", href: "/vip", icon: ShieldCheck },
-  { title: "Interurbain Premium", detail: "Véhicule privé et prix immédiat", href: "/interurbain", icon: Route },
+  { title: "Voyager", detail: "Lignes et départs régionaux", href: "/interurbain", icon: Route },
   { title: "Allo Dakar", detail: "Départs interurbains vérifiés", href: "/allo-dakar", icon: UsersRound },
   { title: "Mon Chauffeur", detail: "Votre voiture, notre chauffeur", href: "/mon-chauffeur", icon: UserRound },
 ] as const;

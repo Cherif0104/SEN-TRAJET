@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CarFront,
@@ -19,12 +20,13 @@ import {
 } from "@/components/booking/AddressAutocomplete";
 import { Logo } from "@/components/layout/Logo";
 import {
-  computeInstantTaxiPrice,
-  formatFcfa,
-  VEHICLE_CATEGORY_LABELS,
-  VEHICLE_CATEGORY_SEATS,
-  type VehicleCategory,
-} from "@/lib/sentrajetPricing";
+  computeLiveRidePrice,
+  RIDE_CLASS_LABELS,
+  RIDE_CLASS_RATES,
+  type RideClass,
+} from "@/lib/liveRidePricing";
+import { formatFcfa } from "@/lib/sentrajetPricing";
+import { airportRouteWithPlaces, isAibdPlace } from "@/lib/serviceRouting";
 import { supabase } from "@/lib/supabase";
 
 const AIBD: SelectedPlace = {
@@ -54,26 +56,32 @@ type LiveBooking = {
   } | null;
 };
 
-const categories: VehicleCategory[] = ["berline", "suv", "van"];
+const rideClasses: RideClass[] = ["comfort", "comfort_plus", "vip"];
 
 export function InstantRidePage({
+  defaultPickup = null,
   defaultDestination = AIBD,
+  defaultRideClass = "comfort",
   rideKind = "airport",
   eyebrow = "Taxi aéroport",
   title = "Un chauffeur, maintenant.",
 }: {
+  defaultPickup?: SelectedPlace | null;
   defaultDestination?: SelectedPlace | null;
+  defaultRideClass?: RideClass;
   rideKind?: "airport" | "city";
   eyebrow?: string;
   title?: string;
 }) {
-  const [pickup, setPickup] = useState<SelectedPlace | null>(null);
+  const router = useRouter();
+  const [pickup, setPickup] = useState<SelectedPlace | null>(defaultPickup);
   const [dropoff, setDropoff] = useState<SelectedPlace | null>(defaultDestination);
-  const [category, setCategory] = useState<VehicleCategory>("berline");
+  const [rideClass, setRideClass] = useState<RideClass>(defaultRideClass);
   const [passengers, setPassengers] = useState(1);
   const [phone, setPhone] = useState("");
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [baselineDurationMinutes, setBaselineDurationMinutes] = useState<number | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,8 +90,17 @@ export function InstantRidePage({
   const locationRequested = useRef(false);
 
   const quote = useMemo(
-    () => (distanceKm ? computeInstantTaxiPrice(distanceKm, category, rideKind) : null),
-    [distanceKm, category, rideKind]
+    () =>
+      distanceKm && durationMinutes
+        ? computeLiveRidePrice({
+            distanceKm,
+            durationMinutes,
+            baselineDurationMinutes,
+            rideClass,
+            rideKind,
+          })
+        : null,
+    [baselineDurationMinutes, distanceKm, durationMinutes, rideClass, rideKind]
   );
 
   useEffect(() => {
@@ -148,12 +165,16 @@ export function InstantRidePage({
         const payload = (await response.json()) as {
           distanceKm?: number;
           durationMinutes?: number;
+          baselineDurationMinutes?: number;
           error?: string;
         };
         if (!response.ok) throw new Error(payload.error || "Itinéraire indisponible.");
         if (!cancelled) {
           setDistanceKm(Number(payload.distanceKm));
           setDurationMinutes(Number(payload.durationMinutes));
+          setBaselineDurationMinutes(
+            Number(payload.baselineDurationMinutes ?? payload.durationMinutes),
+          );
         }
       })
       .catch((reason) => {
@@ -191,13 +212,29 @@ export function InstantRidePage({
     setDropoff(pickup);
   }
 
+  function selectDropoff(place: SelectedPlace) {
+    if (rideKind === "city" && isAibdPlace(place)) {
+      router.push(airportRouteWithPlaces(pickup, place));
+      return;
+    }
+    setDropoff(place);
+  }
+
+  function selectPickup(place: SelectedPlace) {
+    if (rideKind === "city" && isAibdPlace(place)) {
+      router.push(airportRouteWithPlaces(place, dropoff));
+      return;
+    }
+    setPickup(place);
+  }
+
   async function findTaxi() {
     if (!pickup || !dropoff || !quote) {
       setError("Confirmez le départ et la destination.");
       return;
     }
-    if (passengers > VEHICLE_CATEGORY_SEATS[category]) {
-      setError(`Cette catégorie accepte ${VEHICLE_CATEGORY_SEATS[category]} passagers maximum.`);
+    if (passengers > RIDE_CLASS_RATES[rideKind][rideClass].seats) {
+      setError(`La classe ${RIDE_CLASS_LABELS[rideClass]} accepte ${RIDE_CLASS_RATES[rideKind][rideClass].seats} passagers maximum.`);
       return;
     }
     setSubmitting(true);
@@ -219,7 +256,7 @@ export function InstantRidePage({
         body: JSON.stringify({
           pickup,
           dropoff,
-          vehicleCategory: category,
+          rideClass,
           passengers,
           phone,
           rideKind,
@@ -315,7 +352,7 @@ export function InstantRidePage({
                   label="Où êtes-vous ?"
                   placeholder="Votre point de prise en charge"
                   value={pickup}
-                  onSelect={setPickup}
+                  onSelect={selectPickup}
                   onClear={() => setPickup(null)}
                   showMyLocation
                   accent="pickup"
@@ -327,7 +364,7 @@ export function InstantRidePage({
                   label="Destination"
                   placeholder={rideKind === "airport" ? "AIBD ou une autre adresse" : "Quartier, rue ou lieu"}
                   value={dropoff}
-                  onSelect={setDropoff}
+                  onSelect={selectDropoff}
                   onClear={() => setDropoff(null)}
                   accent="dropoff"
                 />
@@ -335,25 +372,34 @@ export function InstantRidePage({
 
               <div className="mt-5">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-black">Choisissez votre véhicule</h2>
+                  <h2 className="text-sm font-black">Choisissez votre classe</h2>
                   {estimating ? <Loader2 className="h-4 w-4 animate-spin text-amber-600" /> : null}
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  {categories.map((item) => {
-                    const itemQuote = distanceKm ? computeInstantTaxiPrice(distanceKm, item, rideKind) : null;
+                  {rideClasses.map((item) => {
+                    const itemQuote =
+                      distanceKm && durationMinutes
+                        ? computeLiveRidePrice({
+                            distanceKm,
+                            durationMinutes,
+                            baselineDurationMinutes,
+                            rideClass: item,
+                            rideKind,
+                          })
+                        : null;
                     return (
                       <button
                         key={item}
                         type="button"
-                        onClick={() => setCategory(item)}
+                        onClick={() => setRideClass(item)}
                         className={`rounded-2xl border p-3 text-left transition ${
-                          category === item ? "border-[#07111f] bg-[#07111f] text-white" : "border-slate-200 bg-white"
+                          rideClass === item ? "border-[#07111f] bg-[#07111f] text-white" : "border-slate-200 bg-white"
                         }`}
                       >
-                        <CarFront className={`h-5 w-5 ${category === item ? "text-amber-400" : "text-slate-500"}`} />
-                        <span className="mt-2 block text-xs font-black">{VEHICLE_CATEGORY_LABELS[item]}</span>
-                        <span className={`mt-1 block text-[10px] ${category === item ? "text-white/60" : "text-slate-400"}`}>
-                          {itemQuote ? formatFcfa(itemQuote.amountFcfa) : `${VEHICLE_CATEGORY_SEATS[item]} places`}
+                        <CarFront className={`h-5 w-5 ${rideClass === item ? "text-amber-400" : "text-slate-500"}`} />
+                        <span className="mt-2 block text-xs font-black">{RIDE_CLASS_LABELS[item]}</span>
+                        <span className={`mt-1 block text-[10px] ${rideClass === item ? "text-white/60" : "text-slate-400"}`}>
+                          {itemQuote ? formatFcfa(itemQuote.amountFcfa) : `${RIDE_CLASS_RATES[rideKind][item].seats} places`}
                         </span>
                       </button>
                     );
@@ -381,7 +427,7 @@ export function InstantRidePage({
                     </div>
                     <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-emerald-800">{quote.distanceKm} km</span>
                   </div>
-                  <p className="mt-2 text-xs text-emerald-800/70">{quote.formula} · environ {durationMinutes} min</p>
+                  <p className="mt-2 text-xs leading-5 text-emerald-800/70">{quote.formula}</p>
                 </div>
               ) : null}
 
@@ -413,6 +459,49 @@ export function InstantRidePage({
   );
 }
 
-export default function TaxiAeroportPage() {
-  return <InstantRidePage />;
+export default function TaxiAeroportPage({
+  searchParams,
+}: {
+  searchParams?: {
+    pickup?: string;
+    pickupLat?: string;
+    pickupLng?: string;
+    dropoff?: string;
+    dropoffLat?: string;
+    dropoffLng?: string;
+  };
+}) {
+  const lat = Number(searchParams?.pickupLat);
+  const lng = Number(searchParams?.pickupLng);
+  const defaultPickup: SelectedPlace | null =
+    searchParams?.pickup && Number.isFinite(lat) && Number.isFinite(lng)
+      ? {
+          id: `airport-route:${lat},${lng}`,
+          label: searchParams.pickup,
+          address: searchParams.pickup,
+          lat,
+          lng,
+          source: "service_router",
+        }
+      : null;
+  const dropoffLat = Number(searchParams?.dropoffLat);
+  const dropoffLng = Number(searchParams?.dropoffLng);
+  const routedDropoff: SelectedPlace | null =
+    searchParams?.dropoff && Number.isFinite(dropoffLat) && Number.isFinite(dropoffLng)
+      ? {
+          id: `airport-route:${dropoffLat},${dropoffLng}`,
+          label: searchParams.dropoff,
+          address: searchParams.dropoff,
+          lat: dropoffLat,
+          lng: dropoffLng,
+          source: "service_router",
+        }
+      : null;
+  const defaultDestination = routedDropoff ?? (isAibdPlace(defaultPickup) ? null : AIBD);
+  return (
+    <InstantRidePage
+      defaultPickup={defaultPickup}
+      defaultDestination={defaultDestination}
+    />
+  );
 }

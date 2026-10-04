@@ -16,7 +16,6 @@ import {
   Plane,
   Route,
   ShieldCheck,
-  Sparkles,
   UserRound,
   UsersRound,
   X,
@@ -29,18 +28,19 @@ import {
   type SelectedPlace,
 } from "@/components/booking/AddressAutocomplete";
 import { useAuth } from "@/hooks/useAuth";
+import { airportRouteWithPickup, isAibdPlace } from "@/lib/serviceRouting";
 
 const LOCATION_PRIMER_KEY = "sentrajet_location_primer_v1";
 
 const services = [
   {
-    title: "Allo Dakar",
-    detail: "Voyager à la place",
-    href: "/allo-dakar",
-    icon: UsersRound,
+    title: "Course privée",
+    detail: "Comfort, Comfort Plus ou VIP",
+    href: "/course",
+    icon: Navigation,
     image: "/hero-landing.png",
     imagePosition: "48% center",
-    tone: "from-emerald-900/5 to-emerald-950/85",
+    tone: "from-[#07111f]/5 to-[#07111f]/90",
     layout: "col-span-2 row-span-2",
   },
   {
@@ -64,18 +64,18 @@ const services = [
     layout: "col-span-1 row-span-1",
   },
   {
-    title: "Premium",
-    detail: "Chauffeur à disposition",
-    href: "/vip",
-    icon: Sparkles,
+    title: "Allo Dakar",
+    detail: "Une place, une collecte",
+    href: "/allo-dakar",
+    icon: UsersRound,
     image: "/images/hero-sen-trajet.png",
     imagePosition: "20% center",
-    tone: "from-amber-900/5 to-[#07111f]/85",
+    tone: "from-emerald-900/5 to-emerald-950/90",
     layout: "col-span-2 row-span-1",
   },
   {
     title: "Voyager",
-    detail: "Privé · tout le Sénégal",
+    detail: "Lignes et départs régionaux",
     href: "/interurbain",
     icon: Route,
     image: "/hero-landing.png",
@@ -91,7 +91,7 @@ const services = [
     image: "/images/hero-sen-trajet.png",
     imagePosition: "45% center",
     tone: "from-violet-900/10 to-[#07111f]/90",
-    layout: "col-span-3 row-span-1",
+    layout: "col-span-1 row-span-1",
   },
 ];
 
@@ -169,6 +169,21 @@ export function ClientAppHome() {
 
   function submitDestination(event: React.FormEvent) {
     event.preventDefault();
+    if (destinationPlace && isAibdPlace(destinationPlace)) {
+      router.push(
+        airportRouteWithPickup(
+          position
+            ? {
+                address: locationLabel,
+                label: locationLabel,
+                lat: position.lat,
+                lng: position.lng,
+              }
+            : null,
+        ),
+      );
+      return;
+    }
     const params = new URLSearchParams();
     if (destinationPlace) {
       params.set("dropoff", destinationPlace.address);
@@ -263,7 +278,7 @@ export function ClientAppHome() {
               <h2 className="text-base font-extrabold">Choisissez un service</h2>
               <span className="text-xs font-semibold text-slate-400">Tout SentraJet</span>
             </div>
-            <section aria-label="Services SentraJet" className="grid auto-rows-[116px] grid-cols-3 gap-3 sm:auto-rows-[132px]">
+            <section aria-label="Services SentraJet" className="grid auto-rows-[116px] grid-cols-2 gap-3 sm:auto-rows-[132px]">
               {services.map((service, index) => {
                 const Icon = service.icon;
                 return (

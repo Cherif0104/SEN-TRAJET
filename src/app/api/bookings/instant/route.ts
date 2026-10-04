@@ -2,20 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getDrivingDistance } from "@/lib/server/drivingDistance";
 import {
-  computeInstantTaxiPrice,
-  VEHICLE_CATEGORY_LABELS,
-  type VehicleCategory,
-} from "@/lib/sentrajetPricing";
+  computeLiveRidePrice,
+  RIDE_CLASS_LABELS,
+  RIDE_CLASS_RATES,
+  type RideClass,
+} from "@/lib/liveRidePricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CATEGORIES: VehicleCategory[] = ["berline", "suv", "van"];
+const RIDE_CLASSES: RideClass[] = ["comfort", "comfort_plus", "vip"];
 
 type InstantBody = {
   pickup: { address?: string; lat?: number; lng?: number };
   dropoff: { address?: string; lat?: number; lng?: number };
-  vehicleCategory?: VehicleCategory;
+  rideClass?: RideClass;
   passengers?: number;
   phone?: string;
   rideKind?: "airport" | "city";
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Requête invalide." }, { status: 400 });
   }
 
-  const category = body.vehicleCategory;
+  const rideClass = body.rideClass;
   const rideKind = body.rideKind === "city" ? "city" : "airport";
   const phone = cleanPhone(body.phone);
   const passengers = Math.max(1, Math.min(10, Number(body.passengers) || 1));
@@ -91,11 +92,11 @@ export async function POST(request: NextRequest) {
   if (
     !body.pickup?.address?.trim() ||
     !body.dropoff?.address?.trim() ||
-    !category ||
-    !CATEGORIES.includes(category)
+    !rideClass ||
+    !RIDE_CLASSES.includes(rideClass)
   ) {
     return NextResponse.json(
-      { error: "Départ, destination et catégorie de véhicule sont requis." },
+      { error: "Départ, destination et classe de service sont requis." },
       { status: 400 }
     );
   }
@@ -125,7 +126,20 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     );
   }
-  const quote = computeInstantTaxiPrice(distance.distanceKm, category, rideKind);
+  if (passengers > RIDE_CLASS_RATES[rideKind][rideClass].seats) {
+    return NextResponse.json(
+      { error: `La classe ${RIDE_CLASS_LABELS[rideClass]} accepte ${RIDE_CLASS_RATES[rideKind][rideClass].seats} passagers maximum.` },
+      { status: 400 },
+    );
+  }
+  const quote = computeLiveRidePrice({
+    distanceKm: distance.distanceKm,
+    durationMinutes: distance.durationMinutes,
+    baselineDurationMinutes: distance.baselineDurationMinutes,
+    rideClass,
+    rideKind,
+    startsAt: new Date(),
+  });
 
   try {
     const admin = getSupabaseAdmin();
@@ -156,10 +170,11 @@ export async function POST(request: NextRequest) {
         passengers,
         phone,
         distance_km: quote.distanceKm,
+        ride_class: rideClass,
         pricing_segment: "client",
         source: rideKind === "airport" ? "instant_airport" : "instant_city",
-        tariff_version_code: rideKind === "airport" ? "INSTANT_TAXI_V1" : "INSTANT_CITY_V1",
-        notes: `Catégorie véhicule : ${VEHICLE_CATEGORY_LABELS[category]}\nTarif : ${quote.formula}`,
+        tariff_version_code: rideKind === "airport" ? "AIRPORT_CLASSES_V2" : "LIVE_CLASSES_V2",
+        notes: `Classe : ${RIDE_CLASS_LABELS[rideClass]}\nTarif : ${quote.formula}`,
         pickup_lat: route.fromLat,
         pickup_lng: route.fromLng,
         dropoff_lat: route.toLat,
@@ -178,7 +193,7 @@ export async function POST(request: NextRequest) {
       to_status: "recherche_chauffeur",
       note: "Recherche instantanée lancée depuis l’application client",
     });
-    await admin.rpc("auto_dispatch_booking", { p_booking_id: booking.id });
+    await admin.rpc("auto_dispatch_live_booking_v2", { p_booking_id: booking.id });
 
     return bookingResponse(booking.id as string, token);
   } catch (error) {
@@ -212,7 +227,7 @@ export async function GET(request: NextRequest) {
       found.status === "recherche_chauffeur" &&
       new Date(found.search_expires_at as string).getTime() > Date.now()
     ) {
-      await admin.rpc("auto_dispatch_booking", { p_booking_id: id });
+      await admin.rpc("auto_dispatch_live_booking_v2", { p_booking_id: id });
     }
     return bookingResponse(id, token);
   } catch {
