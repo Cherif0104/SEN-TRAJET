@@ -14,12 +14,25 @@ correspond à un mode opérationnel différent :
 
 | Offre | Modèle recommandé | Avantages | Limites / risques | Solution cible |
 | --- | --- | --- | --- | --- |
-| Course en direct | Immédiat | Très rapide, expérience type Uber/Yango, dispatch par proximité | Nécessite assez de chauffeurs en ligne et une position fiable | Géolocalisation automatique, adresses Google/OSM, tarif distance, flotte prioritaire puis partenaires |
-| Taxi AIBD | Immédiat ou planifié | Besoin clair, forte valeur, destination connue | Vols retardés, bagages, distance importante | AIBD prérempli, numéro de vol en planifié, catégorie véhicule et tarif transparent |
-| Allo Dakar | Départ publié + recherche réseau | Prix accessible, mutualisation des places | Dépend des horaires et axes publiés | Liste live des départs ; si vide, diffusion du besoin aux chauffeurs de l’axe |
-| Location de véhicule | Catalogue | Comparaison simple, valorise photos et équipements | Disponibilités, caution et état du véhicule à contrôler | Calendrier réel, fiche véhicule, paiement/caution et état des lieux numérique |
-| Mise à disposition Premium | Planifié | Marge élevée, adapté entreprises/VIP | Besoin parfois complexe, durée et dépassements | Forfait horaire clair, véhicule suggéré, validation Ops seulement pour les cas hors règles |
-| Groupes et cérémonies | Planifié sur devis | Panier élevé et besoins récurrents | Plusieurs véhicules, coordination et changements | Brief progressif, composition de flotte et devis validé avant paiement |
+| Course en direct (`/course`) | Immédiat | Très rapide, expérience type Uber/Yango, dispatch par proximité | Nécessite assez de chauffeurs en ligne et une position fiable | Géolocalisation automatique, adresses Google/OSM, tarif distance, flotte prioritaire puis partenaires |
+| Taxi AIBD (`/taxi-aeroport`) | Immédiat | Besoin clair, forte valeur, destination connue | Vols retardés, bagages, distance importante | AIBD prérempli, catégories Comfort+, suivi live |
+| Réservation Premium (`/reserver`) | Planifié SentraJet | Marge élevée, transfert/MAD/cérémonies | Parcours long, chevauche VIP | Un seul tunnel planifié flotte propriétaire |
+| Allo Dakar (`/allo-dakar`) | Départ publié + besoin | Prix accessible, mutualisation des places | Dépend des horaires et axes publiés | Liste live ; si vide, diffusion du besoin aux chauffeurs de l’axe |
+| Voyager (`/interurbain`) | Marketplace lignes programmées | Comparaison d’opérateurs et places | Seed pilote, paiement Wave à industrialiser | Recherche, réservation par place, billet, portail opérateur |
+| Location (`/flotte`) | Catalogue | Comparaison simple, photos et équipements | Caution et état des lieux incomplets | Calendrier réel, caution Wave, état des lieux numérique |
+| Mon Chauffeur (`/mon-chauffeur`) | Abonnement + matching | Le client garde son véhicule | Paiement parfois en simulation | Cycle complet jusqu’à mission terminée |
+| VIP / groupes (`/vip`) | Devis planifié | Panier élevé | Chevauche Premium et Mon Chauffeur | Brief progressif, flotte composée, devis avant paiement |
+
+## Frontières produit (source de vérité)
+
+1. **Immédiat** = Course + Taxi AIBD (dispatch live SentraJet).
+2. **Planifié flotte SentraJet** = `/reserver` (Premium) et `/vip` (groupes/MAD complexes).
+3. **Places partagées** = Allo Dakar (chauffeurs/garages Allo Dakar).
+4. **Lignes programmées** = Voyager (opérateurs marketplace).
+5. **Sans véhicule SentraJet** = Mon Chauffeur (véhicule client).
+6. **Sans chauffeur SentraJet** = Location (véhicule seul).
+
+Tout historique client converge vers `/compte/reservations` (« Mes trajets »).
 
 ## Règle de dispatch
 

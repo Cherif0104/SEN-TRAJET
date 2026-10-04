@@ -471,6 +471,11 @@ function ReserverWizard() {
   }
 
   async function submitDemande() {
+    if (!user) {
+      patch({ step: "compte" });
+      setError("Connectez-vous pour confirmer et suivre votre réservation.");
+      return;
+    }
     if (
       draft.validatedQuoteFcfa != null &&
       quote.amountFcfa !== draft.validatedQuoteFcfa
@@ -1235,9 +1240,9 @@ function ReserverWizard() {
           >
             J’ai déjà un compte
           </Link>
-          <button type="button" className="w-full text-sm font-semibold underline" onClick={() => go("confirm")}>
-            Continuer sans compte
-          </button>
+          <p className="pt-1 text-center text-xs leading-relaxed text-slate-500">
+            Un compte est requis pour confirmer, payer et suivre votre chauffeur.
+          </p>
         </div>
       ) : null}
 

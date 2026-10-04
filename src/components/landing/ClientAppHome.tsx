@@ -45,7 +45,7 @@ const services = [
   },
   {
     title: "Taxi AIBD",
-    detail: "Trouver un chauffeur",
+    detail: "En direct depuis l’aéroport",
     href: "/taxi-aeroport",
     icon: Plane,
     image: "/images/hero-sen-trajet.png",
@@ -55,7 +55,7 @@ const services = [
   },
   {
     title: "Louer une voiture",
-    detail: "Voir le catalogue",
+    detail: "Catalogue et disponibilité",
     href: "/flotte",
     icon: CarFront,
     image: "/brand/sentrajet-vehicle-hero.webp",
@@ -65,7 +65,7 @@ const services = [
   },
   {
     title: "Allo Dakar",
-    detail: "Une place, une collecte",
+    detail: "Places partagées interurbaines",
     href: "/allo-dakar",
     icon: UsersRound,
     image: "/images/hero-sen-trajet.png",
@@ -75,7 +75,7 @@ const services = [
   },
   {
     title: "Voyager",
-    detail: "Lignes et départs régionaux",
+    detail: "Bus et lignes programmées",
     href: "/interurbain",
     icon: Route,
     image: "/hero-landing.png",
@@ -103,16 +103,16 @@ const suggestions = [
     icon: Plane,
   },
   {
-    title: "Voyage interurbain",
-    detail: "Lignes, horaires et places",
+    title: "Voyager · lignes",
+    detail: "Départs régionaux par place",
     href: "/interurbain",
     icon: MapPin,
   },
   {
-    title: "J’ai déjà une voiture",
-    detail: "Chauffeur vérifié à la journée",
-    href: "/mon-chauffeur",
-    icon: UserRound,
+    title: "Réservation Premium",
+    detail: "Trajet planifié SentraJet",
+    href: "/reserver",
+    icon: CalendarDays,
   },
 ];
 
@@ -443,10 +443,13 @@ export function ClientAppHome() {
               </button>
             </div>
             <nav className="mt-8 grid gap-2 text-sm font-bold">
-              <Link href="/reserver" className="rounded-2xl bg-amber-400 px-4 py-3.5">Réserver un trajet</Link>
+              <Link href="/course" className="rounded-2xl bg-amber-400 px-4 py-3.5">Course en direct</Link>
+              <Link href="/reserver" className="rounded-2xl bg-slate-100 px-4 py-3.5">Réservation Premium</Link>
               <Link href="/flotte" className="rounded-2xl bg-slate-100 px-4 py-3.5">Louer une voiture</Link>
               <Link href="/allo-dakar" className="rounded-2xl bg-emerald-50 px-4 py-3.5 text-emerald-800">Allo Dakar</Link>
-              <Link href="/compte/reservations" className="rounded-2xl px-4 py-3.5">Mes réservations</Link>
+              <Link href="/interurbain" className="rounded-2xl bg-slate-100 px-4 py-3.5">Voyager · lignes régionales</Link>
+              <Link href="/mon-chauffeur" className="rounded-2xl bg-slate-100 px-4 py-3.5">Mon Chauffeur</Link>
+              <Link href="/compte/reservations" className="rounded-2xl px-4 py-3.5">Mes trajets</Link>
               <Link href="/compte/profil" className="rounded-2xl px-4 py-3.5">Mon profil</Link>
               <button
                 type="button"
