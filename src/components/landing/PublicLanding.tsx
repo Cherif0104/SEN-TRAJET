@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CarFront, LockKeyhole, Plane, Route, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { ArrowRight, CarFront, LockKeyhole, Plane, Route, ShieldCheck, Sparkles, UserRound, UsersRound } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
@@ -13,6 +13,7 @@ const services = [
   { title: "Chauffeur VIP", detail: "Mise à disposition 4 h, 8 h ou 12 h", href: "/vip", icon: ShieldCheck },
   { title: "Interurbain Premium", detail: "Véhicule privé et prix immédiat", href: "/interurbain", icon: Route },
   { title: "Allo Dakar", detail: "Départs interurbains vérifiés", href: "/allo-dakar", icon: UsersRound },
+  { title: "Mon Chauffeur", detail: "Votre voiture, notre chauffeur", href: "/mon-chauffeur", icon: UserRound },
 ] as const;
 
 function loginHref(destination: string): string {

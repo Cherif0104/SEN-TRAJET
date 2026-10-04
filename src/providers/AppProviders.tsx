@@ -17,6 +17,7 @@ const CLIENT_SERVICE_PREFIXES = [
   "/reserver",
   "/vip",
   "/interurbain",
+  "/mon-chauffeur",
   "/allo-dakar",
   "/destinations",
 ];

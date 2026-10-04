@@ -52,6 +52,7 @@ function isAllowedNext(path: string): boolean {
     "/reserver",
     "/vip",
     "/interurbain",
+    "/mon-chauffeur",
     "/course",
     "/taxi-aeroport",
     "/flotte",

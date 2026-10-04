@@ -181,6 +181,67 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
+  if (ref.startsWith("myDriver:")) {
+    const requestId = ref.slice("myDriver:".length);
+    const { data: mission } = await supabaseAdmin
+      .from("my_driver_requests")
+      .select("id, payment_status, status")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (
+      !mission ||
+      !["pending", "initiated"].includes(mission.payment_status) ||
+      mission.status !== "en_attente_paiement"
+    ) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+    await supabaseAdmin
+      .from("my_driver_requests")
+      .update(
+        succeeded
+          ? {
+              payment_status: "paid",
+              status: "confirmee",
+              paid_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          : {
+              payment_status: "failed",
+              updated_at: new Date().toISOString(),
+            },
+      )
+      .eq("id", mission.id);
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  if (ref.startsWith("myDriverSubscription:")) {
+    const subscriptionId = ref.slice("myDriverSubscription:".length);
+    const { data: subscription } = await supabaseAdmin
+      .from("my_driver_subscriptions")
+      .select("id, status")
+      .eq("id", subscriptionId)
+      .maybeSingle();
+    if (!subscription || subscription.status !== "pending") {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    const startsAt = new Date();
+    const endsAt = new Date(startsAt.getTime() + 7 * 24 * 60 * 60_000);
+    await supabaseAdmin
+      .from("my_driver_subscriptions")
+      .update(
+        succeeded
+          ? {
+              status: "actif",
+              starts_at: startsAt.toISOString(),
+              ends_at: endsAt.toISOString(),
+            }
+          : { status: "expire" },
+      )
+      .eq("id", subscription.id);
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
   const { data: bookingPayment, error: bookingPaymentErr } = await supabaseAdmin
     .from("payments")
     .select("id, booking_id, status")

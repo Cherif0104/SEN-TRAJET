@@ -43,6 +43,7 @@ const nav = [
   { href: "/admin/vehicules", labelKey: "nav.fleet" as const, icon: Car },
   { href: "/admin/destinations", label: "Destinations", icon: MapPinned },
   { href: "/admin/allo-dakar", label: "Allo Dakar", icon: Bus },
+  { href: "/admin/mon-chauffeur", label: "Mon Chauffeur", icon: UserCog },
   { href: "/admin/tarification", labelKey: "nav.pricing" as const, icon: BadgeDollarSign },
   { href: "/admin/regles", labelKey: "nav.businessRules" as const, icon: SlidersHorizontal },
   { href: "/admin/rapports", labelKey: "nav.reports" as const, icon: BarChart3 },
