@@ -222,15 +222,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let verifiedSession = nextSession;
       let nextUser = nextSession.user;
 
-      if (event === "BOOTSTRAP") {
-        const { data, error } = await supabase.auth.getUser();
-        // Une panne réseau/PostgREST ne doit jamais détruire une session locale
-        // encore renouvelable. Supabase émettra SIGNED_OUT si le refresh token
-        // est réellement invalide.
-        if (!error && data.user) {
-          nextUser = data.user;
-          const current = await supabase.auth.getSession();
-          verifiedSession = current.data.session ?? nextSession;
+      if (event === "BOOTSTRAP" || event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+        const expiresAtMs = (nextSession.expires_at ?? 0) * 1000;
+        if (expiresAtMs <= Date.now() + 90_000) {
+          const refreshed = await supabase.auth.refreshSession();
+          if (refreshed.error || !refreshed.data.session?.user) {
+            // Refresh impossible : on force une reconnexion plutôt qu’un faux état connecté.
+            await supabase.auth.signOut({ scope: "local" });
+            setSession(null);
+            setUser(null);
+            storeProfile(null);
+            return;
+          }
+          verifiedSession = refreshed.data.session;
+          nextUser = refreshed.data.session.user;
+        } else if (event === "BOOTSTRAP") {
+          const { data, error } = await supabase.auth.getUser();
+          // Une panne réseau/PostgREST ne doit jamais détruire une session locale
+          // encore renouvelable. Supabase émettra SIGNED_OUT si le refresh token
+          // est réellement invalide.
+          if (!error && data.user) {
+            nextUser = data.user;
+            const current = await supabase.auth.getSession();
+            verifiedSession = current.data.session ?? nextSession;
+          }
         }
       }
 

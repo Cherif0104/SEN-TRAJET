@@ -9,7 +9,7 @@ import { Footer } from "@/components/layout/Footer";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import { getRentalBooking, type RentalBooking } from "@/lib/rentalMarketplace";
 import { formatFcfa } from "@/lib/sentrajetPricing";
-import { supabase } from "@/lib/supabase";
+import { authApiFetch } from "@/lib/authSession";
 
 export default function RentalReservationPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,17 +32,18 @@ export default function RentalReservationPage() {
     setPaying(true);
     setMessage(null);
     try {
-      const { data } = await supabase.auth.getSession();
-      const response = await fetch("/api/checkout/wave/rental", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}),
+      const payload = await authApiFetch<{
+        error?: string;
+        simulation?: boolean;
+        checkout_url?: string;
+      }>(
+        "/api/checkout/wave/rental",
+        {
+          method: "POST",
+          body: JSON.stringify({ bookingId: id }),
         },
-        body: JSON.stringify({ bookingId: id }),
-      });
-      const payload = (await response.json()) as { error?: string; simulation?: boolean; checkout_url?: string };
-      if (!response.ok) throw new Error(payload.error || "Paiement indisponible.");
+        { fallbackError: "Paiement indisponible." },
+      );
       if (payload.checkout_url) {
         window.location.assign(payload.checkout_url);
         return;

@@ -1,3 +1,4 @@
+import { authApiFetch } from "@/lib/authSession";
 import { supabase } from "@/lib/supabase";
 
 export type MyDriverProfile = {
@@ -82,21 +83,9 @@ export type MyDriverAssignment = {
 };
 
 async function authFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Connectez-vous pour continuer.");
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-      ...(init?.headers ?? {}),
-    },
+  return authApiFetch<T>(path, init, {
+    fallbackError: "Le service Mon Chauffeur est indisponible.",
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "Le service Mon Chauffeur est indisponible.");
-  return payload;
 }
 
 export async function getMyDriverProfile(): Promise<{

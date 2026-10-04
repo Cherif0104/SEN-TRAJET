@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { authApiFetch } from "@/lib/authSession";
 
 export type IntercityTripMode = "aller_simple" | "aller_retour";
 
@@ -47,24 +47,9 @@ export type IntercityRouteInput = {
 };
 
 async function authFetch<T>(path: string, init: RequestInit): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Connectez-vous pour continuer.");
-
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-      ...(init.headers ?? {}),
-    },
+  return authApiFetch<T>(path, init, {
+    fallbackError: "Le service interurbain est momentanément indisponible.",
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || "Le service interurbain est momentanément indisponible.");
-  }
-  return payload;
 }
 
 export async function createIntercityQuote(input: IntercityRouteInput): Promise<IntercityQuote> {

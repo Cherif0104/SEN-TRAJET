@@ -1,3 +1,4 @@
+import { authApiFetch } from "@/lib/authSession";
 import { supabase } from "@/lib/supabase";
 import type { PricingSegment, ServiceType } from "@/lib/sentrajetPricing";
 import { bookingStatusLabel, normalizeBookingStatus } from "@/lib/engines/bookingStatuses";
@@ -434,45 +435,36 @@ async function createBookingViaApi(input: {
   luggageCount?: number | null;
 }): Promise<PlatformBooking | null> {
   if (typeof window === "undefined") return null;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const res = await fetch("/api/bookings/demande", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
-        : {}),
-    },
-    body: JSON.stringify({
-      clientId: input.clientId ?? null,
-      partnerContractId: input.partnerContractId ?? null,
-      pickup: input.pickup,
-      dropoff: input.dropoff,
-      pickupTime: input.pickupTime,
-      serviceType: input.serviceType,
-      passengers: input.passengers,
-      estimatedPrice: input.estimatedPrice,
-      pricingSegment: input.pricingSegment,
-      distanceKm: input.distanceKm ?? null,
-      notes: input.notes ?? null,
-      vehiclesNeeded: input.vehiclesNeeded ?? 1,
-      isRoundTrip: input.isRoundTrip ?? false,
-      phone: input.phone ?? null,
-      flightNumber: input.flightNumber ?? null,
-      passengerName: input.passengerName ?? null,
-      luggageCount: input.luggageCount ?? null,
-    }),
-  });
-  const payload = (await res.json().catch(() => ({}))) as {
-    booking?: PlatformBooking;
-    error?: string;
-  };
-  if (!res.ok) {
-    throw new Error(payload.error || "Impossible d’envoyer la demande.");
+  try {
+    const data = await authApiFetch<{ booking?: PlatformBooking; error?: string }>(
+      "/api/bookings/demande",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          clientId: input.clientId ?? null,
+          partnerContractId: input.partnerContractId ?? null,
+          pickup: input.pickup,
+          dropoff: input.dropoff,
+          pickupTime: input.pickupTime,
+          serviceType: input.serviceType,
+          passengers: input.passengers,
+          estimatedPrice: input.estimatedPrice,
+          pricingSegment: input.pricingSegment,
+          distanceKm: input.distanceKm ?? null,
+          notes: input.notes ?? null,
+          isRoundTrip: input.isRoundTrip ?? false,
+          phone: input.phone ?? null,
+          flightNumber: input.flightNumber ?? null,
+          passengerName: input.passengerName ?? null,
+          luggageCount: input.luggageCount ?? null,
+        }),
+      },
+      { fallbackError: "La demande n’a pas pu être enregistrée." },
+    );
+    return data.booking ?? null;
+  } catch {
+    return null;
   }
-  return payload.booking ?? null;
 }
 
 export async function createPlatformBooking(input: {
@@ -763,20 +755,15 @@ export async function createPaymentForBooking(input: {
 export async function createBookingWaveCheckout(paymentId: string): Promise<string | null> {
   if (typeof window === "undefined") return null;
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const res = await fetch("/api/checkout/wave/booking", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    const data = await authApiFetch<{ checkout_url?: string | null; simulation?: boolean }>(
+      "/api/checkout/wave/booking",
+      {
+        method: "POST",
+        body: JSON.stringify({ paymentId }),
       },
-      body: JSON.stringify({ paymentId }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { checkout_url?: string | null; simulation?: boolean };
-    if (!res.ok || !data.checkout_url) return null;
-    return data.checkout_url;
+      { fallbackError: "Paiement indisponible." },
+    );
+    return data.checkout_url ?? null;
   } catch {
     return null;
   }

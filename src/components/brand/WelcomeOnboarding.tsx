@@ -12,9 +12,8 @@ type Step = "welcome" | "auth-choice";
 /**
  * Premier écran interactif à la toute première visite (une seule fois, suivi via localStorage) —
  * logo, message de bienvenue, puis choix « J'ai déjà un compte / Créer un compte », façon
- * app VTC (Yango/Uber) plutôt qu'une simple page de connexion brute. Un lien « Continuer sans
- * compte » reste toujours visible : l'app est utilisable sans inscription (réservation invité,
- * catalogue, destinations…).
+ * app VTC (Yango/Uber) plutôt qu'une simple page de connexion brute. Un compte est
+ * désormais requis pour accéder aux services transactionnels.
  */
 export function WelcomeOnboarding({ onDismiss }: { onDismiss: () => void }) {
   const [step, setStep] = useState<Step>("welcome");
@@ -73,10 +72,10 @@ export function WelcomeOnboarding({ onDismiss }: { onDismiss: () => void }) {
             </button>
             <button
               type="button"
-              onClick={dismiss}
+              onClick={() => setStep("auth-choice")}
               className="mt-3 text-center text-xs font-semibold text-white/50 underline-offset-2 hover:text-white/80 hover:underline"
             >
-              Explorer sans compte
+              J’ai déjà un compte
             </button>
           </div>
         ) : (
@@ -88,7 +87,7 @@ export function WelcomeOnboarding({ onDismiss }: { onDismiss: () => void }) {
               Comment souhaitez-vous continuer ?
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white/65">
-              Connectez-vous pour retrouver vos réservations, suivre votre chauffeur et bénéficier de vos avantages.
+              Un compte est requis pour réserver, suivre une course et accéder à tous les services SentraJet.
             </p>
             <div className="mt-7 flex w-full flex-col gap-3">
               <Link
@@ -108,13 +107,6 @@ export function WelcomeOnboarding({ onDismiss }: { onDismiss: () => void }) {
                 Créer un compte
               </Link>
             </div>
-            <button
-              type="button"
-              onClick={dismiss}
-              className="mt-4 text-center text-xs font-semibold text-white/50 underline-offset-2 hover:text-white/80 hover:underline"
-            >
-              Continuer sans compte
-            </button>
           </div>
         )}
         <div className="mt-7 flex gap-1.5">

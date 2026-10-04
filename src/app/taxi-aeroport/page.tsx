@@ -27,7 +27,7 @@ import {
 } from "@/lib/liveRidePricing";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { airportRouteWithPlaces, isAibdPlace } from "@/lib/serviceRouting";
-import { supabase } from "@/lib/supabase";
+import { authApiFetch } from "@/lib/authSession";
 
 const AIBD: SelectedPlace = {
   id: "sentrajet:aibd",
@@ -240,40 +240,37 @@ export function InstantRidePage({
     setSubmitting(true);
     setError(null);
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
-        return;
-      }
-      const response = await fetch("/api/bookings/instant", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          pickup,
-          dropoff,
-          rideClass,
-          passengers,
-          phone,
-          rideKind,
-        }),
-      });
-      const payload = (await response.json()) as {
+      const payload = await authApiFetch<{
         booking?: LiveBooking;
         searchToken?: string;
         error?: string;
-      };
-      if (!response.ok || !payload.booking || !payload.searchToken) {
+      }>(
+        "/api/bookings/instant",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            pickup,
+            dropoff,
+            rideClass,
+            passengers,
+            phone,
+            rideKind,
+          }),
+        },
+        { fallbackError: "Impossible de lancer la recherche." },
+      );
+      if (!payload.booking || !payload.searchToken) {
         throw new Error(payload.error || "Impossible de lancer la recherche.");
       }
       setBooking(payload.booking);
       setSearchToken(payload.searchToken);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Recherche impossible.");
+      const message = reason instanceof Error ? reason.message : "Recherche impossible.";
+      if (message.includes("Connectez-vous") || message.includes("Session expirée")) {
+        window.location.assign(`/connexion?next=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
+      setError(message);
     } finally {
       setSubmitting(false);
     }

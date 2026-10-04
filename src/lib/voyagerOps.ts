@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { authApiFetch } from "@/lib/authSession";
 
 export type VoyagerDeparture = {
   id: string;
@@ -36,22 +36,11 @@ export type VoyagerBooking = {
 };
 
 async function authFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Connectez-vous pour utiliser Voyager.");
-  const response = await fetch(path, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-      ...(init?.headers ?? {}),
-    },
-  });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "Voyager est momentanément indisponible.");
-  return payload;
+  return authApiFetch<T>(
+    path,
+    { cache: "no-store", ...init },
+    { fallbackError: "Voyager est momentanément indisponible." },
+  );
 }
 
 export async function searchVoyagerDepartures(filters: {

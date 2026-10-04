@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { authApiFetch } from "@/lib/authSession";
 
 export type RentalListing = {
   id: string;
@@ -82,20 +82,9 @@ export function quoteRental(listing: RentalListing, startDate: string, endDate: 
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
+  return authApiFetch<T>(path, init, {
+    fallbackError: "Une erreur est survenue.",
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "Une erreur est survenue.");
-  return payload;
 }
 
 export async function listAvailableRentalListings(filters: {

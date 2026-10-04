@@ -1,3 +1,4 @@
+import { authApiFetch } from "@/lib/authSession";
 import { supabase } from "@/lib/supabase";
 import { listBusinessRules, ruleNumber } from "@/lib/engines/businessRules";
 
@@ -296,19 +297,10 @@ export async function createGarageWithManager(input: {
   phone: string;
   city?: string | null;
 }): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const res = await fetch("/api/admin/allo-dakar/create-garage", {
+  await authApiFetch("/api/admin/allo-dakar/create-garage", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    },
     body: JSON.stringify(input),
-  });
-  const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Impossible de créer le garage.");
+  }, { fallbackError: "Impossible de créer le garage." });
 }
 
 export async function listAllGarages(): Promise<AlloDakarGarage[]> {
@@ -695,52 +687,20 @@ export async function requestAlloDakarLiveMatch(input: {
   searchWindowMinutes?: number;
   maxPriceFcfa?: number | null;
 }): Promise<AlloDakarLiveMatchResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Connectez-vous pour lancer la recherche.");
-
-  const response = await fetch("/api/allo-dakar/match", {
+  return authApiFetch<AlloDakarLiveMatchResult>("/api/allo-dakar/match", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
     body: JSON.stringify(input),
-  });
-  const payload = (await response.json().catch(() => ({}))) as
-    | AlloDakarLiveMatchResult
-    | { error?: string };
-  if (!response.ok) {
-    throw new Error(
-      "error" in payload && payload.error
-        ? payload.error
-        : "La recherche automatique est indisponible.",
-    );
-  }
-  return payload as AlloDakarLiveMatchResult;
+  }, { fallbackError: "La recherche automatique est indisponible." });
 }
 
 export async function getAlloDakarLiveMatchStatus(
   requestId: string,
 ): Promise<AlloDakarLiveMatchResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Session expirée.");
-  const response = await fetch(
+  return authApiFetch<AlloDakarLiveMatchResult>(
     `/api/allo-dakar/match?requestId=${encodeURIComponent(requestId)}`,
-    { headers: { Authorization: `Bearer ${session.access_token}` } },
+    undefined,
+    { fallbackError: "Statut indisponible." },
   );
-  const payload = (await response.json().catch(() => ({}))) as
-    | AlloDakarLiveMatchResult
-    | { error?: string };
-  if (!response.ok) {
-    throw new Error(
-      "error" in payload && payload.error ? payload.error : "Statut indisponible.",
-    );
-  }
-  return payload as AlloDakarLiveMatchResult;
 }
 
 /** Demandes ouvertes, visibles par tout chauffeur pour trouver des clients sur ses corridors. */
@@ -800,20 +760,15 @@ export async function confirmAlloDakarRideRequest(requestId: string, departureId
 export async function createAlloDakarWaveCheckout(bookingId: string): Promise<string | null> {
   if (typeof window === "undefined") return null;
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const res = await fetch("/api/checkout/wave/allo-dakar", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    const data = await authApiFetch<{ checkout_url?: string | null }>(
+      "/api/checkout/wave/allo-dakar",
+      {
+        method: "POST",
+        body: JSON.stringify({ bookingId }),
       },
-      body: JSON.stringify({ bookingId }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { checkout_url?: string | null };
-    if (!res.ok || !data.checkout_url) return null;
-    return data.checkout_url;
+      { fallbackError: "Paiement indisponible." },
+    );
+    return data.checkout_url ?? null;
   } catch {
     return null;
   }

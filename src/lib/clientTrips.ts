@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { authApiFetch } from "@/lib/authSession";
 
 export type ClientTripKind =
   | "platform"
@@ -26,21 +26,10 @@ export type ClientTrip = {
 };
 
 export async function listClientTrips(): Promise<ClientTrip[]> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Connectez-vous pour consulter vos trajets.");
-
-  const response = await fetch("/api/compte/trajets", {
-    cache: "no-store",
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
-  const payload = (await response.json().catch(() => ({}))) as {
-    trips?: ClientTrip[];
-    error?: string;
-  };
-  if (!response.ok) {
-    throw new Error(payload.error || "Impossible de charger vos trajets.");
-  }
+  const payload = await authApiFetch<{ trips?: ClientTrip[]; error?: string }>(
+    "/api/compte/trajets",
+    { cache: "no-store" },
+    { fallbackError: "Impossible de charger vos trajets." },
+  );
   return payload.trips ?? [];
 }

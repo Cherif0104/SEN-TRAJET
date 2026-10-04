@@ -55,7 +55,7 @@ export function AlloDakarShell({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur-xl sm:px-6">
             <div className="flex items-center justify-between gap-3">
               <Link
-                href="/"
+                href="/compte"
                 aria-label="Retour à l’accueil"
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-700"
               >
@@ -78,10 +78,10 @@ export function AlloDakarShell({ children }: { children: React.ReactNode }) {
           <main className="min-h-[calc(100vh-72px)] pb-24">{children}</main>
           <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-[74px] max-w-3xl grid-cols-4 border-t border-slate-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
             {[
-              { label: "Accueil", href: "/", icon: Home },
+              { label: "Accueil", href: "/compte", icon: Home },
               { label: "Allo Dakar", href: "/allo-dakar", icon: Car, active: true },
-              { label: "Réserver", href: "/reserver", icon: Navigation },
-              { label: "Profil", href: "/connexion", icon: UserRound },
+              { label: "Mes trajets", href: "/compte/reservations", icon: Navigation },
+              { label: "Profil", href: "/compte/profil", icon: UserRound },
             ].map((item) => {
               const Icon = item.icon;
               return (
