@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { ensureClientIdForAuthUser } from "@/lib/server/clients";
 import { getDrivingDistance } from "@/lib/server/drivingDistance";
 import {
   computeLiveRidePrice,
@@ -108,13 +109,13 @@ export async function POST(request: NextRequest) {
   if (!bearer) {
     return NextResponse.json({ error: "Connectez-vous pour rechercher un chauffeur." }, { status: 401 });
   }
-  let authenticatedUserId: string;
+  let authUser;
   try {
     const { data, error } = await getSupabaseAdmin().auth.getUser(bearer);
     if (error || !data.user) {
       return NextResponse.json({ error: "Votre session a expiré. Reconnectez-vous." }, { status: 401 });
     }
-    authenticatedUserId = data.user.id;
+    authUser = data.user;
   } catch {
     return NextResponse.json({ error: "Vérification du compte indisponible." }, { status: 503 });
   }
@@ -146,14 +147,7 @@ export async function POST(request: NextRequest) {
     const token = crypto.randomUUID();
     const reference = `SJ-LIVE-${Date.now().toString().slice(-7)}`;
     const expiresAt = new Date(Date.now() + 3 * 60_000).toISOString();
-    let clientId: string | null = null;
-
-    const { data: client } = await admin
-      .from("clients")
-      .select("id")
-      .eq("user_id", authenticatedUserId)
-      .maybeSingle();
-    clientId = (client?.id as string | undefined) ?? null;
+    const clientId = await ensureClientIdForAuthUser(authUser, { phone });
 
     const { data: booking, error } = await admin
       .from("bookings")

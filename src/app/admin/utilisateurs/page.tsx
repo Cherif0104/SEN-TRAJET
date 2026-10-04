@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Copy, PowerOff, RefreshCw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { ROLE_GROUP_LABELS, assignableRoles, rolesByGroup, type AssignableRole } from "@/lib/accountRoles";
 import { useAuth } from "@/hooks/useAuth";
+import { authApiFetch } from "@/lib/authSession";
 import { usePreferences } from "@/providers/PreferencesProvider";
 import type { TranslationKey } from "@/i18n";
 import { Button } from "@/components/ui/Button";
@@ -61,7 +62,7 @@ function generateTemporaryPassword(): string {
 }
 
 export default function AdminUsersPage() {
-  const { session, user } = useAuth();
+  const { user } = useAuth();
   const { t, locale } = usePreferences();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [fullName, setFullName] = useState("");
@@ -83,35 +84,24 @@ export default function AdminUsersPage() {
     id: string;
   } | null>(null);
 
-  const authorization = useMemo(
-    () =>
-      session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
-        : undefined,
-    [session?.access_token],
-  );
-
   const loadUsers = useCallback(async () => {
-    if (!authorization) return;
+    if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/users", {
-        headers: authorization,
-        cache: "no-store",
-      });
-      const data = (await response.json()) as {
+      const data = await authApiFetch<{
         users?: ManagedUser[];
         error?: string;
-      };
-      if (!response.ok) throw new Error(data.error);
+      }>("/api/admin/users", { cache: "no-store" }, {
+        fallbackError: t("admin.users.error.load"),
+      });
       setUsers(data.users ?? []);
     } catch {
       setError(t("admin.users.error.load"));
     } finally {
       setLoading(false);
     }
-  }, [authorization, t]);
+  }, [user, t]);
 
   useEffect(() => {
     void loadUsers();
@@ -148,16 +138,18 @@ export default function AdminUsersPage() {
 
   const createUser = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!authorization) return;
+    if (!user) return;
     setSubmitting(true);
     setMessage(null);
     setError(null);
     setCreatedCredentials(null);
 
     try {
-      const response = await fetch("/api/admin/users", {
+      const data = await authApiFetch<{
+        user?: ManagedUser;
+        error?: string;
+      }>("/api/admin/users", {
         method: "POST",
-        headers: { ...authorization, "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
           email,
@@ -166,12 +158,10 @@ export default function AdminUsersPage() {
           resourceType: resourceLink?.type,
           resourceId: resourceLink?.id,
         }),
+      }, {
+        fallbackError: "user_creation_failed",
       });
-      const data = (await response.json()) as {
-        user?: ManagedUser;
-        error?: string;
-      };
-      if (!response.ok || !data.user) {
+      if (!data.user) {
         throw new Error(data.error || "user_creation_failed");
       }
 
@@ -192,18 +182,18 @@ export default function AdminUsersPage() {
   };
 
   const deleteUser = async (managedUser: ManagedUser) => {
-    if (!authorization || !window.confirm(t("admin.users.confirmDelete"))) return;
+    if (!user || !window.confirm(t("admin.users.confirmDelete"))) return;
     setDeletingId(managedUser.id);
     setMessage(null);
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/users", {
+      await authApiFetch("/api/admin/users", {
         method: "DELETE",
-        headers: { ...authorization, "Content-Type": "application/json" },
         body: JSON.stringify({ userId: managedUser.id }),
+      }, {
+        fallbackError: t("admin.users.error.delete"),
       });
-      if (!response.ok) throw new Error();
       setUsers((current) => current.filter((entry) => entry.id !== managedUser.id));
       setMessage(t("admin.users.success.deleted"));
     } catch {
@@ -216,21 +206,21 @@ export default function AdminUsersPage() {
   const toggleActive = async (managedUser: ManagedUser) => {
     const deactivating = !managedUser.isDeactivated;
     const confirmKey = deactivating ? "admin.users.confirmDeactivate" : "admin.users.confirmReactivate";
-    if (!authorization || !window.confirm(t(confirmKey))) return;
+    if (!user || !window.confirm(t(confirmKey))) return;
     setTogglingId(managedUser.id);
     setMessage(null);
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/users", {
+      await authApiFetch("/api/admin/users", {
         method: "PATCH",
-        headers: { ...authorization, "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: managedUser.id,
           action: deactivating ? "deactivate" : "reactivate",
         }),
+      }, {
+        fallbackError: t("admin.users.error.deactivate"),
       });
-      if (!response.ok) throw new Error();
       setUsers((current) =>
         current.map((entry) =>
           entry.id === managedUser.id ? { ...entry, isDeactivated: deactivating } : entry,
