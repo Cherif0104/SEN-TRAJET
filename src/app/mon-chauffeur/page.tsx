@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -69,11 +69,26 @@ export default function MyDriverPage() {
   const [error, setError] = useState<string | null>(null);
   const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
   const [step, setStep] = useState(1);
+  const restoredMission = useRef(false);
 
   useEffect(() => {
     if (!name && profile?.full_name) setName(profile.full_name);
     if (!phone && profile?.phone) setPhone(profile.phone);
   }, [name, phone, profile]);
+
+  useEffect(() => {
+    if (restoredMission.current) return;
+    restoredMission.current = true;
+    const missionId = new URLSearchParams(window.location.search).get("mission");
+    if (!missionId) return;
+    setSubmitting(true);
+    void getMyDriverRequest(missionId)
+      .then(setMission)
+      .catch((cause) =>
+        setError(cause instanceof Error ? cause.message : "Mission introuvable."),
+      )
+      .finally(() => setSubmitting(false));
+  }, []);
 
   useEffect(() => {
     if (

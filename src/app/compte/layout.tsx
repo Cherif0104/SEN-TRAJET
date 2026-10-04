@@ -11,7 +11,7 @@ import { usePreferences } from "@/providers/PreferencesProvider";
 
 const nav = [
   { href: "/compte", labelKey: "nav.home" as const, icon: LayoutDashboard },
-  { href: "/compte/reservations", label: "Courses", icon: CalendarCheck },
+  { href: "/compte/reservations", label: "Mes trajets", icon: CalendarCheck },
   { href: "/compte/favoris", label: "Favoris", icon: Heart },
   { href: "/compte/profil", labelKey: "nav.profile" as const, icon: User },
 ];
