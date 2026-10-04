@@ -10,7 +10,7 @@ const QUICK_SHORTCUTS = [
   { icon: Plane, label: "Aéroport", href: "/reserver?service=transfert_aibd" },
   { icon: Clock, label: "Mise à disposition", href: "/reserver?service=mise_a_disposition" },
   { icon: PartyPopper, label: "Cérémonie", href: "/reserver?service=ceremonie" },
-  { icon: MapPinIcon, label: "Interurbain", href: "/reserver?service=interurbain" },
+  { icon: MapPinIcon, label: "Interurbain", href: "/interurbain" },
 ];
 
 /**

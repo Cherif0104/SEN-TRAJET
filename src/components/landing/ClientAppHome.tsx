@@ -15,6 +15,7 @@ import {
   Menu,
   Navigation,
   Plane,
+  Route,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -71,7 +72,17 @@ const services = [
     image: "/images/hero-sen-trajet.png",
     imagePosition: "20% center",
     tone: "from-amber-900/5 to-[#07111f]/85",
-    layout: "col-span-3 row-span-1",
+    layout: "col-span-2 row-span-1",
+  },
+  {
+    title: "Voyager",
+    detail: "Privé · tout le Sénégal",
+    href: "/interurbain",
+    icon: Route,
+    image: "/hero-landing.png",
+    imagePosition: "70% center",
+    tone: "from-amber-900/5 to-[#07111f]/85",
+    layout: "col-span-1 row-span-1",
   },
 ];
 
@@ -83,9 +94,9 @@ const suggestions = [
     icon: Plane,
   },
   {
-    title: "Dakar Plateau",
-    detail: "Centre-ville · trajet professionnel",
-    href: "/reserver?destination=Dakar%20Plateau",
+    title: "Voyage interurbain",
+    detail: "Véhicule privé · prix immédiat",
+    href: "/interurbain",
     icon: MapPin,
   },
   {
@@ -263,11 +274,11 @@ export function ClientAppHome() {
                     />
                     <div className={`absolute inset-0 bg-gradient-to-b ${service.tone}`} />
                     <div className={`absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 text-white ${
-                      index === 0 || service.layout.includes("col-span-3") ? "p-4" : "p-3"
+                      index === 0 || service.layout.includes("col-span-2") ? "p-4" : "p-3"
                     }`}>
                       <div>
                         <span className={`mb-2 items-center justify-center rounded-full bg-white/90 text-[#07111f] shadow-sm ${
-                          index === 0 || service.layout.includes("col-span-3") ? "flex h-9 w-9" : "hidden h-7 w-7 sm:flex"
+                          index === 0 || service.layout.includes("col-span-2") ? "flex h-9 w-9" : "hidden h-7 w-7 sm:flex"
                         }`}>
                           <Icon className="h-4 w-4" />
                         </span>
@@ -275,13 +286,13 @@ export function ClientAppHome() {
                           {service.title}
                         </h3>
                         <p className={`mt-0.5 font-medium text-white/75 ${
-                          index === 0 || service.layout.includes("col-span-3") ? "text-xs" : "hidden sm:block sm:text-[10px]"
+                          index === 0 || service.layout.includes("col-span-2") ? "text-xs" : "hidden sm:block sm:text-[10px]"
                         }`}>
                           {service.detail}
                         </p>
                       </div>
                       <span className={`mb-1 shrink-0 items-center justify-center rounded-full bg-white text-[#07111f] ${
-                        index === 0 || service.layout.includes("col-span-3") ? "flex h-8 w-8" : "hidden"
+                        index === 0 || service.layout.includes("col-span-2") ? "flex h-8 w-8" : "hidden"
                       }`}>
                         <ArrowRight className="h-4 w-4" />
                       </span>

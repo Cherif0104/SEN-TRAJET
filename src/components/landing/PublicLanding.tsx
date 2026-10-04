@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CarFront, LockKeyhole, Plane, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { ArrowRight, CarFront, LockKeyhole, Plane, Route, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
@@ -11,6 +11,7 @@ const services = [
   { title: "Taxi AIBD", detail: "Transferts aéroport immédiats", href: "/taxi-aeroport", icon: Plane },
   { title: "Louer une voiture", detail: "Véhicules et disponibilités réelles", href: "/flotte", icon: Sparkles },
   { title: "Chauffeur VIP", detail: "Mise à disposition 4 h, 8 h ou 12 h", href: "/vip", icon: ShieldCheck },
+  { title: "Interurbain Premium", detail: "Véhicule privé et prix immédiat", href: "/interurbain", icon: Route },
   { title: "Allo Dakar", detail: "Départs interurbains vérifiés", href: "/allo-dakar", icon: UsersRound },
 ] as const;
 

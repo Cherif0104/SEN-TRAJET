@@ -37,7 +37,7 @@ function useServiceTiles() {
       icon: MapPin,
       title: t("landing.service.travel"),
       text: t("landing.service.travelDetail"),
-      href: "/reserver?service=interurbain",
+      href: "/interurbain",
     },
     {
       icon: Car,
