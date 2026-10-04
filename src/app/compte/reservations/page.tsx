@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, CarFront, Navigation, Route, UserRound } from "lucide-react";
+import { ArrowRight, BusFront, CalendarDays, CarFront, Navigation, Route, UserRound } from "lucide-react";
 import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
 import { formatFcfa } from "@/lib/sentrajetPricing";
 import { useClientTrips } from "@/hooks/useClientTrips";
@@ -15,6 +15,7 @@ const KIND_ICON: Record<ClientTripKind, typeof Navigation> = {
   platform: Navigation,
   allo_dakar: Route,
   allo_dakar_request: Route,
+  voyager: BusFront,
   rental: CarFront,
   my_driver: UserRound,
 };

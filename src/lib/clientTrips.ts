@@ -4,6 +4,7 @@ export type ClientTripKind =
   | "platform"
   | "allo_dakar"
   | "allo_dakar_request"
+  | "voyager"
   | "rental"
   | "my_driver";
 

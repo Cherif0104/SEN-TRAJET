@@ -165,6 +165,32 @@ export async function POST(request: NextRequest) {
     const ref = event.clientReference;
     const succeeded = event.outcome === "succeeded";
 
+    if (ref.startsWith("voyager:")) {
+      const bookingId = ref.slice("voyager:".length);
+      const { data, error } = await supabaseAdmin.rpc("finalize_voyager_payment", {
+        p_booking_id: bookingId,
+        p_succeeded: succeeded,
+        p_provider_ref: event.transactionId,
+      });
+      if (error) {
+        if (error.message.includes("voyager_booking_not_found")) {
+          return finishWaveEvent(event.eventId, "ignored", {
+            entity: "voyager_booking",
+            entityId: bookingId,
+            reason: "not_found",
+          });
+        }
+        throw error;
+      }
+      const booking = data as Record<string, unknown>;
+      return finishWaveEvent(event.eventId, "processed", {
+        entity: "voyager_booking",
+        entityId: bookingId,
+        outcome: event.outcome,
+        bookingStatus: String(booking.status),
+      });
+    }
+
     if (ref.startsWith("rental:")) {
     const rentalBookingId = ref.slice("rental:".length);
     const { data: booking } = await supabaseAdmin

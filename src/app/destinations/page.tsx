@@ -157,10 +157,9 @@ export default function DestinationsPage() {
             <strong className="text-neutral-900">Votre région n’est pas listée ?</strong> Indiquez
             simplement votre destination dans{" "}
             <Link href="/interurbain" className="font-semibold text-amber-800 underline">
-              le calculateur interurbain
+              la recherche Voyager
             </Link>{" "}
-            — SentraJet dessert tout le territoire sénégalais, le tarif est calculé sur la distance
-            réelle.
+            ou choisissez un voyage privé sur mesure.
           </p>
         </div>
       </main>

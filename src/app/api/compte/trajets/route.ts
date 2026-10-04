@@ -34,6 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Terminée",
   confirmed: "Confirmée",
   pending_payment: "Paiement attendu",
+  reservee: "Paiement attendu",
   cancelled: "Annulée",
   annulee: "Annulée",
   annulee_client: "Annulée",
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
           .limit(100)
       : Promise.resolve({ data: [], error: null });
 
-    const [platform, alloBookings, alloRequests, rentals, myDriver] =
+    const [platform, alloBookings, alloRequests, voyager, rentals, myDriver] =
       await Promise.all([
         platformPromise,
         admin
@@ -141,6 +142,18 @@ export async function GET(request: NextRequest) {
           )
           .eq("client_user_id", user.id)
           .is("matched_booking_id", null)
+          .order("created_at", { ascending: false })
+          .limit(100),
+        admin
+          .from("voyager_bookings")
+          .select(
+            `id, reference, status, payment_status, seats_booked, amount_fcfa, created_at,
+             departure:voyager_departures(
+               departure_at, vehicle_type,
+               line:voyager_lines(origin_city, destination_city, boarding_point)
+             )`
+          )
+          .eq("client_user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(100),
         admin
@@ -168,6 +181,7 @@ export async function GET(request: NextRequest) {
       platform.error,
       alloBookings.error,
       alloRequests.error,
+      voyager.error,
       rentals.error,
       myDriver.error,
     ].find(Boolean);
@@ -238,6 +252,32 @@ export async function GET(request: NextRequest) {
         lifecycle: ["annulee", "expiree"].includes(status) ? "cancelled" : "upcoming",
         amountFcfa: amount(row.max_price_fcfa),
         detailHref: "/allo-dakar",
+      });
+    }
+
+    for (const raw of voyager.data ?? []) {
+      const row = raw as Row;
+      const departure = relation(row.departure);
+      const line = relation(departure?.line);
+      const status = text(row.status);
+      trips.push({
+        kind: "voyager",
+        id: text(row.id),
+        reference: text(row.reference),
+        serviceLabel: "Voyager",
+        title: `${text(line?.origin_city, "Départ")} → ${text(line?.destination_city, "Destination")}`,
+        subtitle: `${text(row.seats_booked)} place${Number(row.seats_booked) > 1 ? "s" : ""} · ${text(line?.boarding_point)}`,
+        startsAt: text(departure?.departure_at, text(row.created_at)),
+        status,
+        statusLabel: statusLabel(status),
+        lifecycle:
+          status === "terminee"
+            ? "past"
+            : ["annulee", "expiree"].includes(status)
+              ? "cancelled"
+              : "upcoming",
+        amountFcfa: amount(row.amount_fcfa),
+        detailHref: `/voyager/confirmation/${text(row.id)}`,
       });
     }
 

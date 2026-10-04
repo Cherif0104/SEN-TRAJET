@@ -23,6 +23,7 @@ import {
 } from "@/components/booking/AddressAutocomplete";
 import { Logo } from "@/components/layout/Logo";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import { VoyagerMarketplace } from "@/components/voyager/VoyagerMarketplace";
 import { useAuth } from "@/hooks/useAuth";
 import {
   createIntercityBooking,
@@ -65,7 +66,7 @@ function VehicleVisual({ offer }: { offer: IntercityVehicleOffer }) {
   );
 }
 
-export default function IntercityPage() {
+export function PremiumIntercityPage() {
   const { profile } = useAuth();
   const minimumTime = useMemo(() => localDateTime(1, 8), []);
   const [pickup, setPickup] = useState<SelectedPlace | null>(null);
@@ -484,4 +485,8 @@ export default function IntercityPage() {
       </div>
     </main>
   );
+}
+
+export default function VoyagerPage() {
+  return <VoyagerMarketplace />;
 }

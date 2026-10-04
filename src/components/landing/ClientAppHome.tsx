@@ -104,7 +104,7 @@ const suggestions = [
   },
   {
     title: "Voyage interurbain",
-    detail: "Véhicule privé · prix immédiat",
+    detail: "Lignes, horaires et places",
     href: "/interurbain",
     icon: MapPin,
   },
