@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import {
+  expiredSessionJson,
+  getUserFromBearer,
+  unauthorizedJson,
+} from "@/lib/server/authUser";
 import { ensureClientIdForAuthUser } from "@/lib/server/clients";
 import { getDrivingDistance } from "@/lib/server/drivingDistance";
 import {
@@ -105,19 +110,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Numéro de téléphone invalide." }, { status: 400 });
   }
 
-  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!bearer) {
-    return NextResponse.json({ error: "Connectez-vous pour rechercher un chauffeur." }, { status: 401 });
-  }
-  let authUser;
-  try {
-    const { data, error } = await getSupabaseAdmin().auth.getUser(bearer);
-    if (error || !data.user) {
-      return NextResponse.json({ error: "Votre session a expiré. Reconnectez-vous." }, { status: 401 });
-    }
-    authUser = data.user;
-  } catch {
-    return NextResponse.json({ error: "Vérification du compte indisponible." }, { status: 503 });
+  const authUser = await getUserFromBearer(request.headers.get("authorization"));
+  if (!authUser) {
+    const hasBearer = Boolean(
+      request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim(),
+    );
+    return hasBearer
+      ? expiredSessionJson()
+      : unauthorizedJson("Connectez-vous pour rechercher un chauffeur.");
   }
 
   const distance = await getDrivingDistance(route);

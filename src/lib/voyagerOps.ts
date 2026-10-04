@@ -1,4 +1,4 @@
-import { authApiFetch } from "@/lib/authSession";
+import { authApiFetch, publicApiFetch } from "@/lib/authSession";
 
 export type VoyagerDeparture = {
   id: string;
@@ -43,6 +43,12 @@ async function authFetch<T>(path: string, init?: RequestInit): Promise<T> {
   );
 }
 
+async function publicFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return publicApiFetch<T>(path, { cache: "no-store", ...init }, {
+    fallbackError: "Voyager est momentanément indisponible.",
+  });
+}
+
 export async function searchVoyagerDepartures(filters: {
   origin?: string;
   destination?: string;
@@ -52,7 +58,7 @@ export async function searchVoyagerDepartures(filters: {
   if (filters.origin) query.set("origin", filters.origin);
   if (filters.destination) query.set("destination", filters.destination);
   if (filters.date) query.set("date", filters.date);
-  const payload = await authFetch<{ departures: VoyagerDeparture[] }>(
+  const payload = await publicFetch<{ departures: VoyagerDeparture[] }>(
     `/api/voyager/departures${query.size ? `?${query}` : ""}`,
   );
   return payload.departures;

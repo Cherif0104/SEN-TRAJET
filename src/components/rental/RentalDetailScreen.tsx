@@ -8,6 +8,10 @@ import { BadgeCheck, CalendarDays, Car, ChevronLeft, ChevronRight, Gauge, MapPin
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
+import {
+  AddressAutocomplete,
+  type SelectedPlace,
+} from "@/components/booking/AddressAutocomplete";
 import { useAuth } from "@/hooks/useAuth";
 import {
   addDaysInputValue,
@@ -28,7 +32,9 @@ export function RentalDetailScreen() {
   const [endDate, setEndDate] = useState(() => addDaysInputValue(today, 2));
   const [listing, setListing] = useState<RentalListing | null>(null);
   const [pickup, setPickup] = useState("Agence SentraJet Dakar");
+  const [pickupPlace, setPickupPlace] = useState<SelectedPlace | null>(null);
   const [returnLocation, setReturnLocation] = useState("Agence SentraJet Dakar");
+  const [returnPlace, setReturnPlace] = useState<SelectedPlace | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -126,8 +132,39 @@ export function RentalDetailScreen() {
                 <label className="rounded-2xl border border-slate-200 p-3"><span className="flex items-center gap-1 text-[11px] font-bold text-slate-500"><CalendarDays className="h-3.5 w-3.5" /> Départ</span><input type="date" min={today} value={startDate} onChange={(e) => { setStartDate(e.target.value); if (e.target.value > endDate) setEndDate(e.target.value); }} className="mt-1 w-full text-sm font-bold outline-none" /></label>
                 <label className="rounded-2xl border border-slate-200 p-3"><span className="text-[11px] font-bold text-slate-500">Retour</span><input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 w-full text-sm font-bold outline-none" /></label>
               </div>
-              <label className="mt-3 block rounded-2xl border border-slate-200 p-3"><span className="text-[11px] font-bold text-slate-500">Lieu de retrait</span><input value={pickup} onChange={(e) => setPickup(e.target.value)} className="mt-1 w-full text-sm font-bold outline-none" /></label>
-              <label className="mt-3 block rounded-2xl border border-slate-200 p-3"><span className="text-[11px] font-bold text-slate-500">Lieu de retour</span><input value={returnLocation} onChange={(e) => setReturnLocation(e.target.value)} className="mt-1 w-full text-sm font-bold outline-none" /></label>
+              <div className="mt-3 space-y-3">
+                <AddressAutocomplete
+                  label="Lieu de retrait"
+                  placeholder="Agence, quartier ou adresse…"
+                  value={pickupPlace}
+                  textValue={pickup}
+                  onSelect={(place) => {
+                    setPickupPlace(place);
+                    setPickup(place.address);
+                  }}
+                  onClear={() => {
+                    setPickupPlace(null);
+                    setPickup("");
+                  }}
+                  showMyLocation
+                  accent="pickup"
+                />
+                <AddressAutocomplete
+                  label="Lieu de retour"
+                  placeholder="Même lieu ou autre adresse…"
+                  value={returnPlace}
+                  textValue={returnLocation}
+                  onSelect={(place) => {
+                    setReturnPlace(place);
+                    setReturnLocation(place.address);
+                  }}
+                  onClear={() => {
+                    setReturnPlace(null);
+                    setReturnLocation("");
+                  }}
+                  accent="dropoff"
+                />
+              </div>
               {quote ? <div className="mt-5 space-y-2 border-t border-slate-100 pt-5 text-sm"><div className="flex justify-between text-slate-600"><span>{formatFcfa(quote.dailyRateFcfa)} × {quote.totalDays} jour{quote.totalDays > 1 ? "s" : ""}</span><b>{formatFcfa(quote.subtotalFcfa)}</b></div><div className="flex justify-between text-slate-600"><span>Caution remboursable</span><b>{formatFcfa(quote.depositFcfa)}</b></div><div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-black text-[#081426]"><span>Total à payer</span><span>{formatFcfa(quote.totalFcfa)}</span></div></div> : null}
               {!listing.available ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-bold text-red-700">Déjà réservé sur cette période. Modifiez les dates.</p> : null}
               {error ? <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-bold text-red-700">{error}</p> : null}

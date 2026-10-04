@@ -25,6 +25,10 @@ import {
 import { AlloDakarShell } from "@/components/allo-dakar/AlloDakarShell";
 import { BrandedLoader } from "@/components/ui/BrandedLoader";
 import {
+  AddressAutocomplete,
+  type SelectedPlace,
+} from "@/components/booking/AddressAutocomplete";
+import {
   bookAlloDakarSeats,
   createAlloDakarWaveCheckout,
   getAlloDakarLiveMatchStatus,
@@ -71,6 +75,7 @@ export default function AlloDakarPage() {
   const [seats, setSeats] = useState(1);
   const [pickupMode, setPickupMode] = useState<AlloDakarPickupMode>("point_relais");
   const [pickupDetail, setPickupDetail] = useState("");
+  const [pickupPlace, setPickupPlace] = useState<SelectedPlace | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [booking, setBooking] = useState(false);
@@ -197,6 +202,7 @@ export default function AlloDakarPage() {
     setSeats(1);
     setPickupMode("point_relais");
     setPickupDetail("");
+    setPickupPlace(null);
     setBookingError(null);
     setConfirmedRef(null);
     setPayLink(null);
@@ -663,7 +669,33 @@ export default function AlloDakarPage() {
                           <span className="mt-1 block text-[10px] opacity-60">{selected.price_domicile_fcfa ? formatFcfa(selected.price_domicile_fcfa) : "Indisponible"}</span>
                         </button>
                       </div>
-                      <input value={pickupDetail} onChange={(event) => setPickupDetail(event.target.value)} placeholder={pickupMode === "domicile" ? "Votre adresse exacte" : "Point souhaité (optionnel)"} className="input-base mt-2" />
+                      <div className="mt-2">
+                        {pickupMode === "domicile" ? (
+                          <AddressAutocomplete
+                            label="Adresse de prise en charge"
+                            placeholder="Quartier, rue ou lieu précis…"
+                            value={pickupPlace}
+                            textValue={pickupDetail}
+                            onSelect={(place) => {
+                              setPickupPlace(place);
+                              setPickupDetail(place.address);
+                            }}
+                            onClear={() => {
+                              setPickupPlace(null);
+                              setPickupDetail("");
+                            }}
+                            showMyLocation
+                            accent="pickup"
+                          />
+                        ) : (
+                          <input
+                            value={pickupDetail}
+                            onChange={(event) => setPickupDetail(event.target.value)}
+                            placeholder="Point souhaité (optionnel)"
+                            className="input-base"
+                          />
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between rounded-2xl bg-emerald-50 p-4">
@@ -770,7 +802,26 @@ export default function AlloDakarPage() {
                       <button type="button" onClick={() => setPickupMode("point_relais")} className={`rounded-2xl border p-3 text-xs font-black ${pickupMode === "point_relais" ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200"}`}>Point relais</button>
                       <button type="button" onClick={() => setPickupMode("domicile")} className={`rounded-2xl border p-3 text-xs font-black ${pickupMode === "domicile" ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200"}`}>À domicile</button>
                     </div>
-                    <input value={pickupDetail} onChange={(event) => setPickupDetail(event.target.value)} className="input-base" placeholder={pickupMode === "domicile" ? "Votre adresse" : "Point souhaité (optionnel)"} />
+                    {pickupMode === "domicile" ? (
+                      <AddressAutocomplete
+                        label="Adresse de prise en charge"
+                        placeholder="Quartier, rue ou lieu précis…"
+                        value={pickupPlace}
+                        textValue={pickupDetail}
+                        onSelect={(place) => {
+                          setPickupPlace(place);
+                          setPickupDetail(place.address);
+                        }}
+                        onClear={() => {
+                          setPickupPlace(null);
+                          setPickupDetail("");
+                        }}
+                        showMyLocation
+                        accent="pickup"
+                      />
+                    ) : (
+                      <input value={pickupDetail} onChange={(event) => setPickupDetail(event.target.value)} className="input-base" placeholder="Point souhaité (optionnel)" />
+                    )}
                     <p className="rounded-2xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
                       Le système cherche les départs {travelMode === "direct" ? "des 3 prochaines heures" : "compatibles avec cette journée"},
                       vérifie les places, le véhicule, le chauffeur et le plafond tarifaire de cet axe.

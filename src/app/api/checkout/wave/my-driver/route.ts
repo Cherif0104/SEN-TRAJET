@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 import { getWaveApiKey, getWaveSimulationMode } from "@/lib/wave";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const {
       data: { user },
-    } = await admin.auth.getUser(token);
+    } = await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null });
     if (!user) return NextResponse.json({ error: "Session expirée." }, { status: 401 });
     const { data: mission } = await admin
       .from("my_driver_requests")

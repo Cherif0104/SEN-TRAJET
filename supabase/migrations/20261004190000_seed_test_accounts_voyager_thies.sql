@@ -1,0 +1,3 @@
+-- Seed applied remotely via MCP: test accounts + Voyager Dakar↔Thiès.
+-- See docs/TEST_ACCOUNTS.md for credentials.
+-- Function public.seed_test_auth_user(...) created on production.

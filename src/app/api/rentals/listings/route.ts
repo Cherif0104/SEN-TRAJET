@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 import { mapRentalListing, RENTAL_LISTING_SELECT } from "@/lib/server/rentalMarketplace";
 
 export const runtime = "nodejs";
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const { data: authData } = bearer
-      ? await admin.auth.getUser(bearer)
+      ? await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null })
       : { data: { user: null } };
     if (!authData.user) {
       return NextResponse.json({ error: "Connectez-vous pour consulter les véhicules." }, { status: 401 });

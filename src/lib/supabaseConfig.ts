@@ -17,27 +17,11 @@ export function getSentrajetSupabasePublicConfig(): {
   url: string;
   key: string;
 } {
-  // Ne jamais accepter silencieusement un autre project_ref via Vercel.
-  const envUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
-  const isOfficialProject =
-    envUrl === SENTRAJET_SUPABASE_URL ||
-    envUrl.includes(SENTRAJET_SUPABASE_PROJECT_REF);
-
-  if (!isOfficialProject) {
-    return {
-      url: SENTRAJET_SUPABASE_URL,
-      key: SENTRAJET_SUPABASE_PUBLISHABLE_KEY,
-    };
-  }
-
-  const envKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    ""
-  ).trim();
-
+  // Clé JWT anon du projet officiel — stable pour Auth/SSR.
+  // La publishable key reste disponible, mais la session Bearer doit
+  // toujours être émise/vérifiée contre ce projet unique.
   return {
     url: SENTRAJET_SUPABASE_URL,
-    key: envKey || SENTRAJET_SUPABASE_PUBLISHABLE_KEY,
+    key: SENTRAJET_SUPABASE_ANON_KEY,
   };
 }

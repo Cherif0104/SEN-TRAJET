@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 import type { VipVehicleOffer } from "@/lib/vipService";
 
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const {
       data: { user },
-    } = await admin.auth.getUser(bearer);
+    } = await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null });
     if (!user) return NextResponse.json({ error: "Session expirée." }, { status: 401 });
     const end = new Date(start.getTime() + durationHours * 60 * 60_000).toISOString();
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 import { mapRentalBooking, RENTAL_BOOKING_SELECT } from "@/lib/server/rentalMarketplace";
 
 export const runtime = "nodejs";
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await admin.auth.getUser(token);
+    } = await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null });
     if (authError || !user) {
       return NextResponse.json({ error: "Votre session a expiré. Reconnectez-vous." }, { status: 401 });
     }

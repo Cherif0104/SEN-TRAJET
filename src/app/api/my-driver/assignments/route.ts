@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 import { getSentrajetSupabasePublicConfig } from "@/lib/supabaseConfig";
 
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const {
       data: { user },
-    } = await admin.auth.getUser(token);
+    } = await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null });
     if (!user) return NextResponse.json({ error: "Session expirée." }, { status: 401 });
     const { data: profile } = await admin
       .from("my_driver_profiles")

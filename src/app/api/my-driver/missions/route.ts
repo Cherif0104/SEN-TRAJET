@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ async function getUser(request: NextRequest) {
   if (!token) return null;
   const {
     data: { user },
-  } = await getSupabaseAdmin().auth.getUser(token);
+  } = await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null });
   return user ?? null;
 }
 

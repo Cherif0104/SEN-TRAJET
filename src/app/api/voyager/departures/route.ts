@@ -11,20 +11,9 @@ function relation(value: unknown): Row | null {
   return (Array.isArray(value) ? value[0] : value) as Row | null;
 }
 
-async function authenticatedUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) return null;
-  const {
-    data: { user },
-  } = await getSupabaseAdmin().auth.getUser(token);
-  return user ?? null;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const user = await authenticatedUser(request);
-    if (!user) return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
-
+    // Catalogue public : la recherche de départs ne nécessite pas de compte.
     const admin = getSupabaseAdmin();
     await admin.rpc("expire_voyager_bookings");
     const origin = request.nextUrl.searchParams.get("origin")?.trim();

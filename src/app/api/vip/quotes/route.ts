@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getUserFromBearer } from "@/lib/server/authUser";
 
 export const runtime = "nodejs";
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     const admin = getSupabaseAdmin();
     const {
       data: { user },
-    } = await admin.auth.getUser(bearer);
+    } = await Promise.resolve({ data: { user: await getUserFromBearer(request.headers.get("authorization")) }, error: null });
     if (!user) return NextResponse.json({ error: "Votre session a expiré." }, { status: 401 });
 
     const [{ data: client }, { data: ownedRows, error: fleetError }] = await Promise.all([
