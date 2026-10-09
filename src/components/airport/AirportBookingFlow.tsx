@@ -98,7 +98,7 @@ export function AirportBookingFlow() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [pickup?.id, dropoff?.id]);
+  }, [pickup, dropoff]);
 
   const baseQuote = useMemo(
     () =>
