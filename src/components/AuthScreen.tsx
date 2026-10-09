@@ -71,7 +71,9 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           ? "Email ou mot de passe incorrect."
           : /email not confirmed/i.test(raw)
             ? "Confirmez votre email avant de vous connecter."
-            : raw
+            : /failed to fetch|network|load failed/i.test(raw)
+              ? "Connexion au service momentanément impossible. Vérifiez votre réseau puis réessayez."
+              : raw
       );
     } finally {
       setBusy(false);
