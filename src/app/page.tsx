@@ -1,5 +1,5 @@
-import { LandingOrRedirect } from "@/components/landing/LandingOrRedirect";
+import { Onboarding } from "@/components/Onboarding";
 
 export default function HomePage() {
-  return <LandingOrRedirect />;
+  return <Onboarding />;
 }

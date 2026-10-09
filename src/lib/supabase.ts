@@ -1,13 +1,18 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabasePublishableKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "";
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "https://example.supabase.co";
+const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || "missing-publishable-key";
 
-// Placeholder au build si les variables sont absentes (évite "supabaseUrl is required")
-const url = supabaseUrl || "https://placeholder.supabase.co";
-const key = supabasePublishableKey || "placeholder-key";
+export const isSupabaseConfigured =
+  url !== "https://example.supabase.co" && key !== "missing-publishable-key";
 
-export const supabase: SupabaseClient = createClient(url, key);
+export const supabase = createClient(url, key, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  realtime: {
+    params: { eventsPerSecond: 10 }
+  }
+});
