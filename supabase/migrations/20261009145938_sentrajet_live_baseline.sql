@@ -6,8 +6,8 @@ create schema public;
 grant usage on schema public to postgres, anon, authenticated, service_role;
 grant all on schema public to postgres, service_role;
 
-delete from storage.objects;
-delete from storage.buckets;
+-- Storage objects are intentionally not deleted with SQL: Supabase protects
+-- physical objects from orphaning. Empty legacy buckets through the Storage API.
 delete from auth.users;
 
 create schema if not exists private;
