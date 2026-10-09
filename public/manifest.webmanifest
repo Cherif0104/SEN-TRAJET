@@ -1,7 +1,7 @@
 {
-  "name": "SentraJet",
+  "name": "SentraJet Premium",
   "short_name": "SentraJet",
-  "description": "Transport et livraison en temps réel au Sénégal",
+  "description": "Chauffeur, taxi AIBD et livraison premium en temps réel au Sénégal",
   "id": "/",
   "start_url": "/",
   "scope": "/",

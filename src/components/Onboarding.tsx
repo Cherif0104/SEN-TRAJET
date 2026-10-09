@@ -3,24 +3,29 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Bike, CarFront, MapPin, Plane, ShieldCheck } from "lucide-react";
+import { ArrowRight, MapPin, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { BrandLogo } from "@/components/BrandLogo";
+import { PremiumScene } from "@/components/PremiumScene";
 
 const slides = [
   {
+    eyebrow: "Mobilité en direct",
     title: "Votre chauffeur, en temps réel.",
-    text: "Indiquez votre destination. SentraJet recherche le chauffeur disponible le plus proche.",
-    icon: CarFront
+    text: "Indiquez votre destination. SentraJet recherche et vous affecte le meilleur chauffeur disponible.",
+    scene: "ride" as const
   },
   {
-    title: "De Dakar à l’AIBD.",
-    text: "Course urbaine ou taxi aéroport, immédiatement ou à l’heure que vous choisissez.",
-    icon: Plane
+    eyebrow: "Transfert aéroport",
+    title: "L’AIBD, sans aucun stress.",
+    text: "Accueil personnalisé, suivi du vol et chauffeur ponctuel, immédiatement ou sur réservation.",
+    scene: "airport" as const
   },
   {
-    title: "Vos colis aussi.",
-    text: "Moto, voiture ou utilitaire : choisissez le véhicule adapté à chaque livraison.",
-    icon: Bike
+    eyebrow: "Livraison sécurisée",
+    title: "Vos envois, suivis en direct.",
+    text: "Moto, voiture ou utilitaire : choisissez le véhicule adapté et suivez chaque étape.",
+    scene: "delivery" as const
   }
 ];
 
@@ -42,55 +47,55 @@ export function Onboarding() {
 
   if (splash || loading || user) {
     return (
-      <main className="mobile-screen" style={{ background: "var(--ink)", color: "white", display: "grid", placeItems: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ width: 96, height: 96, margin: "0 auto", borderRadius: 30, background: "var(--gold)", color: "var(--ink)", display: "grid", placeItems: "center" }}>
-            <CarFront size={46} />
-          </div>
-          <h1 className="brand" style={{ margin: "24px 0 0", fontSize: 27 }}>SENTRAJET</h1>
-          <p style={{ color: "var(--gold)", fontSize: 10, letterSpacing: ".27em", fontWeight: 850 }}>MOVE SENEGAL</p>
+      <main className="mobile-screen premium-splash">
+        <div className="splash-glow" />
+        <div className="splash-brand">
+          <BrandLogo inverse />
+          <p>EXECUTIVE CHAUFFEUR &amp; MOBILITY SERVICES</p>
         </div>
       </main>
     );
   }
 
   const slide = slides[index];
-  const Icon = slide.icon;
   const last = index === slides.length - 1;
 
   return (
-    <main className="mobile-screen safe-top safe-bottom" style={{ background: "var(--ink)", color: "white", paddingInline: 20, display: "flex", flexDirection: "column" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div className="brand">SENTRAJET</div>
-          <small style={{ color: "var(--gold)", letterSpacing: ".16em", fontWeight: 800 }}>MOVE SENEGAL</small>
-        </div>
-        <ShieldCheck color="var(--gold)" size={22} />
+    <main className="mobile-screen safe-top safe-bottom onboarding">
+      <header className="onboarding-header">
+        <BrandLogo compact inverse />
+        <span className="secure-badge"><ShieldCheck size={15} /> Service vérifié</span>
       </header>
 
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", paddingBlock: 28 }}>
-        <div style={{ minHeight: 330, borderRadius: 38, background: "linear-gradient(145deg,#142b48,#091522)", border: "1px solid rgba(255,255,255,.1)", display: "grid", placeItems: "center", position: "relative", overflow: "hidden" }}>
-          <div style={{ width: 130, height: 130, borderRadius: 40, background: "rgba(244,199,93,.12)", border: "1px solid rgba(244,199,93,.25)", display: "grid", placeItems: "center", color: "var(--gold)" }}>
-            <Icon size={64} />
-          </div>
-          <div style={{ position: "absolute", left: 18, right: 18, bottom: 17, borderRadius: 17, background: "rgba(7,17,31,.82)", padding: "13px 15px", display: "flex", alignItems: "center", gap: 9, fontSize: 12, color: "#cbd5df" }}>
+      <section className="onboarding-content">
+        <div className="onboarding-visual">
+          <PremiumScene scene={slide.scene} />
+          <div className="coverage-chip">
             <MapPin size={16} color="var(--gold)" />
             Dakar et toutes les régions du Sénégal
           </div>
         </div>
-        <h2 style={{ fontSize: 32, lineHeight: 1.08, letterSpacing: "-.04em", margin: "28px 0 0" }}>{slide.title}</h2>
-        <p style={{ color: "#aeb9c8", lineHeight: 1.6, margin: "13px 0 0" }}>{slide.text}</p>
-        <div style={{ display: "flex", gap: 7, marginTop: 22 }}>
+        <p className="onboarding-eyebrow">{slide.eyebrow}</p>
+        <h1>{slide.title}</h1>
+        <p className="onboarding-copy">{slide.text}</p>
+        <div className="slide-dots" aria-label={`Écran ${index + 1} sur ${slides.length}`}>
           {slides.map((item, slideIndex) => (
-            <button key={item.title} type="button" aria-label={`Écran ${slideIndex + 1}`} onClick={() => setIndex(slideIndex)} style={{ width: slideIndex === index ? 28 : 7, height: 7, border: 0, borderRadius: 10, background: slideIndex === index ? "var(--gold)" : "rgba(255,255,255,.18)", padding: 0 }} />
+            <button
+              key={item.title}
+              className={slideIndex === index ? "active" : ""}
+              type="button"
+              aria-label={`Aller à l’écran ${slideIndex + 1}`}
+              aria-current={slideIndex === index ? "step" : undefined}
+              onClick={() => setIndex(slideIndex)}
+            />
           ))}
         </div>
       </section>
 
       {last ? (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className="onboarding-actions">
           <Link className="primary-button gold" href="/signup">Créer un compte</Link>
-          <Link className="secondary-button" href="/login" style={{ background: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.18)", color: "white" }}>Se connecter</Link>
+          <Link className="secondary-button inverse" href="/login">Se connecter</Link>
         </div>
       ) : (
         <button className="primary-button gold" type="button" onClick={() => setIndex((value) => value + 1)}>

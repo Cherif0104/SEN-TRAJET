@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { CarFront, History, Home, LogOut, Package, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const clientNav = [
   { href: "/app", label: "Accueil", icon: Home },
@@ -25,10 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mobile-screen" style={{ paddingBottom: 88 }}>
       <header className="app-header">
-        <div>
-          <div className="brand">SENTRAJET</div>
-          <small style={{ color: "var(--gold-deep)", fontWeight: 850 }}>MOVE SENEGAL</small>
-        </div>
+        <BrandLogo compact />
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <button type="button" onClick={() => void logout()} aria-label="Déconnexion" style={{ width: 40, height: 40, border: 0, borderRadius: 14, background: "white", color: "var(--muted)", display: "grid", placeItems: "center" }}>
             <LogOut size={18} />

@@ -3,8 +3,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SentraJet — Transport en temps réel",
-  description: "Courses urbaines, taxi AIBD et livraisons en temps réel au Sénégal.",
+  title: "SentraJet Premium — Mobilité en temps réel",
+  description: "Chauffeur, taxi AIBD et livraisons premium suivis en temps réel au Sénégal.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "SentraJet",
+    title: "SentraJet Premium",
     statusBarStyle: "black-translucent"
   }
 };

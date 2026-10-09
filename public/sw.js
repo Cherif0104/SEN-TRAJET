@@ -1,4 +1,4 @@
-const CACHE = "sentrajet-live-v1";
+const CACHE = "sentrajet-premium-v2";
 const OFFLINE = "/offline";
 const APP_SHELL = ["/", OFFLINE, "/login", "/signup", "/manifest.webmanifest", "/icon.svg"];
 

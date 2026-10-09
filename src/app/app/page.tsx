@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Bike, CarFront, Clock3, Package, Plane, Utensils } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bike, CarFront, Clock3, MapPin, Package, Plane, Sparkles, Utensils } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
@@ -17,13 +17,23 @@ export default function ClientHomePage() {
           <h1 className="page-title">Que souhaitez-vous faire ?</h1>
           <p className="muted" style={{ marginTop: 9 }}>Votre chauffeur ou livreur, suivi en direct.</p>
 
-          <div className="service-grid" style={{ marginTop: 24 }}>
+          <Link href="/ride?service=ride" className="destination-launcher">
+            <span className="destination-pin"><MapPin size={20} /></span>
+            <span>
+              <small>Course immédiate</small>
+              <strong>Où allez-vous ?</strong>
+            </span>
+            <ArrowRight size={20} />
+          </Link>
+
+          <div className="service-grid">
             <Link href="/ride?service=ride" className="service-card large">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span className="service-icon" style={{ background: "var(--ink)", color: "var(--gold)" }}><CarFront /></span>
                 <ArrowUpRight />
               </div>
               <div>
+                <span className="service-kicker"><Sparkles size={12} /> Chauffeur en direct</span>
                 <h2 style={{ margin: 0, fontSize: 25 }}>Commander une course</h2>
                 <p style={{ margin: "6px 0 0", opacity: 0.68, fontWeight: 650 }}>Maintenant ou plus tard</p>
               </div>
