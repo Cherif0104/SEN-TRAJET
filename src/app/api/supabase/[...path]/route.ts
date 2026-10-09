@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-  "https://ootvzknyhkhxroadnclh.supabase.co";
+// Projet unique de la reconstruction. Ne pas réutiliser les anciennes
+// variables Vercel qui appartenaient à l’application supprimée.
+const SUPABASE_URL = "https://ootvzknyhkhxroadnclh.supabase.co";
 
 const ALLOWED_ROOTS = new Set(["auth", "rest", "storage"]);
 const FORWARDED_HEADERS = [
