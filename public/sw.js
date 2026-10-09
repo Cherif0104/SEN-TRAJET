@@ -1,9 +1,13 @@
-const CACHE_NAME = "sen-trajet-v2";
+const CACHE_NAME = "sentrajet-airport-v3";
+const OFFLINE_URL = "/offline";
 const STATIC_ASSETS = [
   "/",
+  OFFLINE_URL,
+  "/connexion",
+  "/inscription",
   "/manifest.json",
-  "/icons/icon-192.svg",
-  "/icons/icon-512.svg",
+  "/icons/app-icon-192.png",
+  "/icons/app-icon-512.png",
 ];
 
 function offlineResponse(body, status) {
@@ -65,7 +69,26 @@ self.addEventListener("fetch", (event) => {
     return cache.put(req, response);
   }
 
-  // Static assets: cache-first
+  // Navigations : réseau d’abord, puis page déjà visitée ou écran hors ligne.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => safePut(cache, request, clone));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached ?? (await caches.match(OFFLINE_URL)) ?? offlineResponse("Réseau indisponible.", 503);
+        })
+    );
+    return;
+  }
+
+  // Ressources statiques : cache-first.
   if (
     url.pathname.startsWith("/_next/static") ||
     url.pathname.startsWith("/icons") ||

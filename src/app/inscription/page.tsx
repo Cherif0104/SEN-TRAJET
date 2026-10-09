@@ -9,11 +9,11 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
-import { Users, Car, ArrowLeft, Building2 } from "lucide-react";
+import { Users, CarFront, ArrowLeft } from "lucide-react";
 
 type AuthMode = "email" | "phone";
 type PhoneStep = "form" | "verify";
-type RoleType = "client";
+type RoleType = "client" | "driver";
 
 function formatAuthErrorMessage(rawMessage: string | null | undefined, mode: AuthMode): string {
   const msg = String(rawMessage ?? "").toLowerCase();
@@ -82,9 +82,9 @@ function InscriptionPageContent() {
       setRole("client");
       setStep("form");
     }
-    if (roleParam === "chauffeur") {
-      setRole("client");
-      setStep("choice");
+    if (roleParam === "chauffeur" || roleParam === "driver") {
+      setRole("driver");
+      setStep("form");
     }
   }, [searchParams, router]);
 
@@ -94,9 +94,7 @@ function InscriptionPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  /** Inscription publique = client uniquement (OS SentraJet). */
-  const canShowForm = role === "client";
-  const signupButtonLabel = "Créer mon compte client (−10 %)";
+  const signupButtonLabel = role === "driver" ? "Créer mon espace chauffeur" : "Créer mon compte client";
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +107,7 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role: "client",
+            role,
             phone,
           },
         },
@@ -124,7 +122,7 @@ function InscriptionPageContent() {
         window.location.replace(nextAfterAuth);
         return;
       }
-      window.location.replace("/compte");
+      window.location.replace(role === "driver" ? "/chauffeur/profil" : "/compte");
     } catch {
       setError("Une erreur inattendue s'est produite.");
     } finally {
@@ -147,7 +145,7 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role: "client",
+            role,
           },
         },
       });
@@ -189,7 +187,7 @@ function InscriptionPageContent() {
         window.location.replace(nextAfterAuth);
         return;
       }
-      window.location.replace("/compte");
+      window.location.replace(role === "driver" ? "/chauffeur/profil" : "/compte");
     } catch {
       setError("Une erreur inattendue s'est produite.");
     } finally {
@@ -200,7 +198,7 @@ function InscriptionPageContent() {
   return (
     <AuthPageScaffold
       title="Créer un compte"
-      subtitle="Compte client SentraJet Premium (−10 %). Partenaires : contact & certification uniquement."
+      subtitle="Choisissez votre espace SentraJet Taxi Aéroport."
     >
         {/* Étape 1 : Choix Client / Partenaire / Propriétaire */}
         {step === "choice" && (
@@ -219,44 +217,37 @@ function InscriptionPageContent() {
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
                   <Users className="h-7 w-7" />
                 </div>
-                <span className="text-lg font-semibold text-slate-900">Client</span>
+                <span className="text-lg font-semibold text-slate-900">Je suis client</span>
                 <span className="text-sm text-slate-600">
-                  Je réserve une prestation SentraJet (−10 % avec compte)
+                  Je réserve et suis mes trajets vers ou depuis AIBD
                 </span>
               </button>
-              <Link
-                href="/devenir-partenaire"
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("driver");
+                  setStep("form");
+                  setError(null);
+                }}
                 className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Building2 className="h-7 w-7" />
+                  <CarFront className="h-7 w-7" />
                 </div>
-                <span className="text-lg font-semibold text-slate-900">Professionnel ?</span>
+                <span className="text-lg font-semibold text-slate-900">Je suis chauffeur</span>
                 <span className="text-sm text-slate-600">
-                  Devenir partenaire — diagnostic SentraJet (pas de compte auto)
+                  Je crée mon profil et dépose mes justificatifs pour validation
                 </span>
-              </Link>
-              <Link
-                href="/devenir-partenaire?profil=proprietaire"
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200/90 bg-white p-7 text-center shadow-sm transition-all hover:border-amber-400/80 hover:bg-amber-50/40 sm:col-span-2"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Car className="h-7 w-7" />
-                </div>
-                <span className="text-lg font-semibold text-slate-900">Propriétaire / investisseur</span>
-                <span className="text-sm text-slate-600">
-                  Contact commercial — contrat d’actifs, pas d’inscription libre
-                </span>
-              </Link>
+              </button>
             </div>
             <p className="mt-6 text-center text-sm text-slate-500">
-              Les chauffeurs sont recrutés et affectés par SentraJet — pas d’inscription marketplace ouverte.
+              Les comptes chauffeurs restent inactifs jusqu’à validation des documents par SentraJet.
             </p>
           </>
         )}
 
         {/* Étape formulaire */}
-        {step === "form" && canShowForm && (
+        {step === "form" && (
           <>
             <button
               type="button"
@@ -297,6 +288,7 @@ function InscriptionPageContent() {
                 <form onSubmit={handleEmailSubmit} className="space-y-4">
                   <Input label="Nom complet" placeholder="Mamadou Diallo" value={name} onChange={(e) => setName(e.target.value)} required />
                   <Input label="Email" type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <Input label="Téléphone" type="tel" placeholder="77 123 45 67" value={phone} onChange={(e) => setPhone(e.target.value)} required />
                   <Input label="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                   <Button type="submit" fullWidth isLoading={loading}>
                     {signupButtonLabel}

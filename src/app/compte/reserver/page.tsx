@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Même simulation multi-étapes que le parcours public */
+/** Tunnel spécialisé Taxi Aéroport, réservé aux comptes connectés. */
 export default function CompteReserverRedirectPage() {
-  redirect("/reserver?resume=1");
+  redirect("/taxi-aeroport");
 }

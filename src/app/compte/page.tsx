@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SjBadge, SjCard, SjSectionHead } from "@/components/sentrajet/PremiumShell";
+import { CalendarClock, CarFront, Clock3, Plane, Route, User } from "lucide-react";
+import { SjBadge } from "@/components/sentrajet/PremiumShell";
 import { useAuth } from "@/hooks/useAuth";
 import {
   BOOKING_STATUS_LABEL,
@@ -11,7 +12,6 @@ import {
   listPlatformBookings,
   type PlatformBooking,
 } from "@/lib/platformOps";
-import { formatFcfa } from "@/lib/sentrajetPricing";
 
 export default function ComptePage() {
   const { user, profile } = useAuth();
@@ -36,67 +36,83 @@ export default function ComptePage() {
   }, [user, profile]);
 
   const upcoming = rows.filter((b) => !["terminee", "annulee"].includes(b.status));
-  const lastPrice = rows[0]?.estimated_price;
-
   return (
-    <>
-      <SjSectionHead
-        title={`Bonjour${profile?.full_name ? ` ${profile.full_name.split(" ")[0]}` : ""}`}
-        action={
-          <Link href="/reserver" className="sj-btn sj-btn-primary">
-            + Réserver un trajet
-          </Link>
-        }
-      />
-      <div className="sj-hero">
-        <section className="sj-hero-card">
-          <div className="sj-hero-art" />
-          <div className="sj-hero-copy">
-            <div className="sj-eyebrow">SentraJet Premium</div>
-            <h1>Réservez votre trajet en toute sérénité.</h1>
-            <p>Transfert AIBD, trajet interurbain ou mise à disposition avec chauffeur professionnel.</p>
-            <Link href="/reserver" className="sj-btn sj-btn-primary">
-              Nouvelle réservation
-            </Link>
+    <div className="mx-auto max-w-lg pb-8">
+      <header className="mb-5 flex items-center justify-between">
+        <div>
+          <p className="sj-eyebrow">Taxi Aéroport Sénégal</p>
+          <h1 className="mt-2 font-display text-2xl font-extrabold text-white">
+            Bonjour{profile?.full_name ? ` ${profile.full_name.split(" ")[0]}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-[#91a0b5]">Où souhaitez-vous aller ?</p>
+        </div>
+        <Link href="/compte/profil" className="grid h-12 w-12 place-items-center rounded-2xl bg-[#132238] text-[#f0c86b]">
+          <User className="h-5 w-5" />
+        </Link>
+      </header>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          href="/taxi-aeroport"
+          className="col-span-2 overflow-hidden rounded-[26px] bg-gradient-to-br from-[#f0c86b] to-[#b77c24] p-5 text-[#07111f] shadow-xl"
+        >
+          <div className="flex items-start justify-between">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#07111f] text-[#f0c86b]">
+              <Plane className="h-6 w-6" />
+            </div>
+            <span className="rounded-full bg-black/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider">
+              AIBD
+            </span>
           </div>
-        </section>
-        <section className="sj-hero-stats">
-          <div className="sj-stat">
-            <div className="sj-muted">Réservations à venir</div>
-            <div className="num">{upcoming.length.toString().padStart(2, "0")}</div>
+          <h2 className="mt-7 font-display text-2xl font-extrabold">Trouver un taxi</h2>
+          <p className="mt-1 text-sm font-semibold text-[#07111f]/70">Maintenant ou sur réservation</p>
+        </Link>
+
+        <Link href="/taxi-aeroport" className="min-h-40 rounded-[24px] border border-[#22344b] bg-[#0d1a2b] p-4 text-white">
+          <Clock3 className="h-6 w-6 text-[#f0c86b]" />
+          <h3 className="mt-8 font-display text-lg font-extrabold">Maintenant</h3>
+          <p className="mt-1 text-xs text-[#91a0b5]">Recherche immédiate</p>
+        </Link>
+        <Link href="/taxi-aeroport" className="min-h-40 rounded-[24px] border border-[#22344b] bg-[#132238] p-4 text-white">
+          <CalendarClock className="h-6 w-6 text-[#f0c86b]" />
+          <h3 className="mt-8 font-display text-lg font-extrabold">Planifier</h3>
+          <p className="mt-1 text-xs text-[#91a0b5]">Date et heure choisies</p>
+        </Link>
+        <Link
+          href="/compte/reservations"
+          className="col-span-2 flex items-center gap-4 rounded-[24px] border border-[#22344b] bg-[#0d1a2b] p-4 text-white"
+        >
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#132238] text-[#f0c86b]">
+            <Route className="h-6 w-6" />
           </div>
-          <div className="sj-stat">
-            <div className="sj-muted">Dernier trajet</div>
-            <div className="num">{lastPrice != null ? Math.round(Number(lastPrice) / 1000) + "k" : "—"}</div>
-            <div className="sj-gold">FCFA</div>
+          <div className="flex-1">
+            <h3 className="font-display font-extrabold">Mes trajets</h3>
+            <p className="mt-1 text-xs text-[#91a0b5]">
+              {upcoming.length ? `${upcoming.length} réservation(s) à venir` : "Aucun trajet à venir"}
+            </p>
           </div>
-        </section>
+          <CarFront className="h-5 w-5 text-[#91a0b5]" />
+        </Link>
       </div>
 
-      <SjSectionHead title="Mes prochaines réservations" />
-      <div className="sj-list">
-        {upcoming.slice(0, 5).map((b) => (
-          <SjCard key={b.id}>
-            <div className="sj-between">
-              <div>
-                <b>
-                  {b.pickup} → {b.dropoff}
-                </b>
-                <div className="sj-muted">
-                  {new Date(b.pickup_time).toLocaleString("fr-FR")} · {b.passengers} passagers
-                </div>
-                <div className="sj-gold" style={{ marginTop: 6 }}>
-                  {b.estimated_price != null ? formatFcfa(Number(b.estimated_price)) : "Sur devis"}
-                </div>
-              </div>
-              <SjBadge tone={bookingStatusTone(b.status)}>
-                {BOOKING_STATUS_LABEL[b.status] ?? b.status}
-              </SjBadge>
+      {upcoming[0] ? (
+        <section className="mt-5 rounded-[24px] border border-[#22344b] bg-[#0d1a2b] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#91a0b5]">Prochain trajet</p>
+              <p className="mt-2 truncate font-bold text-white">
+                {upcoming[0].pickup} → {upcoming[0].dropoff}
+              </p>
+              <p className="mt-1 text-xs text-[#91a0b5]">
+                {new Date(upcoming[0].pickup_time).toLocaleString("fr-FR")}
+              </p>
             </div>
-          </SjCard>
-        ))}
-        {!upcoming.length ? <SjCard><p className="sj-muted">Aucune réservation à venir. Lancez votre première demande.</p></SjCard> : null}
-      </div>
-    </>
+            <SjBadge tone={bookingStatusTone(upcoming[0].status)}>
+              {BOOKING_STATUS_LABEL[upcoming[0].status] ?? upcoming[0].status}
+            </SjBadge>
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }

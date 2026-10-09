@@ -38,7 +38,7 @@ type DistanceResult = {
 const AIRPORT_SELECTED_PLACE: SelectedPlace = { ...AIRPORT_PLACE };
 
 export function AirportBookingFlow() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<AirportBookingMode>("now");
   const [direction, setDirection] = useState<AirportDirection>("to_airport");
   const [address, setAddress] = useState<SelectedPlace | null>(null);
@@ -46,7 +46,7 @@ export function AirportBookingFlow() {
   const [time, setTime] = useState("");
   const [passengers, setPassengers] = useState(1);
   const [luggage, setLuggage] = useState(1);
-  const [rideClass, setRideClass] = useState<AirportRideClass>("comfort");
+  const [rideClass, setRideClass] = useState<AirportRideClass>("economy");
   const [phone, setPhone] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
   const [distance, setDistance] = useState<DistanceResult | null>(null);
@@ -57,6 +57,12 @@ export function AirportBookingFlow() {
 
   const pickup = direction === "to_airport" ? address : AIRPORT_SELECTED_PLACE;
   const dropoff = direction === "to_airport" ? AIRPORT_SELECTED_PLACE : address;
+
+  useEffect(() => {
+    if (passengers > AIRPORT_RIDE_CLASSES[rideClass].maxPassengers) {
+      setRideClass("comfort_plus");
+    }
+  }, [passengers, rideClass]);
 
   useEffect(() => {
     if (!pickup || !dropoff) {
@@ -111,7 +117,7 @@ export function AirportBookingFlow() {
       }),
     [direction, passengers, luggage, distance?.distanceKm]
   );
-  const price = airportClassPrice(baseQuote.amountFcfa, rideClass);
+  const price = airportClassPrice(baseQuote.amountFcfa, rideClass, distance?.distanceKm);
   const pickupTime = airportPickupTime(mode, date, time);
   const canContinue = Boolean(address && distance?.distanceKm && pickupTime && !distanceLoading);
 
@@ -163,6 +169,45 @@ export function AirportBookingFlow() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-5 py-8">
+        <div className="rounded-[30px] bg-white p-6 text-center shadow-[0_24px_80px_-36px_rgba(2,16,29,.65)]">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-[#07111f] text-amber-400">
+            <Plane className="h-8 w-8" />
+          </div>
+          <p className="mt-5 text-xs font-extrabold uppercase tracking-[0.2em] text-amber-700">
+            Espace sécurisé
+          </p>
+          <h1 className="mt-2 text-2xl font-extrabold text-slate-950">Connectez-vous pour réserver</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+            Les adresses, tarifs et chauffeurs sont accessibles uniquement depuis un compte SentraJet.
+          </p>
+          <Link
+            href="/connexion?next=/taxi-aeroport"
+            className="mt-6 flex min-h-13 w-full items-center justify-center rounded-2xl bg-[#07111f] px-5 font-bold text-white"
+          >
+            Se connecter
+          </Link>
+          <Link
+            href="/inscription?role=client&next=/taxi-aeroport"
+            className="mt-3 flex min-h-13 w-full items-center justify-center rounded-2xl border border-slate-300 px-5 font-bold text-slate-900"
+          >
+            Créer un compte
+          </Link>
+        </div>
+      </section>
+    );
   }
 
   if (bookingRef) {
@@ -268,7 +313,7 @@ export function AirportBookingFlow() {
         ) : null}
 
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <Counter icon={Users} label="Passagers" value={passengers} min={1} max={8} onChange={setPassengers} />
+          <Counter icon={Users} label="Passagers" value={passengers} min={1} max={7} onChange={setPassengers} />
           <Counter icon={Luggage} label="Bagages" value={luggage} min={0} max={12} onChange={setLuggage} />
         </div>
       </div>
@@ -290,9 +335,12 @@ export function AirportBookingFlow() {
             <button
               key={value}
               type="button"
+              disabled={passengers > option.maxPassengers}
               onClick={() => setRideClass(value)}
               className={`flex w-full items-center gap-3 rounded-2xl border-2 bg-white p-3.5 text-left transition ${
                 rideClass === value ? "border-amber-500 shadow-sm" : "border-slate-200"
+              } ${
+                passengers > option.maxPassengers ? "cursor-not-allowed opacity-45" : ""
               }`}
             >
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-800">
@@ -301,6 +349,11 @@ export function AirportBookingFlow() {
               <div className="min-w-0 flex-1">
                 <p className="font-extrabold text-slate-950">{option.label}</p>
                 <p className="truncate text-xs text-slate-500">{option.description}</p>
+                {passengers > option.maxPassengers ? (
+                  <p className="mt-1 text-[10px] font-bold text-red-600">
+                    Maximum {option.maxPassengers} passagers
+                  </p>
+                ) : null}
               </div>
               <div className="text-right">
                 <p className="font-extrabold text-slate-950">
@@ -309,7 +362,7 @@ export function AirportBookingFlow() {
                     : price && rideClass === value
                       ? formatFcfa(price)
                       : distance?.distanceKm
-                        ? formatFcfa(airportClassPrice(baseQuote.amountFcfa, value))
+                        ? formatFcfa(airportClassPrice(baseQuote.amountFcfa, value, distance.distanceKm))
                         : "—"}
                 </p>
                 <p className="text-[10px] text-slate-500">{option.etaLabel}</p>
@@ -317,6 +370,10 @@ export function AirportBookingFlow() {
             </button>
           )
         )}
+        <p className="px-1 pt-1 text-[10px] leading-relaxed text-slate-500">
+          Éco suit une référence de marché Dakar au kilomètre. SentraJet n’est pas affilié à Yango.
+          Le prix final est affiché avant confirmation.
+        </p>
       </div>
 
       {canContinue ? (
@@ -349,40 +406,23 @@ export function AirportBookingFlow() {
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="mx-auto max-w-lg">
-          {!user && canContinue ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Link
-                href="/connexion?next=/taxi-aeroport"
-                className="flex min-h-12 items-center justify-center rounded-2xl border border-slate-300 px-4 text-sm font-bold text-slate-800"
-              >
-                Se connecter
-              </Link>
-              <Link
-                href="/inscription?role=client&next=/taxi-aeroport"
-                className="flex min-h-12 items-center justify-center rounded-2xl bg-[#07111f] px-4 text-sm font-bold text-white"
-              >
-                Créer un compte
-              </Link>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={!canContinue || submitting}
-              onClick={() => void submit()}
-              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#07111f] px-5 font-extrabold text-white disabled:bg-slate-300"
-            >
-              <ShieldCheck className="h-5 w-5 text-amber-400" />
-              {submitting
-                ? "Confirmation…"
-                : !address
-                  ? "Indiquez votre adresse"
-                  : distanceLoading
-                    ? "Calcul de l’itinéraire…"
-                    : mode === "scheduled" && !pickupTime
-                      ? "Choisissez la date et l’heure"
-                      : `Confirmer · ${price ? formatFcfa(price) : "calcul en cours"}`}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={!canContinue || submitting}
+            onClick={() => void submit()}
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#07111f] px-5 font-extrabold text-white disabled:bg-slate-300"
+          >
+            <ShieldCheck className="h-5 w-5 text-amber-400" />
+            {submitting
+              ? "Confirmation…"
+              : !address
+                ? "Indiquez votre adresse"
+                : distanceLoading
+                  ? "Calcul de l’itinéraire…"
+                  : mode === "scheduled" && !pickupTime
+                    ? "Choisissez la date et l’heure"
+                    : `Confirmer · ${price ? formatFcfa(price) : "calcul en cours"}`}
+          </button>
         </div>
       </div>
     </section>

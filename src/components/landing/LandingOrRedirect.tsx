@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { AirportLanding } from "@/components/airport/AirportLanding";
+import { AppOnboarding } from "@/components/onboarding/AppOnboarding";
 
 /**
  * La verticale Taxi Aéroport reste accessible aux visiteurs et clients connectés.
@@ -16,6 +16,10 @@ export function LandingOrRedirect() {
   useEffect(() => {
     if (loading || !user) return;
     const role = profile?.role;
+    if (role === "client") {
+      router.replace("/compte");
+      return;
+    }
     if (role === "driver") {
       router.replace("/chauffeur");
       return;
@@ -34,12 +38,13 @@ export function LandingOrRedirect() {
       router.replace("/admin");
       return;
     }
-    // Visiteur, client ou rôle inconnu : accueil Taxi Aéroport.
+    // Un profil connecté est toujours routé vers son espace.
   }, [user, profile?.role, loading, router]);
 
   if (
     user &&
-    (profile?.role === "driver" ||
+    (profile?.role === "client" ||
+      profile?.role === "driver" ||
       profile?.role === "partner" ||
       profile?.role === "partner_manager" ||
       profile?.role === "partner_operator" ||
@@ -58,5 +63,13 @@ export function LandingOrRedirect() {
     );
   }
 
-  return <AirportLanding />;
+  if (loading || user) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#07111f]">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return <AppOnboarding />;
 }
