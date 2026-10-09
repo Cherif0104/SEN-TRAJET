@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { toE164Senegal } from "@/lib/phone";
+import { ensureRequestedDriverApplication, requestedAccountType } from "@/lib/driverRegistration";
 type AuthMode = "email" | "phone";
 type PhoneStep = "send" | "verify";
 
@@ -82,11 +83,15 @@ function hubPathForRole(role: string | undefined): string {
 }
 
 async function resolvePostLoginRedirect(nextParam: string | null): Promise<string> {
-  if (nextParam && isAllowedNext(nextParam)) return nextParam;
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.id) return "/";
+  if (requestedAccountType(user) === "driver") {
+    await ensureRequestedDriverApplication(user);
+    if (!nextParam || !isAllowedNext(nextParam)) return "/chauffeur/profil";
+  }
+  if (nextParam && isAllowedNext(nextParam)) return nextParam;
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   return hubPathForRole(prof?.role);
 }
@@ -107,13 +112,9 @@ function ConnexionPageContent() {
   useEffect(() => {
     if (authLoading || !user) return;
     const next = searchParams.get("next");
-    const target = next && isAllowedNext(next) ? next : hubPathForRole(profile?.role);
-    if (target !== "/") {
-      window.location.replace(target);
-      return;
-    }
     void resolvePostLoginRedirect(next).then((resolved) => {
-      window.location.replace(resolved || "/");
+      const fallback = hubPathForRole(profile?.role);
+      window.location.replace(resolved === "/" ? fallback : resolved || fallback);
     });
   }, [authLoading, user, profile?.role, searchParams]);
 

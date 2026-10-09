@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
+import { ensureRequestedDriverApplication } from "@/lib/driverRegistration";
 import { toE164Senegal } from "@/lib/phone";
 import { Users, CarFront, ArrowLeft } from "lucide-react";
 
@@ -101,13 +102,13 @@ function InscriptionPageContent() {
     setError(null);
     setLoading(true);
     try {
-      const { error: err } = await supabase.auth.signUp({
+      const { data, error: err } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: name,
-            role,
+            account_type: role,
             phone,
           },
         },
@@ -117,7 +118,11 @@ function InscriptionPageContent() {
         setLoading(false);
         return;
       }
+      if (role === "driver" && data.user && data.session) {
+        await ensureRequestedDriverApplication(data.user);
+      }
       setSuccess(true);
+      if (!data.session) return;
       if (nextAfterAuth) {
         window.location.replace(nextAfterAuth);
         return;
@@ -145,7 +150,7 @@ function InscriptionPageContent() {
         options: {
           data: {
             full_name: name,
-            role,
+            account_type: role,
           },
         },
       });
@@ -182,7 +187,12 @@ function InscriptionPageContent() {
         setLoading(false);
         return;
       }
-      await supabase.auth.getUser();
+      const {
+        data: { user: verifiedUser },
+      } = await supabase.auth.getUser();
+      if (role === "driver") {
+        await ensureRequestedDriverApplication(verifiedUser);
+      }
       if (nextAfterAuth) {
         window.location.replace(nextAfterAuth);
         return;
@@ -277,7 +287,8 @@ function InscriptionPageContent() {
             <Card className="mt-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/35">
               {success && authMode === "email" && (
                 <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 ring-1 ring-emerald-200/60">
-                  Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous.
+                  Compte créé. Vérifiez votre email pour confirmer, puis connectez-vous
+                  {role === "driver" ? " afin de compléter vos justificatifs chauffeur." : "."}
                 </p>
               )}
               {error && (

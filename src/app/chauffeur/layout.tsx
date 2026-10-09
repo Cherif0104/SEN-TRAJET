@@ -28,7 +28,11 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
         router.replace("/connexion?next=" + encodeURIComponent(pathname));
         return;
       }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, is_verified")
+        .eq("id", user.id)
+        .maybeSingle();
       let role = profile?.role as string | undefined;
       if (!role) {
         const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1);
@@ -36,6 +40,10 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
       }
       if (!canAccessDriverZone(role)) {
         router.replace("/dashboard?forbidden=1");
+        return;
+      }
+      if (!profile?.is_verified && pathname !== "/chauffeur/profil") {
+        router.replace("/chauffeur/profil?onboarding=1");
         return;
       }
       setReady(true);
