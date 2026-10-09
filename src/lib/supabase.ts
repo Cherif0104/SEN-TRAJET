@@ -3,8 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 const projectUrl = "https://ootvzknyhkhxroadnclh.supabase.co";
 const projectPublishableKey = "sb_publishable_CVck2hQokLG7zquxfximUA_DeuY6ftN";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || projectUrl;
-const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || projectPublishableKey;
+// Cette application est rattachée à un projet unique. Des variables Vercel
+// historiques pointaient vers l’ancienne base et ne doivent plus prendre le dessus.
+const url = projectUrl;
+const key = projectPublishableKey;
 
 function sameOriginSupabaseFetch(input: RequestInfo | URL, init?: RequestInit) {
   if (typeof window === "undefined") return fetch(input, init);
