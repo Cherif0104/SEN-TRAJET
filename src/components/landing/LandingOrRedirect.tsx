@@ -3,14 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { HeroSection } from "@/components/landing/HeroSection";
-import { HomeContinued } from "@/components/landing/HomeContinued";
+import { AppOnboarding } from "@/components/onboarding/AppOnboarding";
 
 /**
- * Affiche la landing page pour les visiteurs non connectés.
- * Redirige les utilisateurs connectés vers leur espace (boarding) selon le rôle.
+ * La verticale Taxi Aéroport reste accessible aux visiteurs et clients connectés.
+ * Les rôles opérationnels rejoignent directement leur espace de travail.
  */
 export function LandingOrRedirect() {
   const router = useRouter();
@@ -41,7 +38,7 @@ export function LandingOrRedirect() {
       router.replace("/admin");
       return;
     }
-    // Pas de rôle ou autre → on reste sur la landing (ou on pourrait rediriger /compte par défaut)
+    // Un profil connecté est toujours routé vers son espace.
   }, [user, profile?.role, loading, router]);
 
   if (
@@ -66,14 +63,13 @@ export function LandingOrRedirect() {
     );
   }
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">
-        <HeroSection />
-        <HomeContinued />
-      </main>
-      <Footer />
-    </div>
-  );
+  if (loading || user) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#07111f]">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return <AppOnboarding />;
 }

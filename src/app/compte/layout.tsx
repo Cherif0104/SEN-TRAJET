@@ -8,7 +8,7 @@ import { PremiumShell } from "@/components/sentrajet/PremiumShell";
 
 const nav = [
   { href: "/compte", label: "Accueil", icon: LayoutDashboard },
-  { href: "/reserver", label: "Simuler", icon: PlusCircle },
+  { href: "/taxi-aeroport", label: "Réserver", icon: PlusCircle },
   { href: "/compte/reservations", label: "Mes réservations", icon: CalendarCheck },
   { href: "/compte/profil", label: "Mon profil", icon: User },
 ];
@@ -39,7 +39,7 @@ export default function CompteLayout({ children }: { children: React.ReactNode }
   }, [pathname, router]);
 
   return (
-    <PremiumShell title="Client" subtitle="Espace voyageur" nav={nav}>
+    <PremiumShell title="Client" subtitle="Taxi Aéroport" nav={nav}>
       {children}
     </PremiumShell>
   );

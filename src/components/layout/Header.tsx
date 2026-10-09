@@ -106,8 +106,8 @@ export function Header() {
               <Button variant="ghost" size="sm" href="/connexion" className="text-neutral-700">
                 Connexion
               </Button>
-              <Button variant="primary" size="sm" href="/reserver" className="bg-amber-500 text-neutral-900 hover:bg-amber-400">
-                Réserver
+              <Button variant="primary" size="sm" href="/taxi-aeroport" className="bg-amber-500 text-neutral-900 hover:bg-amber-400">
+                Trouver un taxi
               </Button>
             </>
           )}
@@ -126,8 +126,8 @@ export function Header() {
       {menuOpen && (
         <div className="border-t border-neutral-200 bg-white px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
-            <Link href="/reserver" className="rounded-lg px-3 py-2.5 font-semibold text-neutral-900" onClick={() => setMenuOpen(false)}>
-              Réserver
+            <Link href="/taxi-aeroport" className="rounded-lg px-3 py-2.5 font-semibold text-neutral-900" onClick={() => setMenuOpen(false)}>
+              Taxi Aéroport
             </Link>
             {isLoggedIn ? (
               <Link href={hubHref} className="rounded-lg px-3 py-2 font-medium text-neutral-700" onClick={() => setMenuOpen(false)}>
@@ -148,8 +148,8 @@ export function Header() {
                   <Button variant="secondary" fullWidth href="/connexion" onClick={() => setMenuOpen(false)}>
                     Se connecter
                   </Button>
-                  <Button variant="primary" fullWidth href="/reserver" onClick={() => setMenuOpen(false)}>
-                    Réserver
+                  <Button variant="primary" fullWidth href="/taxi-aeroport" onClick={() => setMenuOpen(false)}>
+                    Trouver un taxi
                   </Button>
                 </>
               )}

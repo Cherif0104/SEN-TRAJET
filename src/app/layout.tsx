@@ -16,9 +16,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "SentraJet Premium — Transport avec chauffeur",
+  title: "SentraJet Taxi Aéroport — Dakar ↔ AIBD",
   description:
-    "Plateforme propriétaire SentraJet Premium : réservation, dispatch, flotte, partenaires B2B et suivi de courses au Sénégal.",
+    "Taxi Aéroport Sénégal : réservation immédiate ou planifiée entre Dakar et l’AIBD, tarif affiché et suivi de course.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "SentraJet Premium",
+    title: "Taxi Aéroport",
   },
   formatDetection: {
     telephone: true,

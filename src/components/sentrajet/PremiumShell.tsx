@@ -34,7 +34,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
           <div className="sj-brand-mark">SJ</div>
           <div>
             <b>SENTRAJET</b>
-            <small>PREMIUM</small>
+            <small>TAXI AÉROPORT</small>
           </div>
         </div>
         <nav className="sj-nav">
@@ -62,7 +62,7 @@ export function PremiumShell({ title, subtitle, nav, mobileNav, children }: Prem
       <main className="sj-main">
         <header className="sj-topbar">
           <div>
-            <div className="sj-crumb">SentraJet Premium / {title}</div>
+            <div className="sj-crumb">SentraJet Taxi Aéroport / {title}</div>
           </div>
           <div className="sj-top-actions">
             <div className="sj-avatar">{(profile?.full_name?.[0] || title[0] || "S").toUpperCase()}</div>
