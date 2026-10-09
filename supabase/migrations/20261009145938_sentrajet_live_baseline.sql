@@ -611,6 +611,7 @@ grant select on public.restaurants, public.menu_items to anon, authenticated;
 grant select on public.driver_public_profiles to authenticated;
 grant usage, select on sequence public.ride_events_id_seq to authenticated;
 
+revoke all on all functions in schema private from public, anon, authenticated;
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 revoke all on function public.protect_profile_fields() from public, anon, authenticated;
 revoke all on function public.register_driver_application() from public, anon;
