@@ -71,9 +71,13 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           ? "Email ou mot de passe incorrect."
           : /email not confirmed/i.test(raw)
             ? "Confirmez votre email avant de vous connecter."
-            : /failed to fetch|network|load failed/i.test(raw)
-              ? "Connexion au service momentanément impossible. Vérifiez votre réseau puis réessayez."
-              : raw
+            : /email rate limit exceeded|over_email_send_rate_limit/i.test(raw)
+              ? "Trop de demandes ont été envoyées. Patientez quelques minutes avant de réessayer."
+              : /email address .* is invalid|invalid email/i.test(raw)
+                ? "Cette adresse email n’est pas acceptée. Vérifiez-la ou utilisez une autre adresse."
+                : /failed to fetch|network|load failed/i.test(raw)
+                  ? "Connexion au service momentanément impossible. Vérifiez votre réseau puis réessayez."
+                  : raw
       );
     } finally {
       setBusy(false);
