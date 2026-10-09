@@ -3,29 +3,32 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, MapPin, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
-import { PremiumScene } from "@/components/PremiumScene";
 
 const slides = [
   {
     eyebrow: "Mobilité en direct",
     title: "Votre chauffeur, en temps réel.",
     text: "Indiquez votre destination. SentraJet recherche et vous affecte le meilleur chauffeur disponible.",
-    scene: "ride" as const
+    image: "/media/onboarding-course.webp",
+    alt: "Berline SentraJet pour les courses urbaines et interurbaines"
   },
   {
     eyebrow: "Transfert aéroport",
     title: "L’AIBD, sans aucun stress.",
     text: "Accueil personnalisé, suivi du vol et chauffeur ponctuel, immédiatement ou sur réservation.",
-    scene: "airport" as const
+    image: "/media/onboarding-aeroport.webp",
+    alt: "Chauffeur SentraJet accueillant un voyageur à l’aéroport"
   },
   {
     eyebrow: "Livraison sécurisée",
     title: "Vos envois, suivis en direct.",
     text: "Moto, voiture ou utilitaire : choisissez le véhicule adapté et suivez chaque étape.",
-    scene: "delivery" as const
+    image: "/media/onboarding-livraison.webp",
+    alt: "Livreur SentraJet à moto dans Dakar"
   }
 ];
 
@@ -69,7 +72,16 @@ export function Onboarding() {
 
       <section className="onboarding-content">
         <div className="onboarding-visual">
-          <PremiumScene scene={slide.scene} />
+          <Image
+            key={slide.image}
+            src={slide.image}
+            alt={slide.alt}
+            fill
+            priority={index === 0}
+            sizes="(max-width: 520px) calc(100vw - 36px), 484px"
+            className="onboarding-photo"
+          />
+          <div className="onboarding-photo-shade" />
           <div className="coverage-chip">
             <MapPin size={16} color="var(--gold)" />
             Dakar et toutes les régions du Sénégal

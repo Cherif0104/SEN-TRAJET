@@ -511,11 +511,15 @@ a {
   box-shadow: 0 26px 70px -38px rgba(231, 184, 77, 0.48);
 }
 
-.premium-scene {
-  width: 100%;
-  height: 300px;
-  display: block;
+.onboarding-photo {
   object-fit: cover;
+}
+
+.onboarding-photo-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(5, 7, 9, 0.52));
+  pointer-events: none;
 }
 
 .coverage-chip {

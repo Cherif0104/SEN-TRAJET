@@ -1,6 +1,16 @@
-const CACHE = "sentrajet-premium-v2";
+const CACHE = "sentrajet-premium-v3";
 const OFFLINE = "/offline";
-const APP_SHELL = ["/", OFFLINE, "/login", "/signup", "/manifest.webmanifest", "/icon.svg"];
+const APP_SHELL = [
+  "/",
+  OFFLINE,
+  "/login",
+  "/signup",
+  "/manifest.webmanifest",
+  "/icon.svg",
+  "/media/onboarding-course.webp",
+  "/media/onboarding-aeroport.webp",
+  "/media/onboarding-livraison.webp"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));
