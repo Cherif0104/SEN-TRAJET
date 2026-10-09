@@ -1,38 +1,25 @@
 {
-  "name": "sen-trajet-app",
-  "version": "0.1.0",
+  "name": "sentrajet-live",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node ./node_modules/next/dist/bin/next dev",
-    "build": "node ./node_modules/next/dist/bin/next build",
-    "start": "node ./node_modules/next/dist/bin/next start",
-    "lint": "node ./node_modules/next/dist/bin/next lint",
-    "test:pricing": "node --experimental-strip-types scripts/live-ride-pricing.selftest.mjs",
-    "test:wave": "node --experimental-strip-types scripts/wave-webhook.selftest.mjs"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.9.0",
-    "@supabase/supabase-js": "^2.47.10",
-    "@types/leaflet": "^1.9.21",
-    "auto-parts-db": "^2.0.0",
-    "clsx": "^2.1.1",
-    "leaflet": "^1.9.4",
-    "lucide-react": "^0.460.0",
-    "next": "14.2.35",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-leaflet": "^4.2.1"
+    "@supabase/supabase-js": "^2.117.3",
+    "lucide-react": "^1.54.0",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/google.maps": "^3.58.1",
-    "@types/node": "^22.9.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.35",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
-    "typescript": "^5.6.3"
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "^5.9.3"
   }
 }

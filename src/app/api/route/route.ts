@@ -1,44 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-/**
- * Trace d'itinéraire léger pour le suivi live (OSRM public, pas de clé requise) : renvoie la
- * géométrie de la route (pour affichage sur la carte) et une estimation de temps d'arrivée.
- * Distinct de /api/distance (utilisé pour le calcul tarifaire), afin de ne rien risquer sur ce
- * flux existant.
- */
+const schema = z.object({
+  pickup: z.object({ lat: z.number(), lng: z.number() }),
+  destination: z.object({ lat: z.number(), lng: z.number() })
+});
+
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => ({}))) as {
-    fromLat?: number;
-    fromLng?: number;
-    toLat?: number;
-    toLng?: number;
-  };
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Itinéraire invalide." }, { status: 400 });
 
-  const { fromLat, fromLng, toLat, toLng } = body;
-  const hasCoords = [fromLat, fromLng, toLat, toLng].every((v) => typeof v === "number" && Number.isFinite(v));
-  if (!hasCoords) {
-    return NextResponse.json({ error: "Coordonnées invalides." }, { status: 400 });
-  }
-
+  const { pickup, destination } = parsed.data;
+  const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
-    const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SentraJetPremium/1.0" } });
-    if (!res.ok) throw new Error("osrm_error");
-    const data = (await res.json()) as {
-      code?: string;
-      routes?: Array<{ distance?: number; duration?: number; geometry?: { coordinates?: [number, number][] } }>;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error("Router unavailable");
+    const payload = (await response.json()) as {
+      routes?: Array<{ distance: number; duration: number; geometry: { coordinates: number[][] } }>;
     };
-    const route = data.routes?.[0];
-    if (data.code !== "Ok" || !route) {
-      return NextResponse.json({ error: "Itinéraire indisponible." }, { status: 404 });
-    }
-    const points = (route.geometry?.coordinates ?? []).map(([lng, lat]) => ({ lat, lng }));
+    const route = payload.routes?.[0];
+    if (!route) return NextResponse.json({ error: "Aucun itinéraire trouvé." }, { status: 404 });
     return NextResponse.json({
-      points,
-      distanceKm: route.distance ? Math.round((route.distance / 1000) * 10) / 10 : null,
-      durationMinutes: route.duration ? Math.max(1, Math.round(route.duration / 60)) : null,
+      distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+      durationMinutes: Math.max(1, Math.round(route.duration / 60)),
+      geometry: route.geometry.coordinates
     });
   } catch {
-    return NextResponse.json({ error: "Itinéraire indisponible." }, { status: 502 });
+    return NextResponse.json({ error: "Le calcul d’itinéraire est indisponible." }, { status: 503 });
   }
 }

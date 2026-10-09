@@ -1,0 +1,39 @@
+{
+  "name": "SentraJet Premium",
+  "short_name": "SentraJet",
+  "description": "Chauffeur, taxi AIBD et livraison premium en temps réel au Sénégal",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "lang": "fr",
+  "categories": ["travel", "navigation"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Commander une course",
+      "short_name": "Course",
+      "url": "/ride?service=ride"
+    },
+    {
+      "name": "Taxi AIBD",
+      "short_name": "AIBD",
+      "url": "/ride?service=airport"
+    },
+    {
+      "name": "Livraison",
+      "short_name": "Livraison",
+      "url": "/ride?service=delivery"
+    }
+  ]
+}

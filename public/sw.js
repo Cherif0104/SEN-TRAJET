@@ -1,163 +1,63 @@
-const CACHE_NAME = "sen-trajet-v9-session-mobile";
-const STATIC_ASSETS = [
+const CACHE = "sentrajet-premium-v3";
+const OFFLINE = "/offline";
+const APP_SHELL = [
   "/",
-  "/application-mobile",
-  "/manifest.json",
-  "/brand/sentrajet-mark-transparent.svg",
-  "/brand/sentrajet-mark-maskable.svg",
-  "/brand/sentrajet-wordmark.svg",
-  "/brand/sentrajet-wordmark-light.svg",
-  "/brand/sentrajet-vehicle-hero.webp",
-  "/icons/app-icon-transparent-192.png",
-  "/icons/app-icon-transparent-512.png",
-  "/icons/app-icon-maskable-192.png",
-  "/icons/app-icon-maskable-512.png",
-  "/icons/apple-touch-icon-v2.png",
-  "/icons/favicon-32.png",
+  OFFLINE,
+  "/login",
+  "/signup",
+  "/manifest.webmanifest",
+  "/icon.svg",
+  "/media/onboarding-course.webp",
+  "/media/onboarding-aeroport.webp",
+  "/media/onboarding-livraison.webp"
 ];
 
-function offlineResponse(body, status) {
-  return new Response(body, {
-    status: status ?? 503,
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
-}
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      )
-    )
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
   );
   self.clients.claim();
 });
 
-self.addEventListener("message", (event) => {
-  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
-});
-
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
+  const request = event.request;
   if (request.method !== "GET") return;
-
   const url = new URL(request.url);
-  if (url.protocol !== "http:" && url.protocol !== "https:") return;
-  // Laisser le navigateur gérer WebSocket (Realtime Supabase, etc.)
-  if (url.protocol === "wss:" || url.protocol === "ws:") return;
-  const upgrade = request.headers.get("Upgrade");
-  if (upgrade && upgrade.toLowerCase() === "websocket") return;
+  if (url.origin !== self.location.origin) return;
 
-  // API calls and Supabase: network-first, toujours une Response valide
-  if (
-    url.pathname.startsWith("/api") ||
-    url.hostname.includes("supabase")
-  ) {
-    event.respondWith(
-      fetch(request).catch(() =>
-        caches.match(request).then(
-          (cached) => cached ?? offlineResponse("Réseau indisponible.", 503)
-        )
-      )
-    );
-    return;
-  }
-
-  const authenticatedPage =
-    url.origin === self.location.origin &&
-    [
-      "/admin",
-      "/compte",
-      "/chauffeur",
-      "/partenaire",
-      "/proprietaire",
-      "/dashboard",
-      "/connexion",
-    ].some(
-      (prefix) =>
-        url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)
-    );
-
-  // Les espaces connectés doivent toujours charger le shell le plus récent.
-  // Le cache ne sert que de secours hors ligne, jamais de réponse prioritaire.
-  if (request.mode === "navigate" && authenticatedPage) {
+  if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          if (response.ok) {
+            const cachedResponse = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, cachedResponse));
+          }
           return response;
         })
-        .catch(() =>
-          caches.match(request).then(
-            (cached) =>
-              cached ?? offlineResponse("Réseau indisponible. Rechargez la page.", 503)
-          )
-        )
+        .catch(async () => (await caches.match(request)) || (await caches.match(OFFLINE)))
     );
     return;
   }
 
-  const isCacheableRequest =
-    url.protocol === "http:" || url.protocol === "https:";
+  if (url.pathname.startsWith("/api/")) return;
 
-  function safePut(cache, req, response) {
-    if (!isCacheableRequest) return Promise.resolve();
-    return cache.put(req, response);
-  }
-
-  // Static assets: cache-first
-  if (
-    url.pathname.startsWith("/_next/static") ||
-    url.pathname.startsWith("/icons") ||
-    url.pathname.endsWith(".png") ||
-    url.pathname.endsWith(".jpg") ||
-    url.pathname.endsWith(".svg")
-  ) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request)
-          .then((response) => {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => safePut(cache, request, clone));
-            return response;
-          })
-          .catch(() => offlineResponse("Ressource indisponible hors ligne.", 503));
-      })
-    );
-    return;
-  }
-
-  // Pages: stale-while-revalidate — ne jamais résoudre avec undefined
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const networkFetch = fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => safePut(cache, request, clone));
+    caches.match(request).then(
+      (cached) =>
+        cached ||
+        fetch(request).then((response) => {
+          if (response.ok) {
+            const cachedResponse = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, cachedResponse));
+          }
           return response;
         })
-        .catch(() => cached);
-
-      if (cached) {
-        void networkFetch.catch(() => {});
-        return Promise.resolve(cached);
-      }
-
-      return networkFetch.then((r) =>
-        r instanceof Response
-          ? r
-          : offlineResponse("Réseau indisponible. Rechargez la page.", 503)
-      );
-    })
+    )
   );
 });
