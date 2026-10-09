@@ -3,14 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { HeroSection } from "@/components/landing/HeroSection";
-import { HomeContinued } from "@/components/landing/HomeContinued";
+import { AirportLanding } from "@/components/airport/AirportLanding";
 
 /**
- * Affiche la landing page pour les visiteurs non connectés.
- * Redirige les utilisateurs connectés vers leur espace (boarding) selon le rôle.
+ * La verticale Taxi Aéroport reste accessible aux visiteurs et clients connectés.
+ * Les rôles opérationnels rejoignent directement leur espace de travail.
  */
 export function LandingOrRedirect() {
   const router = useRouter();
@@ -19,10 +16,6 @@ export function LandingOrRedirect() {
   useEffect(() => {
     if (loading || !user) return;
     const role = profile?.role;
-    if (role === "client") {
-      router.replace("/compte");
-      return;
-    }
     if (role === "driver") {
       router.replace("/chauffeur");
       return;
@@ -41,13 +34,12 @@ export function LandingOrRedirect() {
       router.replace("/admin");
       return;
     }
-    // Pas de rôle ou autre → on reste sur la landing (ou on pourrait rediriger /compte par défaut)
+    // Visiteur, client ou rôle inconnu : accueil Taxi Aéroport.
   }, [user, profile?.role, loading, router]);
 
   if (
     user &&
-    (profile?.role === "client" ||
-      profile?.role === "driver" ||
+    (profile?.role === "driver" ||
       profile?.role === "partner" ||
       profile?.role === "partner_manager" ||
       profile?.role === "partner_operator" ||
@@ -66,14 +58,5 @@ export function LandingOrRedirect() {
     );
   }
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">
-        <HeroSection />
-        <HomeContinued />
-      </main>
-      <Footer />
-    </div>
-  );
+  return <AirportLanding />;
 }

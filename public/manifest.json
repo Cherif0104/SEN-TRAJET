@@ -1,7 +1,7 @@
 {
-  "name": "SentraJet Premium",
-  "short_name": "SentraJet",
-  "description": "Transport avec chauffeur — réservation, dispatch et flotte SentraJet Premium",
+  "name": "SentraJet Taxi Aéroport",
+  "short_name": "Taxi Aéroport",
+  "description": "Taxi immédiat ou planifié entre Dakar et l’aéroport AIBD",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#07111f",
