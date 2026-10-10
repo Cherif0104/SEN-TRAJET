@@ -1,4 +1,4 @@
-const CACHE = "sentrajet-premium-v3";
+const CACHE = "sentrajet-vtc-v4";
 const OFFLINE = "/offline";
 const APP_SHELL = [
   "/",
@@ -8,8 +8,7 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/icon.svg",
   "/media/onboarding-course.webp",
-  "/media/onboarding-aeroport.webp",
-  "/media/onboarding-livraison.webp"
+  "/media/onboarding-aeroport.webp"
 ];
 
 self.addEventListener("install", (event) => {

@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SentraJet Premium — Mobilité en temps réel",
-  description: "Chauffeur, taxi AIBD et livraisons premium suivis en temps réel au Sénégal.",
+  description: "Courses VTC, taxi AIBD, Allô Dakar et covoiturage suivis en temps réel au Sénégal.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",
