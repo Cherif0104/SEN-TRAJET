@@ -20,14 +20,32 @@ export async function GET(request: NextRequest) {
       next: { revalidate: 3600 }
     });
     if (!response.ok) throw new Error("Reverse geocoder unavailable");
-    const row = (await response.json()) as { place_id?: number; display_name?: string; name?: string };
+    const row = (await response.json()) as {
+      place_id?: number;
+      display_name?: string;
+      name?: string;
+      address?: {
+        state?: string;
+        region?: string;
+        city?: string;
+        town?: string;
+        county?: string;
+      };
+    };
+    const region = row.address?.state
+      || row.address?.region
+      || row.address?.city
+      || row.address?.town
+      || row.address?.county
+      || "Sénégal";
     return NextResponse.json({
       place: {
         id: `geo:${row.place_id || `${lat},${lng}`}`,
         label: row.name || "Ma position",
         address: row.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
         lat,
-        lng
+        lng,
+        region
       }
     });
   } catch {
@@ -37,7 +55,8 @@ export async function GET(request: NextRequest) {
         label: "Ma position",
         address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
         lat,
-        lng
+        lng,
+        region: "Sénégal"
       }
     });
   }

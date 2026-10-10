@@ -62,6 +62,9 @@ export type DriverProfile = {
   license_expires_at: string | null;
   birth_date: string | null;
   address: string | null;
+  operating_region: string | null;
+  base_lat: number | null;
+  base_lng: number | null;
   years_experience: number | null;
   submitted_at: string | null;
   rejection_reason: string | null;
@@ -140,6 +143,7 @@ export type Place = {
   address: string;
   lat: number;
   lng: number;
+  region?: string;
 };
 
 export type RideRequest = {

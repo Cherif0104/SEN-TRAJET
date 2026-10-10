@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,11 +9,14 @@ import {
   Camera,
   CarFront,
   Check,
+  Crosshair,
   FileCheck2,
   FileText,
   LoaderCircle,
+  MapPin,
+  ScanFace,
   ShieldCheck,
-  Upload
+  Sparkles
 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useAuth } from "@/components/AuthProvider";
@@ -21,8 +24,8 @@ import { supabase } from "@/lib/supabase";
 import type {
   DriverDocument,
   DriverDocumentKind,
-  DriverOnboardingStatus,
   DriverProfile,
+  Place,
   RideClass
 } from "@/lib/types";
 import {
@@ -34,6 +37,21 @@ import {
   VEHICLE_YEARS
 } from "@/lib/vehicleCatalog";
 
+type PersonalForm = {
+  fullName: string;
+  phone: string;
+  birthDate: string;
+  region: string;
+  baseLat: number | null;
+  baseLng: number | null;
+};
+
+type LicenseForm = {
+  number: string;
+  issuedAt: string;
+  expiresAt: string;
+};
+
 type VehicleForm = {
   brand: string;
   model: string;
@@ -41,15 +59,6 @@ type VehicleForm = {
   plate: string;
   color: string;
   seats: string;
-};
-
-type DriverForm = {
-  fullName: string;
-  licenseNumber: string;
-  licenseIssuedAt: string;
-  licenseExpiresAt: string;
-  birthDate: string;
-  yearsExperience: string;
 };
 
 type VehicleRow = {
@@ -62,43 +71,118 @@ type VehicleRow = {
   seats: number;
 };
 
-const requiredDocuments: Array<{
+type DocumentDefinition = {
   kind: DriverDocumentKind;
   title: string;
   hint: string;
   icon: typeof FileText;
-}> = [
-  { kind: "identity_front", title: "Pièce d’identité · recto", hint: "CNI ou passeport, face avant lisible", icon: FileText },
-  { kind: "identity_back", title: "Pièce d’identité · verso", hint: "Face arrière complète et sans reflet", icon: FileText },
-  { kind: "driver_license_front", title: "Permis · recto", hint: "Photo, identité et numéro lisibles", icon: BadgeCheck },
-  { kind: "driver_license_back", title: "Permis · verso", hint: "Catégories et dates visibles", icon: BadgeCheck },
-  { kind: "vehicle_registration", title: "Carte grise", hint: "Document du véhicule déclaré", icon: CarFront },
-  { kind: "vehicle_insurance", title: "Assurance véhicule", hint: "Attestation en cours de validité", icon: ShieldCheck }
+  capture: "user" | "environment";
+};
+
+const LICENSE_DOCUMENTS: DocumentDefinition[] = [
+  { kind: "driver_license_front", title: "Permis · recto", hint: "Photo, nom et numéro bien visibles", icon: BadgeCheck, capture: "environment" },
+  { kind: "driver_license_back", title: "Permis · verso", hint: "Catégories et dates sans reflet", icon: BadgeCheck, capture: "environment" }
 ];
 
-const steps = ["Identité", "Véhicule", "Documents", "Validation"];
+const VEHICLE_DOCUMENTS: DocumentDefinition[] = [
+  { kind: "vehicle_registration", title: "Carte grise", hint: "Toutes les mentions du véhicule", icon: FileText, capture: "environment" },
+  { kind: "vehicle_insurance", title: "Assurance", hint: "Attestation en cours de validité", icon: ShieldCheck, capture: "environment" },
+  { kind: "vehicle_photo", title: "Photo du véhicule", hint: "Vue extérieure complète et nette", icon: CarFront, capture: "environment" }
+];
+
+const IDENTITY_DOCUMENTS: DocumentDefinition[] = [
+  { kind: "identity_front", title: "Identité · recto", hint: "CNI ou passeport, face avant", icon: FileText, capture: "environment" },
+  { kind: "identity_back", title: "Identité · verso", hint: "Face arrière complète", icon: FileText, capture: "environment" },
+  { kind: "profile_photo", title: "Photo du visage", hint: "Visage seul, de face et bien éclairé", icon: ScanFace, capture: "user" }
+];
+
+const REQUIRED_DOCUMENTS = [
+  ...LICENSE_DOCUMENTS,
+  ...VEHICLE_DOCUMENTS,
+  ...IDENTITY_DOCUMENTS
+];
+
+const STEP_LABELS = [
+  "Profil",
+  "Permis",
+  "Photos permis",
+  "Véhicule",
+  "Documents véhicule",
+  "Identité",
+  "Validation"
+];
+
+function expiryAfterTenYears(issuedAt: string) {
+  if (!issuedAt) return "";
+  const date = new Date(`${issuedAt}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setUTCFullYear(date.getUTCFullYear() + 10);
+  return date.toISOString().slice(0, 10);
+}
+
+function experienceFromIssueDate(issuedAt: string) {
+  if (!issuedAt) return 0;
+  const issue = new Date(`${issuedAt}T00:00:00Z`);
+  const now = new Date();
+  let years = now.getUTCFullYear() - issue.getUTCFullYear();
+  if (
+    now.getUTCMonth() < issue.getUTCMonth()
+    || (now.getUTCMonth() === issue.getUTCMonth() && now.getUTCDate() < issue.getUTCDate())
+  ) years -= 1;
+  return Math.max(0, Math.min(years, 60));
+}
 
 function friendlyError(reason: unknown) {
   const raw = reason instanceof Error ? reason.message : "Une erreur est survenue.";
-  if (/required_documents_missing/i.test(raw)) return "Ajoutez les quatre documents obligatoires avant l’envoi.";
-  if (/invalid_driver_onboarding_data/i.test(raw)) return "Vérifiez vos informations personnelles et celles du véhicule.";
-  if (/approved_profile_locked/i.test(raw)) return "Ce dossier est déjà validé et ne peut plus être modifié.";
-  if (/payload too large|maximum allowed size|file size/i.test(raw)) return "Le fichier dépasse la taille maximale de 10 Mo.";
-  if (/mime|content type/i.test(raw)) return "Utilisez un fichier PDF, JPEG, PNG ou WebP.";
-  return raw;
+  const errors: Array<[RegExp, string]> = [
+    [/invalid_full_name/i, "Renseignez vos nom et prénom tels qu’ils figurent sur vos pièces."],
+    [/invalid_phone/i, "Renseignez un numéro de téléphone sénégalais valide."],
+    [/driver_underage/i, "Le chauffeur doit avoir au moins 18 ans."],
+    [/operating_region_required/i, "Autorisez la localisation pour définir votre région d’activité."],
+    [/invalid_license_number/i, "Vérifiez le numéro de votre permis."],
+    [/invalid_license_issue_date/i, "La date d’obtention du permis est incorrecte."],
+    [/invalid_license_validity/i, "La date d’expiration doit correspondre aux 10 ans de validité du permis."],
+    [/license_expired/i, "Ce permis est arrivé à expiration. Renouvelez-le avant l’inscription."],
+    [/invalid_vehicle_year/i, "Sélectionnez une année de véhicule valide."],
+    [/invalid_vehicle_reference/i, "Sélectionnez la marque et le modèle du véhicule."],
+    [/invalid_vehicle_plate/i, "Vérifiez le numéro d’immatriculation."],
+    [/invalid_vehicle_color/i, "Sélectionnez la couleur du véhicule."],
+    [/invalid_vehicle_capacity/i, "Vérifiez le nombre de places."],
+    [/required_documents_missing/i, "Ajoutez toutes les photos obligatoires avant l’envoi."],
+    [/driver_information_incomplete/i, "Certaines informations obligatoires sont encore incomplètes."],
+    [/approved_profile_locked/i, "Ce dossier est déjà validé et ne peut plus être modifié."],
+    [/payload too large|maximum allowed size|file size/i, "La photo dépasse la taille maximale de 10 Mo."],
+    [/mime|content type/i, "Utilisez une photo JPEG, PNG, WebP ou un PDF."],
+    [/failed to fetch|network|load failed/i, "Connexion momentanément impossible. Vérifiez votre réseau puis réessayez."]
+  ];
+  return errors.find(([pattern]) => pattern.test(raw))?.[1] ?? raw;
+}
+
+async function validateImageQuality(file: File) {
+  if (!file.type.startsWith("image/")) return;
+  const image = await createImageBitmap(file);
+  const valid = image.width >= 720 && image.height >= 480;
+  image.close();
+  if (!valid) throw new Error("image_resolution_too_low");
 }
 
 export function DriverOnboardingWizard() {
   const { user, profile } = useAuth();
+  const locationAttempted = useRef(false);
   const [step, setStep] = useState(0);
   const [driver, setDriver] = useState<DriverProfile | null>(null);
-  const [driverForm, setDriverForm] = useState<DriverForm>({
+  const [personal, setPersonal] = useState<PersonalForm>({
     fullName: "",
-    licenseNumber: "",
-    licenseIssuedAt: "",
-    licenseExpiresAt: "",
+    phone: "",
     birthDate: "",
-    yearsExperience: "0"
+    region: "",
+    baseLat: null,
+    baseLng: null
+  });
+  const [license, setLicense] = useState<LicenseForm>({
+    number: "",
+    issuedAt: "",
+    expiresAt: ""
   });
   const [vehicle, setVehicle] = useState<VehicleForm>({
     brand: "",
@@ -111,8 +195,52 @@ export function DriverOnboardingWizard() {
   const [documents, setDocuments] = useState<DriverDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [uploading, setUploading] = useState<DriverDocumentKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function detectRegion(silent = false) {
+    if (!navigator.geolocation) {
+      if (!silent) setError("La géolocalisation n’est pas disponible sur cet appareil.");
+      return;
+    }
+    setLocating(true);
+    if (!silent) setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        void fetch(`/api/reverse-geocode?lat=${latitude}&lng=${longitude}`)
+          .then((response) => response.json())
+          .then((data: { place?: Place }) => {
+            const place = data.place;
+            setPersonal((current) => ({
+              ...current,
+              region: place?.region || place?.label || "Sénégal",
+              baseLat: latitude,
+              baseLng: longitude
+            }));
+          })
+          .catch(() => {
+            setPersonal((current) => ({
+              ...current,
+              region: "Sénégal",
+              baseLat: latitude,
+              baseLng: longitude
+            }));
+          })
+          .finally(() => setLocating(false));
+      },
+      (reason) => {
+        setLocating(false);
+        if (!silent) {
+          setError(reason.code === 1
+            ? "Autorisez la localisation pour définir votre région d’activité."
+            : "Position indisponible. Réessayez dans un endroit dégagé.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60_000 }
+    );
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -122,11 +250,12 @@ export function DriverOnboardingWizard() {
       setLoading(true);
       const { data: driverData, error: driverError } = await supabase
         .from("driver_profiles")
-        .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, years_experience, submitted_at, rejection_reason")
+        .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, operating_region, base_lat, base_lng, years_experience, submitted_at, rejection_reason")
         .eq("user_id", user!.id)
-        .single();
-      if (driverError) {
-        if (active) setError(friendlyError(driverError));
+        .maybeSingle();
+
+      if (driverError || !driverData) {
+        if (active) setError(driverError ? friendlyError(driverError) : "Profil chauffeur introuvable. Reconnectez-vous puis réessayez.");
         if (active) setLoading(false);
         return;
       }
@@ -149,13 +278,18 @@ export function DriverOnboardingWizard() {
 
       if (!active) return;
       setDriver(driverProfile);
-      setDriverForm({
+      setPersonal({
         fullName: profile?.full_name ?? "",
-        licenseNumber: driverProfile.license_number ?? "",
-        licenseIssuedAt: driverProfile.license_issued_at ?? "",
-        licenseExpiresAt: driverProfile.license_expires_at ?? "",
+        phone: profile?.phone ?? "",
         birthDate: driverProfile.birth_date ?? "",
-        yearsExperience: String(driverProfile.years_experience ?? 0)
+        region: driverProfile.operating_region ?? "",
+        baseLat: driverProfile.base_lat ?? null,
+        baseLng: driverProfile.base_lng ?? null
+      });
+      setLicense({
+        number: driverProfile.license_number ?? "",
+        issuedAt: driverProfile.license_issued_at ?? "",
+        expiresAt: driverProfile.license_expires_at ?? ""
       });
       if (vehicleData) {
         const row = vehicleData as VehicleRow;
@@ -176,25 +310,35 @@ export function DriverOnboardingWizard() {
     return () => {
       active = false;
     };
-  }, [profile?.full_name, user]);
+  }, [profile?.full_name, profile?.phone, user]);
+
+  useEffect(() => {
+    if (loading || personal.region || locationAttempted.current) return;
+    locationAttempted.current = true;
+    void detectRegion(true);
+  }, [loading, personal.region]);
 
   const completedDocuments = useMemo(
-    () => requiredDocuments.filter(({ kind }) => documents.some((document) => document.kind === kind)).length,
+    () => REQUIRED_DOCUMENTS.filter(({ kind }) => documents.some((document) => document.kind === kind)).length,
     [documents]
   );
 
   async function persistDetails() {
     const { error: saveError } = await supabase.rpc("save_driver_onboarding", {
-      p_full_name: driverForm.fullName,
-      p_license_number: driverForm.licenseNumber,
-      p_license_issued_at: driverForm.licenseIssuedAt,
-      p_license_expires_at: driverForm.licenseExpiresAt,
-      p_birth_date: driverForm.birthDate,
-      p_years_experience: Number(driverForm.yearsExperience),
+      p_full_name: personal.fullName.trim(),
+      p_phone: personal.phone.trim(),
+      p_birth_date: personal.birthDate,
+      p_operating_region: personal.region,
+      p_base_lat: personal.baseLat,
+      p_base_lng: personal.baseLng,
+      p_license_number: license.number.trim(),
+      p_license_issued_at: license.issuedAt,
+      p_license_expires_at: license.expiresAt,
+      p_years_experience: experienceFromIssueDate(license.issuedAt),
       p_brand: vehicle.brand,
       p_model: vehicle.model,
       p_vehicle_year: Number(vehicle.year),
-      p_plate: vehicle.plate,
+      p_plate: vehicle.plate.trim(),
       p_color: vehicle.color,
       p_seats: Number(vehicle.seats)
     });
@@ -218,12 +362,16 @@ export function DriverOnboardingWizard() {
     if (!user || !driver) return;
     setError(null);
     if (file.size > 10 * 1024 * 1024) {
-      setError("Le fichier dépasse la taille maximale de 10 Mo.");
+      setError("La photo dépasse la taille maximale de 10 Mo.");
       return;
     }
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (!allowed.includes(file.type)) {
-      setError("Utilisez un fichier PDF, JPEG, PNG ou WebP.");
+      setError("Utilisez une photo JPEG, PNG, WebP ou un PDF.");
+      return;
+    }
+    if ((kind === "profile_photo" || kind === "vehicle_photo") && !file.type.startsWith("image/")) {
+      setError("Prenez une photo directement avec l’appareil.");
       return;
     }
 
@@ -233,6 +381,7 @@ export function DriverOnboardingWizard() {
     const path = `${user.id}/${kind}/${crypto.randomUUID()}-${safeName}`;
 
     try {
+      await validateImageQuality(file);
       const { error: uploadError } = await supabase.storage
         .from("sentrajet-driver-documents")
         .upload(path, file, { contentType: file.type, upsert: false });
@@ -270,7 +419,11 @@ export function DriverOnboardingWizard() {
       ]);
     } catch (reason) {
       await supabase.storage.from("sentrajet-driver-documents").remove([path]);
-      setError(friendlyError(reason));
+      setError(
+        reason instanceof Error && reason.message === "image_resolution_too_low"
+          ? "Photo trop petite. Reprenez-la avec une résolution d’au moins 720 × 480."
+          : friendlyError(reason)
+      );
     } finally {
       setUploading(null);
     }
@@ -293,13 +446,43 @@ export function DriverOnboardingWizard() {
     }
   }
 
-  if (loading) {
+  function renderDocuments(definitions: DocumentDefinition[]) {
     return (
-      <div className="driver-loading">
-        <LoaderCircle className="spin" color="var(--gold)" />
-        <p>Préparation de votre dossier sécurisé…</p>
+      <div className="document-list compact">
+        {definitions.map(({ kind, title, hint, icon: Icon, capture }) => {
+          const document = documents.find((item) => item.kind === kind);
+          return (
+            <label className={`document-tile ${document ? "complete" : ""}`} key={kind}>
+              <span className="document-icon">{document ? <Check /> : <Icon />}</span>
+              <span><strong>{title}</strong><small>{document?.original_name ?? hint}</small></span>
+              <span className="document-action">
+                {uploading === kind ? <LoaderCircle className="spin" /> : document ? "Refaire" : <Camera />}
+              </span>
+              <input
+                type="file"
+                accept={kind === "profile_photo" || kind === "vehicle_photo" ? "image/jpeg,image/png,image/webp" : ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"}
+                capture={capture}
+                disabled={uploading !== null}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void uploadDocument(kind, file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          );
+        })}
       </div>
     );
+  }
+
+  function goBack() {
+    setError(null);
+    setStep((current) => Math.max(0, current - 1));
+  }
+
+  if (loading) {
+    return <div className="driver-loading"><LoaderCircle className="spin" color="var(--gold)" /><p>Préparation du dossier sécurisé…</p></div>;
   }
 
   if (driver?.onboarding_status === "submitted" || driver?.onboarding_status === "approved") {
@@ -309,229 +492,165 @@ export function DriverOnboardingWizard() {
         <BrandLogo inverse />
         <div className="driver-status-card">
           <span className="status-orb"><FileCheck2 /></span>
-          <p className="onboarding-eyebrow">{approved ? "Compte activé" : "Dossier transmis"}</p>
-          <h1>{approved ? "Vous êtes prêt à conduire." : "Notre équipe vérifie votre dossier."}</h1>
+          <p className="onboarding-eyebrow">{approved ? "Compte activé" : "Contrôles en cours"}</p>
+          <h1>{approved ? "Vous êtes prêt à conduire." : "Votre dossier a bien été transmis."}</h1>
           <p>
             {approved
               ? "Votre véhicule et vos justificatifs ont été validés."
-              : "Vous recevrez une notification dès que la revue sera terminée. Vos documents restent privés."}
+              : "Les contrôles automatiques seront lancés dès le raccordement du prestataire KYC. Aucun résultat artificiel n’est affiché."}
           </p>
-          <Link className="primary-button gold" href="/driver">
-            Accéder à mon espace <ArrowRight size={18} />
-          </Link>
+          <Link className="primary-button gold" href="/driver">Accéder à mon espace <ArrowRight size={18} /></Link>
         </div>
       </section>
     );
   }
 
+  const progress = ((step + 1) / STEP_LABELS.length) * 100;
+
   return (
-    <section className="driver-wizard safe-bottom">
-      <header className="driver-hero safe-top">
-        <div className="driver-hero-top">
-          <Link href="/driver" aria-label="Retour à l’espace chauffeur"><ArrowLeft size={20} /></Link>
-          <BrandLogo compact inverse />
-          <span className="secure-badge"><ShieldCheck size={14} /> Privé</span>
-        </div>
-        <p className="onboarding-eyebrow">Activation chauffeur</p>
-        <h1>Votre espace professionnel commence ici.</h1>
-        <p>Un parcours guidé pour vérifier votre identité, votre véhicule et vous confier des courses.</p>
-        <div className="onboarding-progress" aria-label={`Étape ${step + 1} sur ${steps.length}`}>
-          {steps.map((label, index) => (
-            <div key={label} className={index === step ? "active" : index < step ? "done" : ""}>
-              <span>{index < step ? <Check size={13} /> : index + 1}</span>
-              <small>{label}</small>
-            </div>
-          ))}
-        </div>
+    <section className="driver-wizard-v2">
+      <header className="driver-wizard-bar safe-top">
+        <Link href="/driver" aria-label="Retour à l’espace chauffeur"><ArrowLeft size={20} /></Link>
+        <BrandLogo compact inverse />
+        <span>{step + 1}/{STEP_LABELS.length}</span>
       </header>
+      <div className="wizard-progress-track"><i style={{ width: `${progress}%` }} /></div>
 
-      <div className="wizard-body">
-        {driver?.onboarding_status === "rejected" && driver.rejection_reason ? (
-          <div className="review-alert">
-            <strong>Correction demandée</strong>
-            <p>{driver.rejection_reason}</p>
-          </div>
-        ) : null}
+      <div className="wizard-fixed-body">
+        <div className="wizard-fixed-heading">
+          <p className="onboarding-eyebrow">{STEP_LABELS[step]}</p>
+          <h1>
+            {step === 0 ? "Vos informations"
+              : step === 1 ? "Votre permis"
+                : step === 2 ? "Photographiez le permis"
+                  : step === 3 ? "Votre véhicule"
+                    : step === 4 ? "Contrôle du véhicule"
+                      : step === 5 ? "Vérification d’identité"
+                        : "Vérifiez et envoyez"}
+          </h1>
+          <p>
+            {step === 0 ? "Les données essentielles de votre compte chauffeur."
+              : step === 1 ? "L’expiration est calculée automatiquement sur 10 ans."
+                : step === 2 ? "Deux photos nettes, sans reflet ni partie coupée."
+                  : step === 3 ? "La classe de service sera déterminée automatiquement."
+                    : step === 4 ? "Les documents doivent correspondre au véhicule déclaré."
+                      : step === 5 ? "Votre visage sera rapproché de vos pièces par un prestataire KYC certifié."
+                        : "Aucune activation n’est automatique sans contrôle réel."}
+          </p>
+        </div>
 
-        {step === 0 ? (
-          <div className="wizard-step">
-            <StepHeading number="01" title="Faisons connaissance" text="Ces informations permettent de vérifier votre aptitude professionnelle." />
-            <div className="field">
-              <label>Nom et prénom</label>
-              <input value={driverForm.fullName} onChange={(event) => setDriverForm({ ...driverForm, fullName: event.target.value })} placeholder="Nom complet tel qu’indiqué sur vos pièces" autoComplete="name" />
-            </div>
-            <div className="field">
-              <label>Numéro de permis</label>
-              <input value={driverForm.licenseNumber} onChange={(event) => setDriverForm({ ...driverForm, licenseNumber: event.target.value })} placeholder="Ex. SN-123456" />
-            </div>
-            <div className="form-grid">
-              <div className="field">
-                <label>Permis obtenu le</label>
-                <input type="date" value={driverForm.licenseIssuedAt} onChange={(event) => setDriverForm({ ...driverForm, licenseIssuedAt: event.target.value })} />
-              </div>
-              <div className="field">
-                <label>Expire le</label>
-                <input type="date" value={driverForm.licenseExpiresAt} onChange={(event) => setDriverForm({ ...driverForm, licenseExpiresAt: event.target.value })} />
-              </div>
-            </div>
-            <div className="form-grid">
-              <div className="field">
-                <label>Date de naissance</label>
-                <input type="date" value={driverForm.birthDate} onChange={(event) => setDriverForm({ ...driverForm, birthDate: event.target.value })} />
-              </div>
-              <div className="field">
-                <label>Expérience</label>
-                <input type="number" min="0" max="60" value={driverForm.yearsExperience} onChange={(event) => setDriverForm({ ...driverForm, yearsExperience: event.target.value })} />
-              </div>
-            </div>
-            <button className="primary-button" type="button" disabled={!driverForm.fullName.trim() || !driverForm.licenseNumber.trim() || !driverForm.licenseIssuedAt || !driverForm.licenseExpiresAt || !driverForm.birthDate} onClick={() => setStep(1)}>
-              Continuer <ArrowRight size={18} />
-            </button>
-          </div>
-        ) : null}
+        <div className="wizard-fixed-content">
+          {driver?.onboarding_status === "rejected" && driver.rejection_reason ? (
+            <div className="review-alert"><strong>Correction demandée</strong><p>{driver.rejection_reason}</p></div>
+          ) : null}
 
-        {step === 1 ? (
-          <div className="wizard-step">
-            <StepHeading number="02" title="Votre véhicule" text="Déclarez le véhicule principal utilisé pour recevoir les missions." />
-            <div className="form-grid">
-              <div className="field">
-                <label>Marque</label>
-                <select value={vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, brand: event.target.value, model: "" })}>
-                  <option value="">Choisir</option>
-                  {VEHICLE_BRANDS.map((brand) => <option value={brand} key={brand}>{brand}</option>)}
-                </select>
+          {step === 0 ? (
+            <>
+              <div className="field"><label>Nom et prénom</label><input value={personal.fullName} onChange={(event) => setPersonal({ ...personal, fullName: event.target.value })} autoComplete="name" /></div>
+              <div className="form-grid">
+                <div className="field"><label>Téléphone</label><input value={personal.phone} onChange={(event) => setPersonal({ ...personal, phone: event.target.value })} type="tel" autoComplete="tel" placeholder="+221 77 000 00 00" /></div>
+                <div className="field"><label>Date de naissance</label><input type="date" value={personal.birthDate} onChange={(event) => setPersonal({ ...personal, birthDate: event.target.value })} /></div>
               </div>
-              <div className="field">
-                <label>Modèle</label>
-                <select value={vehicle.model} disabled={!vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, model: event.target.value })}>
-                  <option value="">Choisir</option>
-                  {modelsForBrand(vehicle.brand).map((model) => <option value={model} key={model}>{model}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="form-grid">
-              <div className="field">
-                <label>Année</label>
-                <select value={vehicle.year} onChange={(event) => setVehicle({ ...vehicle, year: event.target.value })}>
-                  <option value="">Choisir</option>
-                  {VEHICLE_YEARS.map((year) => <option value={year} key={year}>{year}</option>)}
-                </select>
-              </div>
-              <div className="field">
-                <label>Places</label>
-                <input type="number" min="1" max="60" value={vehicle.seats} onChange={(event) => setVehicle({ ...vehicle, seats: event.target.value })} />
-              </div>
-            </div>
-            <div className="field">
-              <label>Immatriculation</label>
-              <input value={vehicle.plate} onChange={(event) => setVehicle({ ...vehicle, plate: event.target.value.toUpperCase() })} placeholder="DK 0000 AA" />
-            </div>
-            <div className="field">
-              <label>Couleur</label>
-              <div className="vehicle-colors">
-                {VEHICLE_COLORS.map((color) => (
-                  <button type="button" key={color.value} className={vehicle.color === color.value ? "selected" : ""} aria-label={color.value} onClick={() => setVehicle({ ...vehicle, color: color.value })}>
-                    <i style={{ background: color.hex }} /><span>{color.value}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            {vehicle.year ? (
-              <div className="eligibility-preview">
-                <ShieldCheck />
-                <div>
-                  <strong>Classes estimées</strong>
-                  <span>{eligibleRideClasses(Number(vehicle.year)).map(rideClassLabel).join(" · ")}</span>
-                  <small>Attribution finale après contrôle du modèle, de l’état et des documents.</small>
-                </div>
-              </div>
-            ) : null}
-            <div className="wizard-actions">
-              <button className="secondary-button" type="button" onClick={() => setStep(0)}>Retour</button>
-              <button className="primary-button" type="button" disabled={busy || !vehicle.brand || !vehicle.model || !vehicle.year || !vehicle.plate || !vehicle.color} onClick={() => void saveDetails(2)}>
-                {busy ? "Enregistrement…" : "Enregistrer et continuer"}
+              <button type="button" className={`region-card ${personal.region ? "detected" : ""}`} onClick={() => void detectRegion()}>
+                <span>{locating ? <LoaderCircle className="spin" /> : <MapPin />}</span>
+                <div><small>Région d’activité</small><strong>{locating ? "Détection…" : personal.region || "Détecter ma région"}</strong></div>
+                <Crosshair />
               </button>
-            </div>
-          </div>
-        ) : null}
+            </>
+          ) : null}
 
-        {step === 2 ? (
-          <div className="wizard-step">
-            <StepHeading number="03" title="Contrôle documentaire" text="Photographiez chaque face sans reflet. Les données sont rapprochées de votre identité avant la revue finale." />
-            <div className="document-list">
-              {requiredDocuments.map(({ kind, title, hint, icon: Icon }) => {
-                const document = documents.find((item) => item.kind === kind);
-                return (
-                  <label className={`document-tile ${document ? "complete" : ""}`} key={kind}>
-                    <span className="document-icon">{document ? <Check /> : <Icon />}</span>
-                    <span>
-                      <strong>{title}</strong>
-                      <small>{document?.original_name ?? hint}</small>
-                    </span>
-                    <span className="document-action">
-                      {uploading === kind ? <LoaderCircle className="spin" /> : document ? "Remplacer" : <Upload />}
-                    </span>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-                      capture="environment"
-                      disabled={uploading !== null}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) void uploadDocument(kind, file);
-                        event.target.value = "";
-                      }}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-            <div className="document-count"><FileCheck2 size={18} /> {completedDocuments}/{requiredDocuments.length} documents obligatoires ajoutés</div>
-            <div className="wizard-actions">
-              <button className="secondary-button" type="button" onClick={() => setStep(1)}>Retour</button>
-              <button className="primary-button" type="button" disabled={completedDocuments < requiredDocuments.length} onClick={() => setStep(3)}>
-                Vérifier mon dossier
-              </button>
-            </div>
-          </div>
-        ) : null}
+          {step === 1 ? (
+            <>
+              <div className="field"><label>Numéro du permis</label><input value={license.number} onChange={(event) => setLicense({ ...license, number: event.target.value.toUpperCase() })} placeholder="Ex. SN-123456" /></div>
+              <div className="form-grid">
+                <div className="field"><label>Obtenu le</label><input type="date" max={new Date().toISOString().slice(0, 10)} value={license.issuedAt} onChange={(event) => setLicense({ number: license.number, issuedAt: event.target.value, expiresAt: expiryAfterTenYears(event.target.value) })} /></div>
+                <div className="field"><label>Expire le</label><input type="date" value={license.expiresAt} readOnly /></div>
+              </div>
+              <div className="automatic-check"><Sparkles /><div><strong>Calcul automatique</strong><small>Validité réglementaire de 10 ans et expérience calculée depuis l’obtention.</small></div></div>
+            </>
+          ) : null}
 
-        {step === 3 ? (
-          <div className="wizard-step">
-            <StepHeading number="04" title="Prêt pour la vérification" text="Relisez vos éléments. Après l’envoi, l’équipe SentraJet contrôle chaque justificatif." />
-            <div className="summary-card">
-              <SummaryLine label="Permis" value={driverForm.licenseNumber} />
-              <SummaryLine label="Véhicule" value={`${vehicle.brand} ${vehicle.model}`} />
-              <SummaryLine label="Immatriculation" value={vehicle.plate} />
-              <SummaryLine label="Année et couleur" value={`${vehicle.year} · ${vehicle.color}`} />
-              <SummaryLine label="Classes estimées" value={eligibleRideClasses(Number(vehicle.year)).map(rideClassLabel).join(" · ")} />
-              <SummaryLine label="Documents" value={`${completedDocuments} fichiers sécurisés`} />
-            </div>
-            <div className="consent-note">
-              <ShieldCheck size={20} />
-              <p>En envoyant ce dossier, vous certifiez l’exactitude des informations. Aucun paiement n’est demandé pour la validation.</p>
-            </div>
-            <div className="wizard-actions">
-              <button className="secondary-button" type="button" onClick={() => setStep(2)}>Modifier</button>
-              <button className="primary-button gold" type="button" disabled={busy || completedDocuments < requiredDocuments.length} onClick={() => void submitApplication()}>
-                {busy ? "Envoi sécurisé…" : "Envoyer pour validation"}
-              </button>
-            </div>
-          </div>
-        ) : null}
+          {step === 2 ? renderDocuments(LICENSE_DOCUMENTS) : null}
 
-        {error ? <div className="error" role="alert">{error}</div> : null}
+          {step === 3 ? (
+            <>
+              <div className="vehicle-preview" style={{ color: VEHICLE_COLORS.find((item) => item.value === vehicle.color)?.hex || "var(--gold)" }}>
+                <CarFront />
+                <div><strong>{vehicle.brand || "Marque"} {vehicle.model}</strong><small>{vehicle.year || "Année"} · {vehicle.plate || "Immatriculation"}</small></div>
+              </div>
+              <div className="form-grid">
+                <div className="field"><label>Marque</label><select value={vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, brand: event.target.value, model: "" })}><option value="">Choisir</option>{VEHICLE_BRANDS.map((brand) => <option value={brand} key={brand}>{brand}</option>)}</select></div>
+                <div className="field"><label>Modèle</label><select value={vehicle.model} disabled={!vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, model: event.target.value })}><option value="">Choisir</option>{modelsForBrand(vehicle.brand).map((model) => <option value={model} key={model}>{model}</option>)}</select></div>
+              </div>
+              <div className="form-grid">
+                <div className="field"><label>Année</label><select value={vehicle.year} onChange={(event) => setVehicle({ ...vehicle, year: event.target.value })}><option value="">Choisir</option>{VEHICLE_YEARS.map((year) => <option value={year} key={year}>{year}</option>)}</select></div>
+                <div className="field"><label>Immatriculation</label><input value={vehicle.plate} onChange={(event) => setVehicle({ ...vehicle, plate: event.target.value.toUpperCase() })} placeholder="DK 0000 AA" /></div>
+              </div>
+              <div className="vehicle-colors compact">
+                {VEHICLE_COLORS.map((color) => <button type="button" key={color.value} className={vehicle.color === color.value ? "selected" : ""} aria-label={color.value} onClick={() => setVehicle({ ...vehicle, color: color.value })}><i style={{ background: color.hex }} /><span>{color.value}</span></button>)}
+              </div>
+            </>
+          ) : null}
+
+          {step === 4 ? (
+            <>
+              <div className="form-grid">
+                <div className="field"><label>Nombre de places</label><select value={vehicle.seats} onChange={(event) => setVehicle({ ...vehicle, seats: event.target.value })}>{[2, 3, 4, 5, 6, 7, 8, 9].map((seats) => <option value={seats} key={seats}>{seats} places</option>)}</select></div>
+                <div className="eligibility-mini"><small>Classes estimées</small><strong>{vehicle.year ? eligibleRideClasses(Number(vehicle.year)).map(rideClassLabel).join(" · ") : "À calculer"}</strong></div>
+              </div>
+              {renderDocuments(VEHICLE_DOCUMENTS)}
+            </>
+          ) : null}
+
+          {step === 5 ? (
+            <>
+              <div className="kyc-notice"><ScanFace /><div><strong>Contrôle antifraude</strong><small>Qualité des photos contrôlée maintenant. OCR, authenticité et correspondance faciale nécessitent le prestataire KYC sécurisé.</small></div></div>
+              {renderDocuments(IDENTITY_DOCUMENTS)}
+            </>
+          ) : null}
+
+          {step === 6 ? (
+            <>
+              <div className="summary-card compact">
+                <SummaryLine label="Chauffeur" value={`${personal.fullName} · ${personal.phone}`} />
+                <SummaryLine label="Région" value={personal.region} />
+                <SummaryLine label="Permis" value={`${license.number} · valide jusqu’au ${license.expiresAt}`} />
+                <SummaryLine label="Véhicule" value={`${vehicle.brand} ${vehicle.model} · ${vehicle.year} · ${vehicle.color}`} />
+                <SummaryLine label="Documents" value={`${completedDocuments}/${REQUIRED_DOCUMENTS.length} photos sécurisées`} />
+              </div>
+              <div className="consent-note"><ShieldCheck /><p>Je certifie que ces informations sont exactes et j’autorise leur contrôle sécurisé.</p></div>
+            </>
+          ) : null}
+        </div>
+
+        {error ? <div className="wizard-error error" role="alert">{error}</div> : null}
+
+        <div className="wizard-fixed-actions safe-bottom">
+          {step > 0 ? <button className="secondary-button" type="button" disabled={busy || uploading !== null} onClick={goBack}>Retour</button> : null}
+          <button
+            className={step === 6 ? "primary-button gold" : "primary-button"}
+            type="button"
+            disabled={
+              busy || uploading !== null
+              || (step === 0 && (!personal.fullName.trim() || !personal.phone.trim() || !personal.birthDate || !personal.region || personal.baseLat === null || personal.baseLng === null))
+              || (step === 1 && (!license.number.trim() || !license.issuedAt || !license.expiresAt))
+              || (step === 2 && LICENSE_DOCUMENTS.some(({ kind }) => !documents.some((document) => document.kind === kind)))
+              || (step === 3 && (!vehicle.brand || !vehicle.model || !vehicle.year || !vehicle.plate || !vehicle.color))
+              || (step === 4 && VEHICLE_DOCUMENTS.some(({ kind }) => !documents.some((document) => document.kind === kind)))
+              || (step === 5 && IDENTITY_DOCUMENTS.some(({ kind }) => !documents.some((document) => document.kind === kind)))
+              || (step === 6 && completedDocuments < REQUIRED_DOCUMENTS.length)
+            }
+            onClick={() => {
+              if (step === 3) void saveDetails(4);
+              else if (step === 6) void submitApplication();
+              else setStep((current) => Math.min(STEP_LABELS.length - 1, current + 1));
+            }}
+          >
+            {busy ? "Vérification…" : step === 6 ? "Envoyer mon dossier" : "Continuer"} <ArrowRight size={18} />
+          </button>
+        </div>
       </div>
     </section>
-  );
-}
-
-function StepHeading({ number, title, text }: { number: string; title: string; text: string }) {
-  return (
-    <div className="step-heading">
-      <span>{number}</span>
-      <div><h2>{title}</h2><p>{text}</p></div>
-    </div>
   );
 }
 
