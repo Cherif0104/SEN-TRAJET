@@ -6,23 +6,21 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
-  Bike,
   CarFront,
   Check,
   Clock3,
   Navigation,
-  Package,
   Plane,
   ShieldCheck,
-  Truck,
-  UserRound
+  UserRound,
+  UsersRound
 } from "lucide-react";
 import { LocationInput } from "@/components/LocationInput";
 import { supabase } from "@/lib/supabase";
 import { calculateFare, formatFare, RIDE_CLASSES } from "@/lib/fare";
 import type { Place, RideClass, RideRequest, ServiceType } from "@/lib/types";
 
-type Step = "route" | "class" | "review" | "searching" | "tracking";
+type Step = "route" | "class" | "review" | "searching" | "confirmed" | "tracking";
 
 const AIBD: Place = {
   id: "aibd",
@@ -32,28 +30,22 @@ const AIBD: Place = {
   lng: -17.0669
 };
 
-const deliveryClasses: Array<{ value: RideClass; label: string; description: string; icon: typeof Bike }> = [
-  { value: "eco", label: "Moto", description: "Petit colis · jusqu’à 10 kg", icon: Bike },
-  { value: "comfort", label: "Voiture", description: "Colis moyen · coffre", icon: CarFront },
-  { value: "comfort_plus", label: "Utilitaire", description: "Objets volumineux", icon: Truck },
-  { value: "vip", label: "Cargo", description: "Chargement professionnel", icon: Package }
-];
-
 export function RideFlow() {
   const searchParams = useSearchParams();
   const rawService = searchParams.get("service");
-  const service: ServiceType = rawService === "airport" || rawService === "delivery" ? rawService : "ride";
-  const deliveryKind = searchParams.get("kind") || "parcel";
+  const service: ServiceType = rawService === "airport" || rawService === "intercity" || rawService === "carpool" ? rawService : "ride";
+  const plannedOnly = service === "intercity" || service === "carpool";
   const [step, setStep] = useState<Step>("route");
   const [pickup, setPickup] = useState<Place | null>(null);
   const [destination, setDestination] = useState<Place | null>(service === "airport" ? AIBD : null);
   const [rideClass, setRideClass] = useState<RideClass>("eco");
-  const [scheduled, setScheduled] = useState(false);
+  const [scheduled, setScheduled] = useState(plannedOnly);
   const [scheduledAt, setScheduledAt] = useState("");
   const [route, setRoute] = useState<{ distanceKm: number; durationMinutes: number } | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [ride, setRide] = useState<RideRequest | null>(null);
   const [driver, setDriver] = useState<{ full_name: string; phone: string | null; vehicle: string | null; plate: string | null } | null>(null);
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number; heading: number | null; updated_at: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -93,6 +85,10 @@ export function RideFlow() {
 
   async function requestDriver() {
     if (!pickup || !destination || !route) return;
+    if (scheduled && !scheduledAt) {
+      setError("Choisissez la date et l’heure de départ.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -108,7 +104,7 @@ export function RideFlow() {
         p_distance_km: route.distanceKm,
         p_duration_minutes: route.durationMinutes,
         p_scheduled_for: scheduled && scheduledAt ? new Date(scheduledAt).toISOString() : null,
-        p_delivery_kind: service === "delivery" ? deliveryKind : null
+        p_delivery_kind: null
       });
       if (requestError) throw requestError;
       const rideId = String(data);
@@ -119,7 +115,7 @@ export function RideFlow() {
         .single();
       if (readError) throw readError;
       setRide(created as RideRequest);
-      setStep("searching");
+      setStep(scheduled ? "confirmed" : "searching");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "La recherche n’a pas pu démarrer.");
     } finally {
@@ -158,9 +154,41 @@ export function RideFlow() {
       .then(({ data }) => {
         if (data) setDriver(data);
       });
+    void supabase
+      .from("driver_locations")
+      .select("lat, lng, heading, updated_at")
+      .eq("driver_id", ride.driver_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setDriverLocation(data);
+      });
+    const locationChannel = supabase
+      .channel(`driver-location:${ride.driver_id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "driver_locations", filter: `driver_id=eq.${ride.driver_id}` },
+        (payload) => setDriverLocation(payload.new as { lat: number; lng: number; heading: number | null; updated_at: string })
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(locationChannel);
+    };
   }, [ride?.driver_id]);
 
-  const title = service === "airport" ? "Taxi AIBD" : service === "delivery" ? "Nouvelle livraison" : "Nouvelle course";
+  const title = service === "airport"
+    ? "Taxi Aéroport"
+    : service === "intercity"
+      ? "Allô Dakar"
+      : service === "carpool"
+        ? "Covoiturage"
+        : "Nouvelle course";
+  const eyebrow = service === "intercity"
+    ? "Voyage interurbain"
+    : service === "carpool"
+      ? "Trajet partagé"
+      : service === "airport"
+        ? "SentraJet AIBD"
+        : "SentraJet Ride";
 
   return (
     <section style={{ padding: "12px 18px 28px" }}>
@@ -169,7 +197,7 @@ export function RideFlow() {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <p className="eyebrow">{service === "delivery" ? "SentraJet Delivery" : "SentraJet Ride"}</p>
+          <p className="eyebrow">{eyebrow}</p>
           <h1 style={{ margin: "3px 0 0", fontSize: 22 }}>{title}</h1>
         </div>
       </div>
@@ -178,12 +206,12 @@ export function RideFlow() {
         <div style={{ marginTop: 22 }}>
           <div className="map-placeholder">
             <div style={{ position: "absolute", zIndex: 3, left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 46, height: 46, borderRadius: 18, background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", boxShadow: "0 12px 26px rgba(7,17,31,.25)" }}>
-              {service === "airport" ? <Plane /> : service === "delivery" ? <Package /> : <CarFront />}
+              {service === "airport" ? <Plane /> : service === "carpool" ? <UsersRound /> : <CarFront />}
             </div>
           </div>
           <div className="card" style={{ marginTop: -24, position: "relative", zIndex: 5, padding: 16, display: "grid", gap: 14 }}>
             <LocationInput label="Prise en charge" placeholder="Votre position ou une adresse" value={pickup} onChange={setPickup} allowGeolocation />
-            <LocationInput label={service === "delivery" ? "Adresse de livraison" : "Destination"} placeholder="Quartier, rue, hôtel ou lieu…" value={destination} onChange={setDestination} />
+            <LocationInput label="Destination" placeholder="Quartier, ville, rue, hôtel ou lieu…" value={destination} onChange={setDestination} />
             {service === "airport" ? (
               <button type="button" className="ghost-button" onClick={() => { setPickup(destination); setDestination(AIBD); }}>
                 <Plane size={17} /> Inverser vers / depuis AIBD
@@ -203,12 +231,11 @@ export function RideFlow() {
             <div><small className="muted">Distance</small><strong style={{ display: "block", marginTop: 4 }}>{route.distanceKm} km</strong></div>
             <div style={{ textAlign: "right" }}><small className="muted">Durée estimée</small><strong style={{ display: "block", marginTop: 4 }}>~{route.durationMinutes} min</strong></div>
           </div>
-          <h2 style={{ margin: "24px 0 12px" }}>{service === "delivery" ? "Choisissez le véhicule" : "Choisissez votre confort"}</h2>
+          <h2 style={{ margin: "24px 0 12px" }}>{service === "carpool" ? "Choisissez votre confort partagé" : "Choisissez votre confort"}</h2>
           <div style={{ display: "grid", gap: 10 }}>
-            {(service === "delivery"
-              ? deliveryClasses
-              : (Object.entries(RIDE_CLASSES) as Array<[RideClass, (typeof RIDE_CLASSES)[RideClass]]>).map(([value, item]) => ({ value, label: item.label, description: item.description, icon: CarFront }))
-            ).map(({ value, label, description, icon: Icon }) => {
+            {(Object.entries(RIDE_CLASSES) as Array<[RideClass, (typeof RIDE_CLASSES)[RideClass]]>)
+              .map(([value, item]) => ({ value, label: item.label, description: item.description, icon: CarFront }))
+              .map(({ value, label, description, icon: Icon }) => {
               const itemQuote = calculateFare({ ...route, rideClass: value, serviceType: service, scheduledFor: scheduledAt ? new Date(scheduledAt) : null });
               return (
                 <button key={value} type="button" onClick={() => setRideClass(value)} className="card" style={{ minHeight: 82, padding: 13, borderWidth: 2, borderColor: rideClass === value ? "var(--gold-deep)" : "var(--line)", display: "flex", alignItems: "center", gap: 13, textAlign: "left" }}>
@@ -217,16 +244,16 @@ export function RideFlow() {
                   <strong>{formatFare(itemQuote.total)}</strong>
                 </button>
               );
-            })}
+              })}
           </div>
           <div className="card" style={{ marginTop: 14, padding: 15 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
-              <input type="checkbox" checked={scheduled} onChange={(event) => setScheduled(event.target.checked)} />
-              <Clock3 size={18} /> Planifier pour plus tard
+              <input type="checkbox" checked={scheduled} disabled={plannedOnly} onChange={(event) => setScheduled(event.target.checked)} />
+              <Clock3 size={18} /> {plannedOnly ? "Départ planifié obligatoire" : "Planifier pour plus tard"}
             </label>
-            {scheduled ? <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} style={{ width: "100%", minHeight: 48, marginTop: 12, border: "1px solid var(--line)", borderRadius: 14, padding: 10 }} /> : null}
+            {scheduled ? <input type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} style={{ width: "100%", minHeight: 48, marginTop: 12, border: "1px solid var(--line)", borderRadius: 14, padding: 10 }} /> : null}
           </div>
-          <button className="primary-button" style={{ marginTop: 15 }} type="button" onClick={() => setStep("review")}>Vérifier la commande</button>
+          <button className="primary-button" style={{ marginTop: 15 }} type="button" disabled={scheduled && !scheduledAt} onClick={() => setStep("review")}>Vérifier la demande</button>
         </div>
       ) : null}
 
@@ -238,7 +265,7 @@ export function RideFlow() {
             <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
               <RouteLine label="Départ" value={pickup.address} />
               <RouteLine label="Destination" value={destination.address} />
-              <RouteLine label="Service" value={`${service === "airport" ? "Taxi AIBD" : service === "delivery" ? "Livraison" : "Course"} · ${RIDE_CLASSES[rideClass].label}`} />
+              <RouteLine label="Service" value={`${title} · ${RIDE_CLASSES[rideClass].label}`} />
               <RouteLine label="Départ" value={scheduled && scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR") : "Maintenant"} />
             </div>
             <div style={{ marginTop: 18, padding: 13, borderRadius: 15, background: "#eef8f4", display: "flex", gap: 10, color: "#08754a", fontSize: 12 }}>
@@ -266,10 +293,31 @@ export function RideFlow() {
         </div>
       ) : null}
 
+      {step === "confirmed" && ride ? (
+        <div className="ride-confirmed">
+          <span><Check size={30} /></span>
+          <p className="eyebrow">Réservation enregistrée</p>
+          <h2>Votre départ est planifié.</h2>
+          <p>Nous rechercherons un chauffeur compatible et vous notifierons dès sa confirmation.</p>
+          <div className="card">
+            <small>{ride.reference}</small>
+            <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR") : "Départ planifié"}</strong>
+            <em>{pickup?.address} → {destination?.address}</em>
+          </div>
+          <Link className="primary-button" href="/history">Voir mes trajets</Link>
+        </div>
+      ) : null}
+
       {step === "tracking" && ride ? (
         <div style={{ marginTop: 22 }}>
-          <div className="map-placeholder" style={{ minHeight: 360 }}>
-            <div style={{ position: "absolute", zIndex: 5, left: "48%", top: "43%", width: 52, height: 52, borderRadius: 20, background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center" }}><CarFront /></div>
+          <div className="live-map" style={{ minHeight: 360 }}>
+            {driverLocation ? (
+              <iframe
+                title="Position du chauffeur"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${driverLocation.lng - 0.018}%2C${driverLocation.lat - 0.012}%2C${driverLocation.lng + 0.018}%2C${driverLocation.lat + 0.012}&layer=mapnik&marker=${driverLocation.lat}%2C${driverLocation.lng}`}
+              />
+            ) : <div className="map-placeholder" />}
+            <div className="live-driver-marker"><CarFront /></div>
           </div>
           <div className="card" style={{ marginTop: -30, position: "relative", zIndex: 5, padding: 18 }}>
             <p className="eyebrow">{ride.status === "driver_arrived" ? "Votre chauffeur est arrivé" : "Chauffeur en route"}</p>

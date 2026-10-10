@@ -24,11 +24,11 @@ const slides = [
     alt: "Chauffeur SentraJet accueillant un voyageur à l’aéroport"
   },
   {
-    eyebrow: "Livraison sécurisée",
-    title: "Vos envois, suivis en direct.",
-    text: "Moto, voiture ou utilitaire : choisissez le véhicule adapté et suivez chaque étape.",
-    image: "/media/onboarding-livraison.webp",
-    alt: "Livreur SentraJet à moto dans Dakar"
+    eyebrow: "Dakar et régions",
+    title: "Voyagez autrement, partout au Sénégal.",
+    text: "Allô Dakar et covoiturage réunissent les départs planifiés, les places disponibles et le porte-à-porte.",
+    image: "/media/onboarding-course.webp",
+    alt: "Véhicule SentraJet pour un trajet entre les régions du Sénégal"
   }
 ];
 

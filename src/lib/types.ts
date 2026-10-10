@@ -1,17 +1,20 @@
 export type UserRole = "client" | "driver" | "admin";
-export type ServiceType = "ride" | "airport" | "delivery";
+export type ServiceType = "ride" | "intercity" | "airport" | "carpool";
 export type RideClass = "eco" | "comfort" | "comfort_plus" | "vip";
 export type DriverStatus = "pending" | "approved" | "rejected" | "suspended";
 export type DriverOnboardingStatus = "incomplete" | "submitted" | "approved" | "rejected";
 export type DriverDocumentKind =
-  | "identity"
-  | "driver_license"
+  | "identity_front"
+  | "identity_back"
+  | "driver_license_front"
+  | "driver_license_back"
   | "vehicle_registration"
   | "vehicle_insurance"
   | "profile_photo"
   | "vehicle_photo";
 export type RideStatus =
   | "draft"
+  | "scheduled"
   | "searching"
   | "offered"
   | "assigned"
@@ -55,6 +58,8 @@ export type DriverProfile = {
   is_online: boolean;
   accepted_services: ServiceType[];
   license_number: string | null;
+  license_issued_at: string | null;
+  license_expires_at: string | null;
   birth_date: string | null;
   address: string | null;
   years_experience: number | null;
