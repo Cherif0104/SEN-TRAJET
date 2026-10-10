@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Bike, CarFront, Check, ChefHat, Clock3, FileCheck2, LogOut, MapPin, Navigation, PackageCheck, Power, ShieldAlert, Store, X } from "lucide-react";
+import { ArrowRight, CarFront, Check, Clock3, FileCheck2, LogOut, MapPin, Navigation, Power, ShieldAlert, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -33,27 +33,15 @@ type Offer = {
   } | null;
 };
 
-type FoodOffer = {
-  id: string;
-  order_id: string;
-  expires_at: string;
-  order: {
-    delivery_address: string;
-    total: number;
-    restaurant: { name: string; address: string } | null;
-  } | null;
-};
-
-type FoodDelivery = {
+type ActiveRide = {
   id: string;
   reference: string;
-  status: string;
-  delivery_status: "assigned" | "at_restaurant" | "picked_up";
-  delivery_address: string;
-  recipient_name: string;
-  recipient_phone: string;
-  total: number;
-  restaurant: { name: string; address: string } | null;
+  status: "assigned" | "driver_en_route" | "driver_arrived" | "passenger_on_board";
+  pickup_address: string;
+  destination_address: string;
+  distance_km: number;
+  estimated_fare: number;
+  service_type: string;
 };
 
 export function DriverDashboard() {
@@ -61,8 +49,7 @@ export function DriverDashboard() {
   const { user, profile, signOut } = useAuth();
   const [driver, setDriver] = useState<DashboardDriver | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
-  const [foodOffer, setFoodOffer] = useState<FoodOffer | null>(null);
-  const [foodDelivery, setFoodDelivery] = useState<FoodDelivery | null>(null);
+  const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -77,6 +64,7 @@ export function DriverDashboard() {
   }
 
   async function loadOffer() {
+    await supabase.rpc("dispatch_due_rides");
     const { data } = await supabase
       .from("dispatch_offers")
       .select("id, ride_request_id, expires_at, ride_request:ride_requests(pickup_address, destination_address, distance_km, estimated_fare, service_type)")
@@ -88,42 +76,50 @@ export function DriverDashboard() {
     setOffer(data as unknown as Offer | null);
   }
 
-  async function loadFoodOperations() {
-    const [{ data: offerData }, { data: deliveryData }] = await Promise.all([
-      supabase
-        .from("food_delivery_offers")
-        .select("id, order_id, expires_at, order:food_orders(delivery_address, total, restaurant:restaurants(name, address))")
-        .eq("status", "pending")
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("food_orders")
-        .select("id, reference, status, delivery_status, delivery_address, recipient_name, recipient_phone, total, restaurant:restaurants(name, address)")
-        .in("delivery_status", ["assigned", "at_restaurant", "picked_up"])
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    ]);
-    setFoodOffer(offerData as unknown as FoodOffer | null);
-    setFoodDelivery(deliveryData as unknown as FoodDelivery | null);
+  async function loadActiveRide() {
+    const { data } = await supabase
+      .from("ride_requests")
+      .select("id, reference, status, pickup_address, destination_address, distance_km, estimated_fare, service_type")
+      .in("status", ["assigned", "driver_en_route", "driver_arrived", "passenger_on_board"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setActiveRide(data as ActiveRide | null);
   }
 
   useEffect(() => {
     void loadDriver();
     void loadOffer();
-    void loadFoodOperations();
+    void loadActiveRide();
     const channel = supabase
       .channel("driver-offers")
       .on("postgres_changes", { event: "*", schema: "public", table: "dispatch_offers" }, () => void loadOffer())
-      .on("postgres_changes", { event: "*", schema: "public", table: "food_delivery_offers" }, () => void loadFoodOperations())
-      .on("postgres_changes", { event: "*", schema: "public", table: "food_orders" }, () => void loadFoodOperations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ride_requests" }, () => void loadActiveRide())
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [user]);
+
+  useEffect(() => {
+    if ((!driver?.is_online && !activeRide) || !navigator.geolocation) return;
+    let lastSentAt = 0;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (Date.now() - lastSentAt < 8000) return;
+        lastSentAt = Date.now();
+        void supabase.rpc("update_driver_location", {
+          p_lat: position.coords.latitude,
+          p_lng: position.coords.longitude,
+          p_heading: position.coords.heading,
+          p_accuracy_m: position.coords.accuracy
+        });
+      },
+      () => setMessage("Activez la localisation précise pour assurer le suivi en direct."),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [activeRide, driver?.is_online]);
 
   async function setOnline(next: boolean) {
     setBusy(true);
@@ -163,6 +159,7 @@ export function DriverDashboard() {
       if (error) throw error;
       setOffer(null);
       setMessage(accept ? "Course acceptée. Navigation prête." : "Proposition refusée.");
+      if (accept) await loadActiveRide();
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "Réponse impossible.");
     } finally {
@@ -170,38 +167,30 @@ export function DriverDashboard() {
     }
   }
 
-  async function respondFood(accept: boolean) {
-    if (!foodOffer) return;
+  async function advanceRide() {
+    if (!activeRide) return;
+    const nextStatus = activeRide.status === "assigned"
+      ? "driver_en_route"
+      : activeRide.status === "driver_en_route"
+        ? "driver_arrived"
+        : activeRide.status === "driver_arrived"
+          ? "passenger_on_board"
+          : "completed";
     setBusy(true);
     setMessage(null);
     try {
-      const { error } = await supabase.rpc("respond_food_delivery_offer", {
-        p_offer_id: foodOffer.id,
-        p_accept: accept
+      const { error } = await supabase.rpc("update_ride_status", {
+        p_ride_id: activeRide.id,
+        p_status: nextStatus
       });
       if (error) throw error;
-      setFoodOffer(null);
-      setMessage(accept ? "Livraison acceptée. Rendez-vous au restaurant." : "Livraison refusée.");
-      await loadFoodOperations();
-    } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "Réponse impossible.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function updateFoodDelivery(next: "at_restaurant" | "picked_up" | "delivered") {
-    if (!foodDelivery) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const { error } = await supabase.rpc("update_food_delivery_status", {
-        p_order_id: foodDelivery.id,
-        p_status: next
-      });
-      if (error) throw error;
-      setMessage(next === "at_restaurant" ? "Arrivée signalée au restaurant." : next === "picked_up" ? "Commande récupérée. Livraison en cours." : "Livraison terminée.");
-      await loadFoodOperations();
+      if (nextStatus === "completed") {
+        setActiveRide(null);
+        setDriver((current) => current ? { ...current, is_online: true } : current);
+        setMessage("Course terminée. Vous êtes à nouveau disponible.");
+      } else {
+        setActiveRide({ ...activeRide, status: nextStatus });
+      }
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "Mise à jour impossible.");
     } finally {
@@ -275,7 +264,7 @@ export function DriverDashboard() {
         </div>
       </header>
 
-      <div className="card" style={{ marginTop: 24, padding: 18, background: driver.is_online ? "#e9f9f2" : "white", borderColor: driver.is_online ? "#90d9b9" : "var(--line)" }}>
+      {!activeRide ? <div className="card" style={{ marginTop: 24, padding: 18, background: driver.is_online ? "#e9f9f2" : "white", borderColor: driver.is_online ? "#90d9b9" : "var(--line)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
           <div style={{ width: 52, height: 52, borderRadius: 18, background: driver.is_online ? "var(--green)" : "#e8ebee", color: driver.is_online ? "white" : "var(--muted)", display: "grid", placeItems: "center" }}><Power /></div>
           <div style={{ flex: 1 }}><strong>{driver.is_online ? "Vous êtes en ligne" : "Vous êtes hors ligne"}</strong><small className="muted" style={{ display: "block", marginTop: 4 }}>{driver.is_online ? "Vous pouvez recevoir des courses." : "Activez-vous pour travailler."}</small></div>
@@ -283,33 +272,41 @@ export function DriverDashboard() {
         <button className={driver.is_online ? "secondary-button" : "primary-button"} type="button" disabled={busy} style={{ marginTop: 16 }} onClick={() => void setOnline(!driver.is_online)}>
           {driver.is_online ? "Passer hors ligne" : "Se mettre en ligne"}
         </button>
-      </div>
+      </div> : null}
 
-      {foodDelivery ? (
-        <div className="card driver-food-job">
-          <div className="driver-food-label"><Bike /> Livraison en cours <strong>{foodDelivery.reference}</strong></div>
-          <h2>{foodDelivery.delivery_status === "picked_up" ? "Direction le client" : foodDelivery.restaurant?.name}</h2>
-          <div className="driver-food-route">
-            <OfferLine icon={Store} label="Restaurant" value={foodDelivery.restaurant?.address || "Adresse du restaurant"} />
-            <OfferLine icon={MapPin} label="Livraison" value={foodDelivery.delivery_address} />
+      {activeRide ? (
+        <div className="card active-ride-card">
+          <div className="active-ride-head">
+            <span><Navigation /> Course en cours</span>
+            <strong>{activeRide.reference}</strong>
           </div>
-          <div className="driver-food-contact"><span>{foodDelivery.recipient_name}</span><a href={`tel:${foodDelivery.recipient_phone}`}>{foodDelivery.recipient_phone}</a></div>
-          {foodDelivery.delivery_status === "assigned" ? <button className="primary-button" type="button" disabled={busy} onClick={() => void updateFoodDelivery("at_restaurant")}><Store /> Je suis au restaurant</button> : null}
-          {foodDelivery.delivery_status === "at_restaurant" ? <button className="primary-button gold" type="button" disabled={busy} onClick={() => void updateFoodDelivery("picked_up")}><ChefHat /> Commande récupérée</button> : null}
-          {foodDelivery.delivery_status === "picked_up" ? <button className="primary-button gold" type="button" disabled={busy} onClick={() => void updateFoodDelivery("delivered")}><PackageCheck /> Confirmer la livraison</button> : null}
-        </div>
-      ) : foodOffer?.order ? (
-        <div className="card driver-food-offer">
-          <div className="driver-food-label"><Clock3 /> Nouvelle livraison <strong>{formatFare(foodOffer.order.total)}</strong></div>
-          <h2>{foodOffer.order.restaurant?.name}</h2>
-          <div className="driver-food-route">
-            <OfferLine icon={Store} label="Retrait" value={foodOffer.order.restaurant?.address || "Restaurant"} />
-            <OfferLine icon={MapPin} label="Destination" value={foodOffer.order.delivery_address} />
+          <h2>
+            {activeRide.status === "assigned"
+              ? "Confirmez votre départ"
+              : activeRide.status === "driver_en_route"
+                ? "Direction le client"
+                : activeRide.status === "driver_arrived"
+                  ? "Vous êtes arrivé"
+                  : "Client à bord"}
+          </h2>
+          <div className="active-ride-route">
+            <OfferLine icon={MapPin} label="Prise en charge" value={activeRide.pickup_address} />
+            <OfferLine icon={Navigation} label="Destination" value={activeRide.destination_address} />
           </div>
-          <div className="driver-offer-actions">
-            <button className="secondary-button" type="button" disabled={busy} onClick={() => void respondFood(false)}><X /> Refuser</button>
-            <button className="primary-button gold" type="button" disabled={busy} onClick={() => void respondFood(true)}><Check /> Accepter</button>
+          <div className="active-ride-meta">
+            <span>{activeRide.distance_km} km</span>
+            <strong>{formatFare(activeRide.estimated_fare)}</strong>
           </div>
+          <button className="primary-button gold" type="button" disabled={busy} onClick={() => void advanceRide()}>
+            {activeRide.status === "assigned"
+              ? "Démarrer vers le client"
+              : activeRide.status === "driver_en_route"
+                ? "Je suis arrivé"
+                : activeRide.status === "driver_arrived"
+                  ? "Client à bord"
+                  : "Terminer la course"}
+            <ArrowRight />
+          </button>
         </div>
       ) : offer?.ride_request ? (
         <div className="card" style={{ marginTop: 16, padding: 18, borderWidth: 2, borderColor: "var(--gold-deep)" }}>

@@ -23,31 +23,40 @@ import type {
   DriverDocumentKind,
   DriverOnboardingStatus,
   DriverProfile,
-  RideClass,
-  ServiceType
+  RideClass
 } from "@/lib/types";
+import {
+  eligibleRideClasses,
+  modelsForBrand,
+  rideClassLabel,
+  VEHICLE_BRANDS,
+  VEHICLE_COLORS,
+  VEHICLE_YEARS
+} from "@/lib/vehicleCatalog";
 
 type VehicleForm = {
-  rideClass: RideClass;
   brand: string;
   model: string;
+  year: string;
   plate: string;
   color: string;
   seats: string;
 };
 
 type DriverForm = {
+  fullName: string;
   licenseNumber: string;
+  licenseIssuedAt: string;
+  licenseExpiresAt: string;
   birthDate: string;
-  address: string;
   yearsExperience: string;
-  services: ServiceType[];
 };
 
 type VehicleRow = {
   ride_class: RideClass;
   brand: string;
   model: string;
+  vehicle_year: number | null;
   plate: string;
   color: string | null;
   seats: number;
@@ -59,8 +68,10 @@ const requiredDocuments: Array<{
   hint: string;
   icon: typeof FileText;
 }> = [
-  { kind: "identity", title: "Pièce d’identité", hint: "CNI ou passeport, recto lisible", icon: FileText },
-  { kind: "driver_license", title: "Permis de conduire", hint: "Permis valide, toutes les mentions visibles", icon: BadgeCheck },
+  { kind: "identity_front", title: "Pièce d’identité · recto", hint: "CNI ou passeport, face avant lisible", icon: FileText },
+  { kind: "identity_back", title: "Pièce d’identité · verso", hint: "Face arrière complète et sans reflet", icon: FileText },
+  { kind: "driver_license_front", title: "Permis · recto", hint: "Photo, identité et numéro lisibles", icon: BadgeCheck },
+  { kind: "driver_license_back", title: "Permis · verso", hint: "Catégories et dates visibles", icon: BadgeCheck },
   { kind: "vehicle_registration", title: "Carte grise", hint: "Document du véhicule déclaré", icon: CarFront },
   { kind: "vehicle_insurance", title: "Assurance véhicule", hint: "Attestation en cours de validité", icon: ShieldCheck }
 ];
@@ -78,20 +89,21 @@ function friendlyError(reason: unknown) {
 }
 
 export function DriverOnboardingWizard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [step, setStep] = useState(0);
   const [driver, setDriver] = useState<DriverProfile | null>(null);
   const [driverForm, setDriverForm] = useState<DriverForm>({
+    fullName: "",
     licenseNumber: "",
+    licenseIssuedAt: "",
+    licenseExpiresAt: "",
     birthDate: "",
-    address: "",
-    yearsExperience: "0",
-    services: ["ride"]
+    yearsExperience: "0"
   });
   const [vehicle, setVehicle] = useState<VehicleForm>({
-    rideClass: "comfort",
     brand: "",
     model: "",
+    year: "",
     plate: "",
     color: "",
     seats: "4"
@@ -110,7 +122,7 @@ export function DriverOnboardingWizard() {
       setLoading(true);
       const { data: driverData, error: driverError } = await supabase
         .from("driver_profiles")
-        .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, birth_date, address, years_experience, submitted_at, rejection_reason")
+        .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, years_experience, submitted_at, rejection_reason")
         .eq("user_id", user!.id)
         .single();
       if (driverError) {
@@ -119,37 +131,38 @@ export function DriverOnboardingWizard() {
         return;
       }
 
-      const profile = driverData as DriverProfile;
+      const driverProfile = driverData as DriverProfile;
       const [{ data: vehicleData }, { data: documentData }] = await Promise.all([
         supabase
           .from("vehicles")
-          .select("ride_class, brand, model, plate, color, seats")
-          .eq("driver_id", profile.id)
+          .select("ride_class, brand, model, vehicle_year, plate, color, seats")
+          .eq("driver_id", driverProfile.id)
           .order("created_at")
           .limit(1)
           .maybeSingle(),
         supabase
           .from("driver_documents")
           .select("id, driver_id, kind, storage_path, original_name, mime_type, file_size, status, rejection_reason")
-          .eq("driver_id", profile.id)
+          .eq("driver_id", driverProfile.id)
           .order("created_at")
       ]);
 
       if (!active) return;
-      setDriver(profile);
+      setDriver(driverProfile);
       setDriverForm({
-        licenseNumber: profile.license_number ?? "",
-        birthDate: profile.birth_date ?? "",
-        address: profile.address ?? "",
-        yearsExperience: String(profile.years_experience ?? 0),
-        services: profile.accepted_services?.length ? profile.accepted_services : ["ride"]
+        fullName: profile?.full_name ?? "",
+        licenseNumber: driverProfile.license_number ?? "",
+        licenseIssuedAt: driverProfile.license_issued_at ?? "",
+        licenseExpiresAt: driverProfile.license_expires_at ?? "",
+        birthDate: driverProfile.birth_date ?? "",
+        yearsExperience: String(driverProfile.years_experience ?? 0)
       });
       if (vehicleData) {
         const row = vehicleData as VehicleRow;
         setVehicle({
-          rideClass: row.ride_class,
           brand: row.brand,
           model: row.model,
+          year: row.vehicle_year ? String(row.vehicle_year) : "",
           plate: row.plate,
           color: row.color ?? "",
           seats: String(row.seats)
@@ -163,32 +176,24 @@ export function DriverOnboardingWizard() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [profile?.full_name, user]);
 
   const completedDocuments = useMemo(
     () => requiredDocuments.filter(({ kind }) => documents.some((document) => document.kind === kind)).length,
     [documents]
   );
 
-  function toggleService(service: ServiceType) {
-    setDriverForm((current) => ({
-      ...current,
-      services: current.services.includes(service)
-        ? current.services.filter((item) => item !== service)
-        : [...current.services, service]
-    }));
-  }
-
   async function persistDetails() {
     const { error: saveError } = await supabase.rpc("save_driver_onboarding", {
+      p_full_name: driverForm.fullName,
       p_license_number: driverForm.licenseNumber,
+      p_license_issued_at: driverForm.licenseIssuedAt,
+      p_license_expires_at: driverForm.licenseExpiresAt,
       p_birth_date: driverForm.birthDate,
-      p_address: driverForm.address,
       p_years_experience: Number(driverForm.yearsExperience),
-      p_services: driverForm.services,
-      p_ride_class: vehicle.rideClass,
       p_brand: vehicle.brand,
       p_model: vehicle.model,
+      p_vehicle_year: Number(vehicle.year),
       p_plate: vehicle.plate,
       p_color: vehicle.color,
       p_seats: Number(vehicle.seats)
@@ -352,8 +357,22 @@ export function DriverOnboardingWizard() {
           <div className="wizard-step">
             <StepHeading number="01" title="Faisons connaissance" text="Ces informations permettent de vérifier votre aptitude professionnelle." />
             <div className="field">
+              <label>Nom et prénom</label>
+              <input value={driverForm.fullName} onChange={(event) => setDriverForm({ ...driverForm, fullName: event.target.value })} placeholder="Nom complet tel qu’indiqué sur vos pièces" autoComplete="name" />
+            </div>
+            <div className="field">
               <label>Numéro de permis</label>
               <input value={driverForm.licenseNumber} onChange={(event) => setDriverForm({ ...driverForm, licenseNumber: event.target.value })} placeholder="Ex. SN-123456" />
+            </div>
+            <div className="form-grid">
+              <div className="field">
+                <label>Permis obtenu le</label>
+                <input type="date" value={driverForm.licenseIssuedAt} onChange={(event) => setDriverForm({ ...driverForm, licenseIssuedAt: event.target.value })} />
+              </div>
+              <div className="field">
+                <label>Expire le</label>
+                <input type="date" value={driverForm.licenseExpiresAt} onChange={(event) => setDriverForm({ ...driverForm, licenseExpiresAt: event.target.value })} />
+              </div>
             </div>
             <div className="form-grid">
               <div className="field">
@@ -365,25 +384,7 @@ export function DriverOnboardingWizard() {
                 <input type="number" min="0" max="60" value={driverForm.yearsExperience} onChange={(event) => setDriverForm({ ...driverForm, yearsExperience: event.target.value })} />
               </div>
             </div>
-            <div className="field">
-              <label>Adresse complète</label>
-              <textarea rows={3} value={driverForm.address} onChange={(event) => setDriverForm({ ...driverForm, address: event.target.value })} placeholder="Quartier, ville, repère" />
-            </div>
-            <div className="field">
-              <label>Services souhaités</label>
-              <div className="choice-grid">
-                {([
-                  ["ride", "Courses"],
-                  ["airport", "Taxi AIBD"],
-                  ["delivery", "Livraison"]
-                ] as Array<[ServiceType, string]>).map(([value, label]) => (
-                  <button key={value} type="button" className={driverForm.services.includes(value) ? "selected" : ""} onClick={() => toggleService(value)}>
-                    <Check size={15} /> {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button className="primary-button" type="button" onClick={() => setStep(1)}>
+            <button className="primary-button" type="button" disabled={!driverForm.fullName.trim() || !driverForm.licenseNumber.trim() || !driverForm.licenseIssuedAt || !driverForm.licenseExpiresAt || !driverForm.birthDate} onClick={() => setStep(1)}>
               Continuer <ArrowRight size={18} />
             </button>
           </div>
@@ -392,42 +393,62 @@ export function DriverOnboardingWizard() {
         {step === 1 ? (
           <div className="wizard-step">
             <StepHeading number="02" title="Votre véhicule" text="Déclarez le véhicule principal utilisé pour recevoir les missions." />
-            <div className="field">
-              <label>Gamme de service</label>
-              <select value={vehicle.rideClass} onChange={(event) => setVehicle({ ...vehicle, rideClass: event.target.value as RideClass })}>
-                <option value="eco">Éco</option>
-                <option value="comfort">Confort</option>
-                <option value="comfort_plus">Confort Plus</option>
-                <option value="vip">VIP</option>
-              </select>
-            </div>
             <div className="form-grid">
               <div className="field">
                 <label>Marque</label>
-                <input value={vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, brand: event.target.value })} placeholder="Toyota" />
+                <select value={vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, brand: event.target.value, model: "" })}>
+                  <option value="">Choisir</option>
+                  {VEHICLE_BRANDS.map((brand) => <option value={brand} key={brand}>{brand}</option>)}
+                </select>
               </div>
               <div className="field">
                 <label>Modèle</label>
-                <input value={vehicle.model} onChange={(event) => setVehicle({ ...vehicle, model: event.target.value })} placeholder="Corolla" />
+                <select value={vehicle.model} disabled={!vehicle.brand} onChange={(event) => setVehicle({ ...vehicle, model: event.target.value })}>
+                  <option value="">Choisir</option>
+                  {modelsForBrand(vehicle.brand).map((model) => <option value={model} key={model}>{model}</option>)}
+                </select>
               </div>
-            </div>
-            <div className="field">
-              <label>Immatriculation</label>
-              <input value={vehicle.plate} onChange={(event) => setVehicle({ ...vehicle, plate: event.target.value.toUpperCase() })} placeholder="DK 0000 AA" />
             </div>
             <div className="form-grid">
               <div className="field">
-                <label>Couleur</label>
-                <input value={vehicle.color} onChange={(event) => setVehicle({ ...vehicle, color: event.target.value })} placeholder="Noir" />
+                <label>Année</label>
+                <select value={vehicle.year} onChange={(event) => setVehicle({ ...vehicle, year: event.target.value })}>
+                  <option value="">Choisir</option>
+                  {VEHICLE_YEARS.map((year) => <option value={year} key={year}>{year}</option>)}
+                </select>
               </div>
               <div className="field">
                 <label>Places</label>
                 <input type="number" min="1" max="60" value={vehicle.seats} onChange={(event) => setVehicle({ ...vehicle, seats: event.target.value })} />
               </div>
             </div>
+            <div className="field">
+              <label>Immatriculation</label>
+              <input value={vehicle.plate} onChange={(event) => setVehicle({ ...vehicle, plate: event.target.value.toUpperCase() })} placeholder="DK 0000 AA" />
+            </div>
+            <div className="field">
+              <label>Couleur</label>
+              <div className="vehicle-colors">
+                {VEHICLE_COLORS.map((color) => (
+                  <button type="button" key={color.value} className={vehicle.color === color.value ? "selected" : ""} aria-label={color.value} onClick={() => setVehicle({ ...vehicle, color: color.value })}>
+                    <i style={{ background: color.hex }} /><span>{color.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {vehicle.year ? (
+              <div className="eligibility-preview">
+                <ShieldCheck />
+                <div>
+                  <strong>Classes estimées</strong>
+                  <span>{eligibleRideClasses(Number(vehicle.year)).map(rideClassLabel).join(" · ")}</span>
+                  <small>Attribution finale après contrôle du modèle, de l’état et des documents.</small>
+                </div>
+              </div>
+            ) : null}
             <div className="wizard-actions">
               <button className="secondary-button" type="button" onClick={() => setStep(0)}>Retour</button>
-              <button className="primary-button" type="button" disabled={busy} onClick={() => void saveDetails(2)}>
+              <button className="primary-button" type="button" disabled={busy || !vehicle.brand || !vehicle.model || !vehicle.year || !vehicle.plate || !vehicle.color} onClick={() => void saveDetails(2)}>
                 {busy ? "Enregistrement…" : "Enregistrer et continuer"}
               </button>
             </div>
@@ -436,7 +457,7 @@ export function DriverOnboardingWizard() {
 
         {step === 2 ? (
           <div className="wizard-step">
-            <StepHeading number="03" title="Documents sécurisés" text="PDF ou photo nette. Chaque fichier est privé, chiffré en transit et limité à 10 Mo." />
+            <StepHeading number="03" title="Contrôle documentaire" text="Photographiez chaque face sans reflet. Les données sont rapprochées de votre identité avant la revue finale." />
             <div className="document-list">
               {requiredDocuments.map(({ kind, title, hint, icon: Icon }) => {
                 const document = documents.find((item) => item.kind === kind);
@@ -453,6 +474,7 @@ export function DriverOnboardingWizard() {
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                      capture="environment"
                       disabled={uploading !== null}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
@@ -464,10 +486,10 @@ export function DriverOnboardingWizard() {
                 );
               })}
             </div>
-            <div className="document-count"><FileCheck2 size={18} /> {completedDocuments}/4 documents obligatoires ajoutés</div>
+            <div className="document-count"><FileCheck2 size={18} /> {completedDocuments}/{requiredDocuments.length} documents obligatoires ajoutés</div>
             <div className="wizard-actions">
               <button className="secondary-button" type="button" onClick={() => setStep(1)}>Retour</button>
-              <button className="primary-button" type="button" disabled={completedDocuments < 4} onClick={() => setStep(3)}>
+              <button className="primary-button" type="button" disabled={completedDocuments < requiredDocuments.length} onClick={() => setStep(3)}>
                 Vérifier mon dossier
               </button>
             </div>
@@ -481,7 +503,8 @@ export function DriverOnboardingWizard() {
               <SummaryLine label="Permis" value={driverForm.licenseNumber} />
               <SummaryLine label="Véhicule" value={`${vehicle.brand} ${vehicle.model}`} />
               <SummaryLine label="Immatriculation" value={vehicle.plate} />
-              <SummaryLine label="Services" value={driverForm.services.join(" · ")} />
+              <SummaryLine label="Année et couleur" value={`${vehicle.year} · ${vehicle.color}`} />
+              <SummaryLine label="Classes estimées" value={eligibleRideClasses(Number(vehicle.year)).map(rideClassLabel).join(" · ")} />
               <SummaryLine label="Documents" value={`${completedDocuments} fichiers sécurisés`} />
             </div>
             <div className="consent-note">
@@ -490,7 +513,7 @@ export function DriverOnboardingWizard() {
             </div>
             <div className="wizard-actions">
               <button className="secondary-button" type="button" onClick={() => setStep(2)}>Modifier</button>
-              <button className="primary-button gold" type="button" disabled={busy || completedDocuments < 4} onClick={() => void submitApplication()}>
+              <button className="primary-button gold" type="button" disabled={busy || completedDocuments < requiredDocuments.length} onClick={() => void submitApplication()}>
                 {busy ? "Envoi sécurisé…" : "Envoyer pour validation"}
               </button>
             </div>

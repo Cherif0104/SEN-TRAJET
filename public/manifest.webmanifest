@@ -1,7 +1,7 @@
 {
   "name": "SentraJet Premium",
   "short_name": "SentraJet",
-  "description": "Chauffeur, taxi AIBD et livraison premium en temps réel au Sénégal",
+  "description": "Courses VTC, taxi AIBD, Allô Dakar et covoiturage en temps réel au Sénégal",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -31,9 +31,14 @@
       "url": "/ride?service=airport"
     },
     {
-      "name": "Livraison",
-      "short_name": "Livraison",
-      "url": "/ride?service=delivery"
+      "name": "Allô Dakar",
+      "short_name": "Allô Dakar",
+      "url": "/ride?service=intercity"
+    },
+    {
+      "name": "Covoiturage",
+      "short_name": "Covoiturage",
+      "url": "/ride?service=carpool"
     }
   ]
 }

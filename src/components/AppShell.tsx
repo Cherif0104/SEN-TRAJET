@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CarFront, History, Home, LogOut, Package, UserRound } from "lucide-react";
+import { CarFront, History, Home, LogOut, Plane, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -10,7 +10,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 const clientNav = [
   { href: "/app", label: "Accueil", icon: Home },
   { href: "/ride?service=ride", label: "Course", icon: CarFront },
-  { href: "/ride?service=delivery", label: "Livraison", icon: Package },
+  { href: "/ride?service=airport", label: "Aéroport", icon: Plane },
   { href: "/history", label: "Activité", icon: History }
 ];
 

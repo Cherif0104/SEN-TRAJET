@@ -8,7 +8,7 @@ export const RIDE_CLASSES: Record<
     label: "Éco",
     description: "Citadine · 4 places",
     ratePerKm: 118,
-    minimum: 570,
+    minimum: 1000,
     vehicle: "Citadine"
   },
   comfort: {
@@ -48,11 +48,11 @@ export function calculateFare(input: {
   const includedMinutes = input.rideClass === "eco" ? 4 : 0;
   const timePart = Math.max(0, input.durationMinutes - includedMinutes) * minuteRate;
   const airportFee = input.serviceType === "airport" ? 5000 : 0;
-  const deliveryAdjustment = input.serviceType === "delivery" ? -Math.min(distancePart * 0.15, 1500) : 0;
+  const sharedAdjustment = input.serviceType === "carpool" ? -Math.min((distancePart + timePart) * 0.25, 4000) : 0;
   const date = input.scheduledFor || new Date();
   const hour = date.getHours();
   const nightFee = hour >= 22 || hour < 6 ? Math.max(1000, (distancePart + timePart) * 0.2) : 0;
-  const raw = Math.max(rule.minimum, rule.minimum + distancePart + timePart + airportFee + deliveryAdjustment + nightFee);
+  const raw = Math.max(rule.minimum, rule.minimum + distancePart + timePart + airportFee + sharedAdjustment + nightFee);
   const total = Math.ceil(raw / 100) * 100;
 
   return {
@@ -61,6 +61,7 @@ export function calculateFare(input: {
     distancePart: Math.round(distancePart),
     timePart: Math.round(timePart),
     airportFee,
+    sharedAdjustment: Math.round(sharedAdjustment),
     nightFee: Math.round(nightFee),
     currency: "XOF"
   };

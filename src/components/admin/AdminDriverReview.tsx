@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
@@ -14,7 +13,6 @@ import {
   LogOut,
   RefreshCw,
   ShieldCheck,
-  Utensils,
   UserRound,
   XCircle
 } from "lucide-react";
@@ -28,6 +26,8 @@ type Vehicle = {
   ride_class: RideClass;
   brand: string;
   model: string;
+  vehicle_year: number | null;
+  eligible_classes: RideClass[];
   plate: string;
   color: string | null;
   seats: number;
@@ -41,8 +41,10 @@ type Candidate = {
 };
 
 const documentLabels: Record<string, string> = {
-  identity: "Pièce d’identité",
-  driver_license: "Permis de conduire",
+  identity_front: "Pièce d’identité · recto",
+  identity_back: "Pièce d’identité · verso",
+  driver_license_front: "Permis · recto",
+  driver_license_back: "Permis · verso",
   vehicle_registration: "Carte grise",
   vehicle_insurance: "Assurance véhicule",
   profile_photo: "Photo chauffeur",
@@ -66,7 +68,7 @@ export function AdminDriverReview() {
     setError(null);
     const { data: drivers, error: queueError } = await supabase
       .from("driver_profiles")
-      .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, birth_date, address, years_experience, submitted_at, rejection_reason")
+      .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, years_experience, submitted_at, rejection_reason")
       .eq("onboarding_status", "submitted")
       .order("submitted_at", { ascending: true });
 
@@ -88,7 +90,7 @@ export function AdminDriverReview() {
     const userIds = rows.map((item) => item.user_id);
     const [{ data: profiles }, { data: vehicles }, { data: documents }] = await Promise.all([
       supabase.from("profiles").select("id, role, full_name, phone, avatar_url").in("id", userIds),
-      supabase.from("vehicles").select("driver_id, ride_class, brand, model, plate, color, seats").in("driver_id", driverIds),
+      supabase.from("vehicles").select("driver_id, ride_class, brand, model, vehicle_year, eligible_classes, plate, color, seats").in("driver_id", driverIds),
       supabase
         .from("driver_documents")
         .select("id, driver_id, kind, storage_path, original_name, mime_type, file_size, status, rejection_reason")
@@ -182,12 +184,6 @@ export function AdminDriverReview() {
           <div><strong>{candidates.length}</strong><small>demande{candidates.length === 1 ? "" : "s"} en attente</small></div>
           <ShieldCheck />
         </div>
-        <Link className="admin-food-link" href="/partner/food">
-          <span><Utensils /></span>
-          <div><strong>Opérations SentraJet Food</strong><small>Commandes, préparation et disponibilités</small></div>
-          <ArrowRight />
-        </Link>
-
         {notice ? <div className="success">{notice}</div> : null}
         {error ? <div className="error">{error}</div> : null}
 
@@ -228,6 +224,7 @@ export function AdminDriverReview() {
             <h3><UserRound /> Identité</h3>
             <ReviewLine label="Téléphone" value={selected.profile?.phone || "Non renseigné"} />
             <ReviewLine label="Permis" value={selected.driver.license_number || "Non renseigné"} />
+            <ReviewLine label="Validité du permis" value={`${selected.driver.license_issued_at || "—"} → ${selected.driver.license_expires_at || "—"}`} />
             <ReviewLine label="Naissance" value={selected.driver.birth_date || "Non renseignée"} />
             <ReviewLine label="Expérience" value={`${selected.driver.years_experience ?? 0} an(s)`} />
             <ReviewLine label="Adresse" value={selected.driver.address || "Non renseignée"} />
@@ -235,9 +232,10 @@ export function AdminDriverReview() {
 
           <div className="review-section">
             <h3><CarFront /> Véhicule</h3>
-            <ReviewLine label="Modèle" value={selected.vehicle ? `${selected.vehicle.brand} ${selected.vehicle.model}` : "Absent"} />
+            <ReviewLine label="Modèle" value={selected.vehicle ? `${selected.vehicle.brand} ${selected.vehicle.model} · ${selected.vehicle.vehicle_year || "année inconnue"}` : "Absent"} />
             <ReviewLine label="Plaque" value={selected.vehicle?.plate || "Absente"} />
             <ReviewLine label="Gamme" value={selected.vehicle?.ride_class.replace("_", " ") || "Non définie"} />
+            <ReviewLine label="Classes autorisées" value={selected.vehicle?.eligible_classes?.map((item) => item.replace("_", " +")).join(" · ") || "À contrôler"} />
             <ReviewLine label="Capacité" value={`${selected.vehicle?.seats ?? 0} place(s)`} />
           </div>
 
