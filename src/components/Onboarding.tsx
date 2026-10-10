@@ -45,7 +45,7 @@ export function Onboarding() {
 
   useEffect(() => {
     if (loading || !user || !profile) return;
-    router.replace(profile.role === "driver" ? "/driver" : "/app");
+    router.replace(profile.role === "admin" ? "/admin" : profile.role === "driver" ? "/driver" : "/app");
   }, [loading, profile, router, user]);
 
   if (splash || loading || user) {

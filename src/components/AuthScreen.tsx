@@ -53,17 +53,22 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
 
       const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
       if (loginError) throw loginError;
-      const isDriver = await promoteDriverIfRequested(data.user.user_metadata?.account_type);
-      if (isDriver) {
-        window.location.assign("/driver");
-        return;
-      }
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", data.user.id)
         .single();
-      window.location.assign(profile?.role === "driver" ? "/driver" : "/app");
+      if (profile?.role === "admin") {
+        window.location.assign("/admin");
+        return;
+      }
+      const isDriver = profile?.role === "driver"
+        || await promoteDriverIfRequested(data.user.user_metadata?.account_type);
+      if (isDriver) {
+        window.location.assign("/driver");
+        return;
+      }
+      window.location.assign(profile?.role === "admin" ? "/admin" : profile?.role === "driver" ? "/driver" : "/app");
     } catch (reason) {
       const raw = reason instanceof Error ? reason.message : "Une erreur est survenue.";
       setError(
