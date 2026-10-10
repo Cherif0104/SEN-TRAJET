@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, CarFront, Check, Clock3, FileCheck2, LogOut, MapPin, Navigation, Power, ShieldAlert, X } from "lucide-react";
+import { ArrowRight, Bike, CarFront, Check, ChefHat, Clock3, FileCheck2, LogOut, MapPin, Navigation, PackageCheck, Power, ShieldAlert, Store, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -33,11 +33,36 @@ type Offer = {
   } | null;
 };
 
+type FoodOffer = {
+  id: string;
+  order_id: string;
+  expires_at: string;
+  order: {
+    delivery_address: string;
+    total: number;
+    restaurant: { name: string; address: string } | null;
+  } | null;
+};
+
+type FoodDelivery = {
+  id: string;
+  reference: string;
+  status: string;
+  delivery_status: "assigned" | "at_restaurant" | "picked_up";
+  delivery_address: string;
+  recipient_name: string;
+  recipient_phone: string;
+  total: number;
+  restaurant: { name: string; address: string } | null;
+};
+
 export function DriverDashboard() {
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const [driver, setDriver] = useState<DashboardDriver | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
+  const [foodOffer, setFoodOffer] = useState<FoodOffer | null>(null);
+  const [foodDelivery, setFoodDelivery] = useState<FoodDelivery | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -63,12 +88,37 @@ export function DriverDashboard() {
     setOffer(data as unknown as Offer | null);
   }
 
+  async function loadFoodOperations() {
+    const [{ data: offerData }, { data: deliveryData }] = await Promise.all([
+      supabase
+        .from("food_delivery_offers")
+        .select("id, order_id, expires_at, order:food_orders(delivery_address, total, restaurant:restaurants(name, address))")
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("food_orders")
+        .select("id, reference, status, delivery_status, delivery_address, recipient_name, recipient_phone, total, restaurant:restaurants(name, address)")
+        .in("delivery_status", ["assigned", "at_restaurant", "picked_up"])
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ]);
+    setFoodOffer(offerData as unknown as FoodOffer | null);
+    setFoodDelivery(deliveryData as unknown as FoodDelivery | null);
+  }
+
   useEffect(() => {
     void loadDriver();
     void loadOffer();
+    void loadFoodOperations();
     const channel = supabase
       .channel("driver-offers")
       .on("postgres_changes", { event: "*", schema: "public", table: "dispatch_offers" }, () => void loadOffer())
+      .on("postgres_changes", { event: "*", schema: "public", table: "food_delivery_offers" }, () => void loadFoodOperations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "food_orders" }, () => void loadFoodOperations())
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -115,6 +165,45 @@ export function DriverDashboard() {
       setMessage(accept ? "Course acceptée. Navigation prête." : "Proposition refusée.");
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "Réponse impossible.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function respondFood(accept: boolean) {
+    if (!foodOffer) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.rpc("respond_food_delivery_offer", {
+        p_offer_id: foodOffer.id,
+        p_accept: accept
+      });
+      if (error) throw error;
+      setFoodOffer(null);
+      setMessage(accept ? "Livraison acceptée. Rendez-vous au restaurant." : "Livraison refusée.");
+      await loadFoodOperations();
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Réponse impossible.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateFoodDelivery(next: "at_restaurant" | "picked_up" | "delivered") {
+    if (!foodDelivery) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.rpc("update_food_delivery_status", {
+        p_order_id: foodDelivery.id,
+        p_status: next
+      });
+      if (error) throw error;
+      setMessage(next === "at_restaurant" ? "Arrivée signalée au restaurant." : next === "picked_up" ? "Commande récupérée. Livraison en cours." : "Livraison terminée.");
+      await loadFoodOperations();
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Mise à jour impossible.");
     } finally {
       setBusy(false);
     }
@@ -196,7 +285,33 @@ export function DriverDashboard() {
         </button>
       </div>
 
-      {offer?.ride_request ? (
+      {foodDelivery ? (
+        <div className="card driver-food-job">
+          <div className="driver-food-label"><Bike /> Livraison en cours <strong>{foodDelivery.reference}</strong></div>
+          <h2>{foodDelivery.delivery_status === "picked_up" ? "Direction le client" : foodDelivery.restaurant?.name}</h2>
+          <div className="driver-food-route">
+            <OfferLine icon={Store} label="Restaurant" value={foodDelivery.restaurant?.address || "Adresse du restaurant"} />
+            <OfferLine icon={MapPin} label="Livraison" value={foodDelivery.delivery_address} />
+          </div>
+          <div className="driver-food-contact"><span>{foodDelivery.recipient_name}</span><a href={`tel:${foodDelivery.recipient_phone}`}>{foodDelivery.recipient_phone}</a></div>
+          {foodDelivery.delivery_status === "assigned" ? <button className="primary-button" type="button" disabled={busy} onClick={() => void updateFoodDelivery("at_restaurant")}><Store /> Je suis au restaurant</button> : null}
+          {foodDelivery.delivery_status === "at_restaurant" ? <button className="primary-button gold" type="button" disabled={busy} onClick={() => void updateFoodDelivery("picked_up")}><ChefHat /> Commande récupérée</button> : null}
+          {foodDelivery.delivery_status === "picked_up" ? <button className="primary-button gold" type="button" disabled={busy} onClick={() => void updateFoodDelivery("delivered")}><PackageCheck /> Confirmer la livraison</button> : null}
+        </div>
+      ) : foodOffer?.order ? (
+        <div className="card driver-food-offer">
+          <div className="driver-food-label"><Clock3 /> Nouvelle livraison <strong>{formatFare(foodOffer.order.total)}</strong></div>
+          <h2>{foodOffer.order.restaurant?.name}</h2>
+          <div className="driver-food-route">
+            <OfferLine icon={Store} label="Retrait" value={foodOffer.order.restaurant?.address || "Restaurant"} />
+            <OfferLine icon={MapPin} label="Destination" value={foodOffer.order.delivery_address} />
+          </div>
+          <div className="driver-offer-actions">
+            <button className="secondary-button" type="button" disabled={busy} onClick={() => void respondFood(false)}><X /> Refuser</button>
+            <button className="primary-button gold" type="button" disabled={busy} onClick={() => void respondFood(true)}><Check /> Accepter</button>
+          </div>
+        </div>
+      ) : offer?.ride_request ? (
         <div className="card" style={{ marginTop: 16, padding: 18, borderWidth: 2, borderColor: "var(--gold-deep)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--gold-deep)", fontWeight: 850 }}><Clock3 size={17} /> Nouvelle proposition</span>

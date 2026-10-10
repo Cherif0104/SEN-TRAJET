@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
@@ -13,6 +14,7 @@ import {
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Utensils,
   UserRound,
   XCircle
 } from "lucide-react";
@@ -180,6 +182,11 @@ export function AdminDriverReview() {
           <div><strong>{candidates.length}</strong><small>demande{candidates.length === 1 ? "" : "s"} en attente</small></div>
           <ShieldCheck />
         </div>
+        <Link className="admin-food-link" href="/partner/food">
+          <span><Utensils /></span>
+          <div><strong>Opérations SentraJet Food</strong><small>Commandes, préparation et disponibilités</small></div>
+          <ArrowRight />
+        </Link>
 
         {notice ? <div className="success">{notice}</div> : null}
         {error ? <div className="error">{error}</div> : null}
