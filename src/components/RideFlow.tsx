@@ -251,7 +251,7 @@ export function RideFlow() {
               <input type="checkbox" checked={scheduled} disabled={plannedOnly} onChange={(event) => setScheduled(event.target.checked)} />
               <Clock3 size={18} /> {plannedOnly ? "Départ planifié obligatoire" : "Planifier pour plus tard"}
             </label>
-            {scheduled ? <input type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} style={{ width: "100%", minHeight: 48, marginTop: 12, border: "1px solid var(--line)", borderRadius: 14, padding: 10 }} /> : null}
+            {scheduled ? <input type="datetime-local" min={new Date(Date.now() + (plannedOnly ? 30 : 0) * 60_000).toISOString().slice(0, 16)} value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} style={{ width: "100%", minHeight: 48, marginTop: 12, border: "1px solid var(--line)", borderRadius: 14, padding: 10 }} /> : null}
           </div>
           <button className="primary-button" style={{ marginTop: 15 }} type="button" disabled={scheduled && !scheduledAt} onClick={() => setStep("review")}>Vérifier la demande</button>
         </div>

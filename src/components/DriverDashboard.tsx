@@ -64,6 +64,7 @@ export function DriverDashboard() {
   }
 
   async function loadOffer() {
+    await supabase.rpc("dispatch_due_rides");
     const { data } = await supabase
       .from("dispatch_offers")
       .select("id, ride_request_id, expires_at, ride_request:ride_requests(pickup_address, destination_address, distance_km, estimated_fare, service_type)")

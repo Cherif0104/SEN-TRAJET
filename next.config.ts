@@ -3,6 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: "/restaurants", destination: "/app", permanent: false },
+      { source: "/restaurants/:path*", destination: "/app", permanent: false },
+      { source: "/food/:path*", destination: "/app", permanent: false },
+      { source: "/partner/food", destination: "/driver", permanent: false }
+    ];
+  },
   async headers() {
     return [
       {
