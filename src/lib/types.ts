@@ -1,6 +1,15 @@
 export type UserRole = "client" | "driver" | "admin";
 export type ServiceType = "ride" | "airport" | "delivery";
 export type RideClass = "eco" | "comfort" | "comfort_plus" | "vip";
+export type DriverStatus = "pending" | "approved" | "rejected" | "suspended";
+export type DriverOnboardingStatus = "incomplete" | "submitted" | "approved" | "rejected";
+export type DriverDocumentKind =
+  | "identity"
+  | "driver_license"
+  | "vehicle_registration"
+  | "vehicle_insurance"
+  | "profile_photo"
+  | "vehicle_photo";
 export type RideStatus =
   | "draft"
   | "searching"
@@ -19,6 +28,33 @@ export type Profile = {
   full_name: string;
   phone: string | null;
   avatar_url: string | null;
+};
+
+export type DriverProfile = {
+  id: string;
+  user_id: string;
+  status: DriverStatus;
+  onboarding_status: DriverOnboardingStatus;
+  is_online: boolean;
+  accepted_services: ServiceType[];
+  license_number: string | null;
+  birth_date: string | null;
+  address: string | null;
+  years_experience: number | null;
+  submitted_at: string | null;
+  rejection_reason: string | null;
+};
+
+export type DriverDocument = {
+  id: string;
+  driver_id: string;
+  kind: DriverDocumentKind;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  file_size: number;
+  status: "draft" | "submitted" | "approved" | "rejected";
+  rejection_reason: string | null;
 };
 
 export type Place = {

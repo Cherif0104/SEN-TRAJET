@@ -1,13 +1,50 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Bike, CarFront, Clock3, MapPin, Package, Plane, Sparkles, Utensils } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/lib/supabase";
+import type { ServiceType } from "@/lib/types";
+
+type CatalogService = {
+  slug: ServiceType;
+  title: string;
+  subtitle: string;
+  badge: string | null;
+  sort_order: number;
+};
+
+const fallbackCatalog: CatalogService[] = [
+  { slug: "ride", title: "Commander une course", subtitle: "Maintenant ou plus tard", badge: "Chauffeur en direct", sort_order: 10 },
+  { slug: "airport", title: "Taxi AIBD", subtitle: "Vers ou depuis l’aéroport", badge: "Transfert premium", sort_order: 20 },
+  { slug: "delivery", title: "Livraison", subtitle: "Moto, voiture ou cargo", badge: "Suivi en direct", sort_order: 30 }
+];
 
 export default function ClientHomePage() {
   const { profile } = useAuth();
+  const [catalog, setCatalog] = useState<CatalogService[]>(fallbackCatalog);
+
+  useEffect(() => {
+    void supabase
+      .from("service_catalog")
+      .select("slug, title, subtitle, badge, sort_order")
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        if (data?.length) setCatalog(data as CatalogService[]);
+      });
+  }, []);
+
+  const services = useMemo(
+    () => Object.fromEntries(catalog.map((service) => [service.slug, service])) as Partial<Record<ServiceType, CatalogService>>,
+    [catalog]
+  );
+  const ride = services.ride ?? fallbackCatalog[0];
+  const airport = services.airport ?? fallbackCatalog[1];
+  const delivery = services.delivery ?? fallbackCatalog[2];
 
   return (
     <AuthGate role="client">
@@ -33,24 +70,24 @@ export default function ClientHomePage() {
                 <ArrowUpRight />
               </div>
               <div>
-                <span className="service-kicker"><Sparkles size={12} /> Chauffeur en direct</span>
-                <h2 style={{ margin: 0, fontSize: 25 }}>Commander une course</h2>
-                <p style={{ margin: "6px 0 0", opacity: 0.68, fontWeight: 650 }}>Maintenant ou plus tard</p>
+                <span className="service-kicker"><Sparkles size={12} /> {ride.badge}</span>
+                <h2 style={{ margin: 0, fontSize: 25 }}>{ride.title}</h2>
+                <p style={{ margin: "6px 0 0", opacity: 0.68, fontWeight: 650 }}>{ride.subtitle}</p>
               </div>
             </Link>
 
             <Link href="/ride?service=airport" className="service-card dark">
               <Plane color="var(--gold)" />
               <div>
-                <strong style={{ fontSize: 18 }}>Taxi AIBD</strong>
-                <p style={{ margin: "5px 0 0", color: "#9eabba", fontSize: 12 }}>Vers ou depuis l’aéroport</p>
+                <strong style={{ fontSize: 18 }}>{airport.title}</strong>
+                <p style={{ margin: "5px 0 0", color: "#9eabba", fontSize: 12 }}>{airport.subtitle}</p>
               </div>
             </Link>
             <Link href="/ride?service=delivery" className="service-card light">
               <Package color="var(--gold-deep)" />
               <div>
-                <strong style={{ fontSize: 18 }}>Livraison</strong>
-                <p style={{ margin: "5px 0 0", color: "var(--muted)", fontSize: 12 }}>Moto, voiture ou cargo</p>
+                <strong style={{ fontSize: 18 }}>{delivery.title}</strong>
+                <p style={{ margin: "5px 0 0", color: "var(--muted)", fontSize: 12 }}>{delivery.subtitle}</p>
               </div>
             </Link>
 
