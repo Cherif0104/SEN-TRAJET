@@ -2367,6 +2367,11 @@ a {
   color: var(--gold-deep);
 }
 
+.payment-list button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .payment-list strong,
 .payment-list small {
   display: block;

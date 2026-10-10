@@ -35,11 +35,11 @@ type MenuCategory = {
 
 type CartRow = MenuItem & { quantity: number };
 
-const paymentMethods: Array<{ value: FoodPaymentMethod; label: string; hint: string }> = [
-  { value: "cash", label: "Espèces", hint: "À la livraison" },
-  { value: "wave", label: "Wave", hint: "Paiement mobile" },
-  { value: "orange_money", label: "Orange Money", hint: "Paiement mobile" },
-  { value: "card", label: "Carte", hint: "Visa ou Mastercard" }
+const paymentMethods: Array<{ value: FoodPaymentMethod; label: string; hint: string; enabled: boolean }> = [
+  { value: "cash", label: "Espèces", hint: "À la livraison", enabled: true },
+  { value: "wave", label: "Wave", hint: "Bientôt disponible", enabled: false },
+  { value: "orange_money", label: "Orange Money", hint: "Bientôt disponible", enabled: false },
+  { value: "card", label: "Carte", hint: "Bientôt disponible", enabled: false }
 ];
 
 function friendlyError(reason: unknown) {
@@ -298,7 +298,7 @@ export function FoodRestaurantDetail({ restaurantId }: { restaurantId: string })
               <label>Mode de paiement</label>
               <div className="payment-list">
                 {paymentMethods.map((method) => (
-                  <button type="button" key={method.value} className={paymentMethod === method.value ? "active" : ""} onClick={() => setPaymentMethod(method.value)}>
+                  <button type="button" key={method.value} disabled={!method.enabled} className={paymentMethod === method.value ? "active" : ""} onClick={() => setPaymentMethod(method.value)}>
                     <WalletCards /><span><strong>{method.label}</strong><small>{method.hint}</small></span>{paymentMethod === method.value ? <Check /> : <ChevronRight />}
                   </button>
                 ))}
