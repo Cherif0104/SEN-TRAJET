@@ -1,81 +1,214 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, ArrowUpRight, CalendarClock, CarFront, MapPin, Plane, Plus, Sparkles, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, CalendarClock, CarFront, LoaderCircle, Navigation, Plane, UsersRound } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { ClientRouteMap } from "@/components/ClientRouteMap";
+import { LocationInput } from "@/components/LocationInput";
+import { saveRideDraft } from "@/lib/rideDraft";
+import type { Place, ServiceType } from "@/lib/types";
+
+const AIBD: Place = {
+  id: "aibd",
+  label: "Aéroport International Blaise Diagne",
+  address: "Aéroport International Blaise Diagne (AIBD), Diass, Sénégal",
+  lat: 14.6711,
+  lng: -17.0669,
+  region: "Thiès"
+};
+
+const SERVICES: Array<{
+  value: ServiceType;
+  label: string;
+  shortLabel: string;
+  icon: typeof CarFront;
+}> = [
+  { value: "ride", label: "Course urbaine", shortLabel: "Course", icon: CarFront },
+  { value: "intercity", label: "Voyage interurbain", shortLabel: "Interurbain", icon: CalendarClock },
+  { value: "airport", label: "Taxi Aéroport AIBD", shortLabel: "Aéroport", icon: Plane },
+  { value: "carpool", label: "Trajet partagé", shortLabel: "Covoiturage", icon: UsersRound }
+];
+
+function normalizedRegion(region?: string) {
+  return (region || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(region|department)\b/gi, "")
+    .trim()
+    .toLocaleLowerCase("fr");
+}
 
 export default function ClientHomePage() {
+  const router = useRouter();
   const { profile } = useAuth();
+  const [pickup, setPickup] = useState<Place | null>(null);
+  const [destination, setDestination] = useState<Place | null>(null);
+  const [preferredService, setPreferredService] = useState<ServiceType>("ride");
+  const [route, setRoute] = useState<{
+    distanceKm: number;
+    durationMinutes: number;
+    geometry?: number[][];
+  } | null>(null);
+  const [routeKey, setRouteKey] = useState("");
+  const [loadingRoute, setLoadingRoute] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pickup || !destination) {
+      setRoute(null);
+      setRouteKey("");
+      return;
+    }
+    const nextKey = `${pickup.lat},${pickup.lng}:${destination.lat},${destination.lng}`;
+    if (nextKey === routeKey) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLoadingRoute(true);
+      setError(null);
+      void fetch("/api/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pickup, destination }),
+        signal: controller.signal
+      })
+        .then(async (response) => {
+          const data = await response.json() as {
+            distanceKm?: number;
+            durationMinutes?: number;
+            geometry?: number[][];
+            error?: string;
+          };
+          if (!response.ok || !data.distanceKm || !data.durationMinutes) {
+            throw new Error(data.error || "Itinéraire introuvable.");
+          }
+          setRoute({
+            distanceKm: data.distanceKm,
+            durationMinutes: data.durationMinutes,
+            geometry: data.geometry
+          });
+          setRouteKey(nextKey);
+        })
+        .catch((reason: unknown) => {
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          setRoute(null);
+          setError(reason instanceof Error ? reason.message : "Impossible de calculer cet itinéraire.");
+        })
+        .finally(() => setLoadingRoute(false));
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [destination, pickup, routeKey]);
+
+  const classification = useMemo(() => {
+    if (!route || !pickup || !destination) return null;
+    const pickupRegion = normalizedRegion(pickup.region);
+    const destinationRegion = normalizedRegion(destination.region);
+    const sameRegion = !pickupRegion || !destinationRegion || pickupRegion === destinationRegion;
+    const urbanEligible = sameRegion && route.distanceKm <= 50;
+    const airportTrip = pickup.id === "aibd" || destination.id === "aibd";
+    const service: ServiceType = airportTrip
+      ? "airport"
+      : preferredService === "ride" && !urbanEligible
+        ? "intercity"
+        : preferredService;
+    return { sameRegion, urbanEligible, service };
+  }, [destination, pickup, preferredService, route]);
+
+  function selectService(service: ServiceType) {
+    setPreferredService(service);
+    if (service === "airport" && destination?.id !== "aibd" && pickup?.id !== "aibd") {
+      setDestination(AIBD);
+    }
+  }
+
+  function continueRide() {
+    if (!pickup || !destination || !route || !classification) return;
+    saveRideDraft({
+      pickup,
+      destination,
+      route,
+      service: classification.service,
+      savedAt: new Date().toISOString()
+    });
+    router.push(`/ride?service=${classification.service}&draft=home`);
+  }
 
   return (
     <AuthGate role="client">
       <AppShell>
-        <section className="client-home">
+        <section className="client-home client-home-v3">
           <div className="client-home-title">
             <div>
               <p className="eyebrow">Bonjour {profile?.full_name?.split(" ")[0] || ""}</p>
               <h1>Où allons-nous ?</h1>
             </div>
-            <span><Sparkles size={15} /> Sénégal</span>
+            <span><Navigation size={14} /> Sénégal</span>
           </div>
 
-          <Link href="/ride?service=ride" className="ride-launcher">
-            <span className="ride-launcher-plus"><Plus size={25} /></span>
-            <span>
-              <small>Course immédiate</small>
-              <strong>Commander une course</strong>
-              <em><MapPin size={13} /> Départ détecté automatiquement</em>
-            </span>
-            <ArrowRight size={20} />
-          </Link>
-
-          <div className="transport-grid">
-            <Link href="/ride?service=ride" className="service-card large">
-              <div className="service-card-top">
-                <span className="service-icon"><CarFront /></span>
-                <span className="live-pill"><i /> En direct</span>
-              </div>
-              <div>
-                <span className="service-kicker">Mobilité urbaine</span>
-                <h2>Course</h2>
-                <p>Un chauffeur proche, maintenant ou sur réservation.</p>
-              </div>
-            </Link>
-
-            <Link href="/ride?service=intercity" className="service-card dark tall">
-              <div className="service-card-top"><span className="service-icon"><CalendarClock /></span><ArrowUpRight /></div>
-              <div>
-                <span className="service-kicker">Toutes les régions</span>
-                <h2>Allô Dakar</h2>
-                <p>Réservez une place sur un départ publié.</p>
-              </div>
-            </Link>
-
-            <Link href="/ride?service=airport" className="service-card airport">
-              <div className="service-card-top"><span className="service-icon"><Plane /></span><ArrowUpRight /></div>
-              <div>
-                <span className="service-kicker">AIBD</span>
-                <h2>Taxi Aéroport</h2>
-                <p>Instantané ou réservé, avec suivi du chauffeur.</p>
-              </div>
-            </Link>
-
-            <Link href="/ride?service=carpool" className="service-card light wide">
-              <div className="service-card-top"><span className="service-icon"><UsersRound /></span><ArrowUpRight /></div>
-              <div>
-                <span className="service-kicker">Trajet partagé</span>
-                <h2>Covoiturage</h2>
-                <p>Partagez les places et le coût d’un déplacement compatible.</p>
-              </div>
-            </Link>
+          <div className="client-map-stage">
+            <ClientRouteMap pickup={pickup} destination={destination} geometry={route?.geometry} />
+            <small>{pickup ? pickup.label : "Localisation en cours…"}</small>
           </div>
 
-          <div className="safety-strip">
-            <span><CarFront /></span>
-            <div><strong>Chauffeurs vérifiés</strong><small>Identité, permis et véhicule contrôlés.</small></div>
+          <div className="home-route-panel">
+            <div className="route-rail" aria-hidden="true"><i /><span /><b /></div>
+            <div className="home-route-fields">
+              <LocationInput
+                label="Départ"
+                placeholder="Votre position ou un lieu"
+                value={pickup}
+                onChange={setPickup}
+                allowGeolocation
+                autoLocate
+              />
+              <LocationInput
+                label="Destination"
+                placeholder="Rue, pharmacie, mosquée, commerce…"
+                value={destination}
+                onChange={setDestination}
+                proximity={pickup}
+              />
+            </div>
           </div>
+
+          <div className="home-service-tabs" aria-label="Choisir un service">
+            {SERVICES.map(({ value, shortLabel, label, icon: Icon }) => (
+              <button
+                type="button"
+                key={value}
+                title={label}
+                className={preferredService === value ? "active" : ""}
+                onClick={() => selectService(value)}
+              >
+                <Icon size={17} />
+                <span>{shortLabel}</span>
+              </button>
+            ))}
+          </div>
+
+          {error ? <div className="home-route-message error">{error}</div> : null}
+          {loadingRoute ? (
+            <div className="home-route-message"><LoaderCircle className="spin" size={17} /> Calcul de l’itinéraire réel…</div>
+          ) : null}
+          {route && classification ? (
+            <div className={`route-decision ${classification.urbanEligible ? "urban" : "intercity"}`}>
+              <div>
+                <small>{classification.service === "intercity" ? "Interurbain recommandé" : "Trajet disponible"}</small>
+                <strong>{route.distanceKm} km · ~{route.durationMinutes} min</strong>
+                {!classification.urbanEligible && preferredService === "ride" ? (
+                  <p>{classification.sameRegion ? "La distance dépasse 50 km." : "La destination change de région."} Vos adresses sont conservées.</p>
+                ) : null}
+              </div>
+              <button type="button" onClick={continueRide}>
+                {classification.service === "intercity" ? "Voir les départs" : "Voir les prix"} <ArrowRight size={17} />
+              </button>
+            </div>
+          ) : null}
         </section>
       </AppShell>
     </AuthGate>

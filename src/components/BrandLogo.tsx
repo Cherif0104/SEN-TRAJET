@@ -12,26 +12,28 @@ export function BrandMark({ size = 40 }: { size?: number }) {
       aria-hidden="true"
       width={size}
       height={size}
-      viewBox="0 0 96 112"
+      viewBox="0 0 112 96"
       fill="none"
     >
       <defs>
-        <linearGradient id="sentrajet-gold" x1="12" y1="7" x2="82" y2="101" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#9A6418" />
-          <stop offset=".28" stopColor="#F5D376" />
-          <stop offset=".58" stopColor="#C58A26" />
-          <stop offset="1" stopColor="#F3C75E" />
+        <linearGradient id="sentrajet-green" x1="16" y1="6" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#0B6B65" />
+          <stop offset="1" stopColor="#034B3D" />
+        </linearGradient>
+        <linearGradient id="sentrajet-amber" x1="49" y1="12" x2="96" y2="64" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FFCE32" />
+          <stop offset="1" stopColor="#F2A900" />
         </linearGradient>
       </defs>
       <path
-        d="M48 4C24.8 4 6 22.8 6 46c0 12.7 5.6 24.1 14.6 31.8l14.3-10.4A23.4 23.4 0 0 1 24.5 48c0-13 10.5-23.5 23.5-23.5S71.5 35 71.5 48c0 3.9-1 7.6-2.6 10.8L42.8 78.1 48 108c3.9-4.6 42-49.9 42-62C90 22.8 71.2 4 48 4Z"
-        fill="url(#sentrajet-gold)"
+        d="M31 8h68L87 27H47c-8 0-12 3-12 8 0 4 3 7 10 9l25 7c16 5 23 13 23 25 0 8-3 14-8 20H13l12-20h45c6 0 9-2 9-6 0-3-3-6-9-8l-27-8C28 50 20 41 20 29c0-8 4-15 11-21Z"
+        fill="url(#sentrajet-green)"
       />
       <path
-        d="M12 79.2c22.6-17.7 47-28.3 79-32.2-26.5 12.5-45.7 28-65.3 51.6L12 79.2Z"
-        fill="#050505"
+        d="M54 8h45L87 27H67L54 8Zm16 43 25 7-14 17-30-9 19-15Z"
+        fill="url(#sentrajet-amber)"
       />
-      <path d="m27 80.6 9.5-5.8 5.1 2.7-10.2 6.7-4.4-3.6Zm17.9-10.4 10.5-4.9 4.2 2-10.7 5.5-4-2.6Zm18.9-8.3 9.2-3.1 3.1 1.2-9.4 3.6-2.9-1.7Z" fill="white" />
+      <path d="M5 53h27l-4 6H2l3-6Zm-3 12h29l-4 6H0l2-6Zm8 12h23l-4 6H7l3-6Z" fill="#F2B544" />
     </svg>
   );
 }
@@ -41,10 +43,8 @@ export function BrandLogo({ compact = false, inverse = false, className = "" }: 
     <div className={`brand-logo ${compact ? "compact" : ""} ${inverse ? "inverse" : ""} ${className}`.trim()}>
       <BrandMark size={compact ? 34 : 50} />
       <div className="brand-lockup">
-        <div className="brand-word">
-          <span>SENTRA</span><b>JET</b>
-        </div>
-        <div className="brand-premium">PREMIUM</div>
+        <div className="brand-word"><span>Sentra</span><b>Jet</b></div>
+        <div className="brand-premium">Chaque trajet, la bonne solution.</div>
       </div>
     </div>
   );

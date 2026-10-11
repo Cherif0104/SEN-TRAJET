@@ -7,28 +7,28 @@ export const RIDE_CLASSES: Record<
   eco: {
     label: "Éco",
     description: "Citadine · 4 places",
-    ratePerKm: 118,
+    ratePerKm: 218,
     minimum: 1000,
     vehicle: "Citadine"
   },
   comfort: {
     label: "Comfort",
     description: "Berline climatisée · 4 places",
-    ratePerKm: 180,
+    ratePerKm: 380,
     minimum: 1000,
     vehicle: "Berline"
   },
   comfort_plus: {
     label: "Comfort Plus",
     description: "Berline récente ou SUV · 6 places",
-    ratePerKm: 240,
+    ratePerKm: 590,
     minimum: 1500,
     vehicle: "Berline / SUV"
   },
   vip: {
     label: "VIP",
     description: "Véhicule premium · accueil dédié",
-    ratePerKm: 380,
+    ratePerKm: 1380,
     minimum: 3000,
     vehicle: "Premium"
   }

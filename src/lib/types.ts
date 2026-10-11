@@ -41,6 +41,8 @@ export type FoodDeliveryStatus =
   | "picked_up"
   | "delivered";
 export type FoodPaymentMethod = "cash" | "wave" | "orange_money" | "card";
+export type RidePaymentMethod = "cash" | "wave" | "orange_money";
+export type RidePaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export type Profile = {
   id: string;
@@ -167,6 +169,15 @@ export type RideRequest = {
   distance_km: number;
   duration_minutes: number;
   estimated_fare: number;
+  payment_method: RidePaymentMethod;
+  payment_status: RidePaymentStatus;
+  final_fare: number | null;
+  fare_breakdown: Record<string, number | string>;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  receipt_number: string | null;
+  receipt_details: Record<string, unknown>;
   scheduled_for: string | null;
   created_at: string;
 };
