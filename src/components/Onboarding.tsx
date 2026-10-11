@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 
 const slides = [
   {
-    eyebrow: "Mobilité en direct",
-    title: "Votre chauffeur, en temps réel.",
-    text: "Indiquez votre destination. SentraJet recherche et vous affecte le meilleur chauffeur disponible.",
+    eyebrow: "Le Sénégal à portée de trajet",
+    title: "Votre mobilité tout au Sénégal.",
+    text: "Courses, interurbain, aéroport et covoiturage. Tout dans une seule application.",
     image: "/media/onboarding-course.webp",
     alt: "Berline SentraJet pour les courses urbaines et interurbaines"
   },
@@ -50,12 +50,14 @@ export function Onboarding() {
 
   if (splash || loading || user) {
     return (
-      <main className="mobile-screen premium-splash">
-        <div className="splash-glow" />
-        <div className="splash-brand">
-          <BrandLogo inverse />
-          <p>EXECUTIVE CHAUFFEUR &amp; MOBILITY SERVICES</p>
-        </div>
+      <main className="mobile-screen premium-splash blueprint-splash">
+        <Image
+          src="/media/sentrajet-splash-reference.png"
+          alt="SentraJet — préparation de votre expérience"
+          fill
+          priority
+          sizes="(max-width: 520px) 100vw, 520px"
+        />
       </main>
     );
   }
@@ -66,8 +68,8 @@ export function Onboarding() {
   return (
     <main className="mobile-screen safe-top safe-bottom onboarding">
       <header className="onboarding-header">
-        <BrandLogo compact inverse />
-        <span className="secure-badge"><ShieldCheck size={15} /> Service vérifié</span>
+        <BrandLogo compact />
+        <Link href="/login">Passer</Link>
       </header>
 
       <section className="onboarding-content">
@@ -81,11 +83,6 @@ export function Onboarding() {
             sizes="(max-width: 520px) calc(100vw - 36px), 484px"
             className="onboarding-photo"
           />
-          <div className="onboarding-photo-shade" />
-          <div className="coverage-chip">
-            <MapPin size={16} color="var(--gold)" />
-            Dakar et toutes les régions du Sénégal
-          </div>
         </div>
         <p className="onboarding-eyebrow">{slide.eyebrow}</p>
         <h1>{slide.title}</h1>
@@ -107,11 +104,11 @@ export function Onboarding() {
       {last ? (
         <div className="onboarding-actions">
           <Link className="primary-button gold" href="/signup">Créer un compte</Link>
-          <Link className="secondary-button inverse" href="/login">Se connecter</Link>
+          <Link className="secondary-button" href="/login">Se connecter</Link>
         </div>
       ) : (
-        <button className="primary-button gold" type="button" onClick={() => setIndex((value) => value + 1)}>
-          Continuer <ArrowRight size={19} />
+        <button className="primary-button onboarding-next" type="button" onClick={() => setIndex((value) => value + 1)}>
+          Suivant <ArrowRight size={19} />
         </button>
       )}
     </main>

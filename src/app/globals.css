@@ -1,15 +1,15 @@
 :root {
-  --ink: #080a0d;
-  --ink-soft: #171c22;
+  --ink: #102a43;
+  --ink-soft: #173f4a;
   --panel: #ffffff;
-  --muted: #69717c;
-  --line: #e8e5df;
-  --gold: #e7b84d;
-  --gold-light: #f7dd92;
-  --gold-deep: #b97c20;
-  --green: #16a36a;
+  --muted: #627386;
+  --line: #e2e6e1;
+  --gold: #f2b544;
+  --gold-light: #ffd364;
+  --gold-deep: #c78613;
+  --green: #0b6b65;
   --danger: #e5484d;
-  --background: #f5f4f1;
+  --background: #f7f5ef;
   color-scheme: light;
 }
 
@@ -27,7 +27,7 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--ink);
-  font-family: "Manrope", "Avenir Next", "Segoe UI", Arial, sans-serif;
+  font-family: "Inter", "Avenir Next", "Segoe UI", Arial, sans-serif;
   overscroll-behavior-y: none;
   font-synthesis: none;
 }
@@ -89,10 +89,10 @@ a {
 }
 
 .brand-word {
-  color: var(--ink);
+  color: var(--green);
   font-size: 19px;
   font-weight: 950;
-  letter-spacing: 0.055em;
+  letter-spacing: -0.045em;
   line-height: 1;
 }
 
@@ -101,13 +101,13 @@ a {
 }
 
 .brand-premium {
-  color: var(--gold-deep);
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 0.48em;
-  line-height: 1;
-  text-align: center;
-  padding-left: 0.48em;
+  color: var(--ink);
+  font-size: 5.8px;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .brand-logo.compact {
@@ -119,7 +119,7 @@ a {
 }
 
 .brand-logo.compact .brand-premium {
-  font-size: 5.5px;
+  font-size: 4.5px;
 }
 
 .brand-logo.inverse .brand-word {
@@ -416,8 +416,7 @@ a {
   place-items: center;
 }
 
-.premium-splash,
-.onboarding {
+.premium-splash {
   background: var(--ink);
   color: white;
 }
@@ -427,6 +426,10 @@ a {
   display: grid;
   place-items: center;
   overflow: hidden;
+}
+
+.blueprint-splash img {
+  object-fit: cover;
 }
 
 .splash-glow {
@@ -468,6 +471,8 @@ a {
   padding-inline: 18px;
   display: flex;
   flex-direction: column;
+  background: var(--background);
+  color: var(--ink);
 }
 
 .onboarding-header {
@@ -475,6 +480,12 @@ a {
   align-items: center;
   justify-content: space-between;
   min-height: 52px;
+}
+
+.onboarding-header > a {
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 850;
 }
 
 .secure-badge {
@@ -502,13 +513,13 @@ a {
 }
 
 .onboarding-visual {
-  min-height: 300px;
+  min-height: 315px;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 32px;
-  background: var(--ink-soft);
-  box-shadow: 0 26px 70px -38px rgba(231, 184, 77, 0.48);
+  border: 0;
+  border-radius: 26px;
+  background: #eef3ea;
+  box-shadow: none;
 }
 
 .onboarding-photo {
@@ -543,7 +554,7 @@ a {
 
 .onboarding-eyebrow {
   margin: 22px 0 7px;
-  color: var(--gold);
+  color: var(--green);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.15em;
@@ -560,7 +571,7 @@ a {
 
 .onboarding-copy {
   margin: 11px 0 0;
-  color: #aeb5bd;
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.55;
 }
@@ -598,6 +609,305 @@ a {
 .onboarding-actions {
   display: grid;
   gap: 9px;
+}
+
+.onboarding-next {
+  background: var(--green);
+}
+
+.auth-blueprint {
+  background:
+    radial-gradient(circle at 100% 0, rgba(242, 181, 68, .12), transparent 30%),
+    var(--background);
+  color: var(--ink);
+}
+
+.auth-blueprint-header {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  padding-inline: 20px;
+}
+
+.auth-blueprint-header > a {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 13px;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+
+.auth-blueprint-header .brand-logo {
+  justify-self: center;
+}
+
+.auth-blueprint-body {
+  width: min(100%, 420px);
+  margin: 0 auto;
+  padding: 18px 24px 28px;
+}
+
+.auth-blueprint-heading {
+  text-align: center;
+}
+
+.auth-blueprint-heading h1 {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-size: 25px;
+  letter-spacing: -.04em;
+}
+
+.auth-blueprint-heading p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-role-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 20px;
+  border-radius: 15px;
+  background: #eef0eb;
+  padding: 4px;
+}
+
+.auth-role-switch button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.auth-role-switch button.active {
+  background: white;
+  color: var(--green);
+  box-shadow: 0 5px 15px rgba(16, 42, 67, .08);
+}
+
+.auth-blueprint-form {
+  display: grid;
+  gap: 11px;
+  margin-top: 22px;
+}
+
+.auth-input {
+  min-height: 50px;
+  border: 1px solid #d9dfd9;
+  border-radius: 13px;
+  background: white;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  color: var(--green);
+}
+
+.auth-input:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(11, 107, 101, .09);
+}
+
+.auth-input > span {
+  border-right: 1px solid var(--line);
+  padding-right: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.auth-input input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.auth-input > button {
+  width: 31px;
+  height: 31px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.auth-form-meta,
+.auth-terms {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.auth-form-meta label,
+.auth-terms {
+  cursor: pointer;
+}
+
+.auth-form-meta label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.auth-form-meta a,
+.auth-terms a,
+.auth-switch-link a {
+  color: var(--green);
+  font-weight: 850;
+}
+
+.auth-terms {
+  justify-content: flex-start;
+}
+
+.auth-submit {
+  min-height: 49px;
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #ffd04e, var(--gold));
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 13px 28px -18px rgba(199, 134, 19, .9);
+}
+
+.auth-submit:disabled {
+  opacity: .5;
+}
+
+.auth-divider {
+  height: 27px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-top: 9px;
+}
+
+.auth-divider::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--line);
+}
+
+.auth-divider span {
+  z-index: 1;
+  background: var(--background);
+  color: var(--muted);
+  padding: 0 9px;
+  font-size: 9px;
+}
+
+.google-button {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid #d7ddd8;
+  border-radius: 13px;
+  background: white;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.google-button b {
+  margin-right: 9px;
+  color: #4285f4;
+  font-size: 16px;
+}
+
+.auth-switch-link {
+  margin: 18px 0 0;
+  color: var(--muted);
+  text-align: center;
+  font-size: 10px;
+}
+
+.auth-security-note {
+  min-height: 74px;
+  margin-top: 44px;
+  border-radius: 14px;
+  background: #eef5ed;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.legal-blueprint {
+  background: var(--background);
+}
+
+.legal-blueprint-body {
+  padding: 16px 24px 28px;
+}
+
+.legal-blueprint-body h1 {
+  margin: 8px 0 25px;
+  font-size: 24px;
+  letter-spacing: -.04em;
+}
+
+.legal-blueprint-body section {
+  margin-top: 21px;
+}
+
+.legal-blueprint-body h2 {
+  margin: 0;
+  color: var(--green);
+  font-size: 12px;
+}
+
+.legal-blueprint-body p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.legal-accept {
+  min-height: 49px;
+  margin-top: 30px;
+  border-radius: 13px;
+  background: var(--green);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .location-box {
