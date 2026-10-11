@@ -66,6 +66,7 @@ export function RideFlow() {
   const [rating, setRating] = useState(0);
   const [ratingSaved, setRatingSaved] = useState(false);
   const draftRestored = useRef(false);
+  const activeRideChecked = useRef(false);
 
   useEffect(() => {
     if (draftRestored.current || searchParams.get("draft") !== "home") return;
@@ -77,6 +78,46 @@ export function RideFlow() {
     setRoute(draft.route);
     setScheduled(service === "intercity" || service === "carpool");
     setStep("class");
+  }, [searchParams, service]);
+
+  useEffect(() => {
+    if (activeRideChecked.current || searchParams.get("draft") === "home") return;
+    activeRideChecked.current = true;
+    void supabase
+      .from("ride_requests")
+      .select("*")
+      .eq("service_type", service)
+      .in("status", ["scheduled", "searching", "offered", "assigned", "driver_en_route", "driver_arrived", "passenger_on_board"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const activeRide = data as RideRequest | null;
+        if (!activeRide) return;
+        setRide(activeRide);
+        setRideClass(activeRide.ride_class);
+        setPickup({
+          id: `ride-${activeRide.id}-pickup`,
+          label: activeRide.pickup_address,
+          address: activeRide.pickup_address,
+          lat: activeRide.pickup_lat,
+          lng: activeRide.pickup_lng
+        });
+        setDestination({
+          id: `ride-${activeRide.id}-destination`,
+          label: activeRide.destination_address,
+          address: activeRide.destination_address,
+          lat: activeRide.destination_lat,
+          lng: activeRide.destination_lng
+        });
+        setRoute({
+          distanceKm: activeRide.distance_km,
+          durationMinutes: activeRide.duration_minutes
+        });
+        setScheduled(Boolean(activeRide.scheduled_for));
+        setScheduledAt(activeRide.scheduled_for ? new Date(activeRide.scheduled_for).toISOString().slice(0, 16) : "");
+        setStep(stepForRideStatus(activeRide.status));
+      });
   }, [searchParams, service]);
 
   const quote = useMemo(
@@ -512,4 +553,12 @@ function RouteLine({ label, value }: { label: string; value: string }) {
       <div><small className="muted">{label}</small><p style={{ margin: "4px 0 0", fontSize: 14, lineHeight: 1.4 }}>{value}</p></div>
     </div>
   );
+}
+
+function stepForRideStatus(status: RideRequest["status"]): Step {
+  if (status === "scheduled") return "confirmed";
+  if (status === "passenger_on_board") return "in_progress";
+  if (status === "completed") return "completed";
+  if (["assigned", "driver_en_route", "driver_arrived"].includes(status)) return "tracking";
+  return "searching";
 }
