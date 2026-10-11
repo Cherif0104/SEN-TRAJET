@@ -3913,6 +3913,170 @@ a {
   }
 }
 
+.receipt-page {
+  padding: 12px 18px 28px;
+}
+
+.receipt-header {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  text-align: center;
+}
+
+.receipt-header a {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  display: grid;
+  place-items: center;
+}
+
+.receipt-header h1 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.receipt-header > svg {
+  justify-self: end;
+  color: var(--green);
+}
+
+.receipt-card {
+  margin-top: 18px;
+  padding: 22px 18px;
+}
+
+.receipt-brand {
+  color: var(--green);
+  font-weight: 950;
+  letter-spacing: .12em;
+  margin-bottom: 26px;
+}
+
+.receipt-card h2 {
+  margin: 7px 0 2px;
+  font-size: 31px;
+}
+
+.receipt-details {
+  margin: 26px 0 0;
+  display: grid;
+  gap: 15px;
+}
+
+.receipt-details > div {
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.receipt-details dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.receipt-details dd {
+  margin: 5px 0 0;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.receipt-total {
+  margin-top: 23px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #eef8f4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--green);
+}
+
+.receipt-page > .primary-button {
+  margin-top: 14px;
+}
+
+.history-filters {
+  margin-top: 20px;
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.history-filters button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.history-filters button.active {
+  border-color: var(--green);
+  background: var(--green);
+  color: white;
+}
+
+.ride-status {
+  width: fit-content;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef3f5;
+  color: var(--muted);
+  display: block;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.ride-status-completed {
+  background: #e8f7f1;
+  color: var(--green);
+}
+
+.ride-status-cancelled,
+.ride-status-no_driver {
+  background: #fff0ef;
+  color: #a33d35;
+}
+
+.ride-status-passenger_on_board,
+.ride-status-driver_en_route,
+.ride-status-driver_arrived,
+.ride-status-assigned {
+  background: #fff6dd;
+  color: #8a6511;
+}
+
+@media print {
+  .app-header,
+  .bottom-nav,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .mobile-screen {
+    max-width: none;
+    min-height: auto;
+    padding-bottom: 0 !important;
+    box-shadow: none;
+  }
+
+  .receipt-page {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+}
+
 .vehicle-colors {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

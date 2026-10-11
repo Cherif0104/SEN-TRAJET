@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CarFront, History, Home, LogOut, Plane, UserRound } from "lucide-react";
+import { CarFront, History, Home, LogOut, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 
 const clientNav = [
   { href: "/app", label: "Accueil", icon: Home },
-  { href: "/ride?service=ride", label: "Course", icon: CarFront },
-  { href: "/ride?service=airport", label: "Aéroport", icon: Plane },
-  { href: "/history", label: "Activité", icon: History }
+  { href: "/ride?service=ride", label: "Trajets", icon: CarFront },
+  { href: "/history", label: "Activité", icon: History },
+  { href: "/profile", label: "Compte", icon: UserRound }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
