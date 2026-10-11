@@ -183,7 +183,10 @@ begin
   where driver_id = v_driver.id;
 
   update public.driver_profiles
-  set status = case when v_approved then 'approved' else 'pending' end,
+  set status = case
+        when v_approved then 'approved'::public.driver_status
+        else 'pending'::public.driver_status
+      end,
       onboarding_status = case when v_approved then 'approved' else 'submitted' end,
       automated_check_status = case when v_approved then 'verified' else 'needs_review' end,
       verification_score = v_score,
@@ -244,7 +247,10 @@ begin
     score := coalesce((verification ->> 'score')::integer, 0);
 
     update public.driver_profiles
-    set status = case when score > 98 then 'approved' else 'pending' end,
+    set status = case
+          when score > 98 then 'approved'::public.driver_status
+          else 'pending'::public.driver_status
+        end,
         onboarding_status = case when score > 98 then 'approved' else 'submitted' end,
         automated_check_status = case when score > 98 then 'verified' else 'needs_review' end,
         verification_score = score,
