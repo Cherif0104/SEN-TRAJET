@@ -48,7 +48,7 @@ export function Onboarding() {
     router.replace(profile.role === "admin" ? "/admin" : profile.role === "driver" ? "/driver" : "/app");
   }, [loading, profile, router, user]);
 
-  if (splash || loading || user) {
+  if (splash || loading || (user && profile)) {
     return (
       <main className="mobile-screen premium-splash blueprint-splash">
         <Image
