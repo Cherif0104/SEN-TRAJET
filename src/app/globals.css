@@ -3526,6 +3526,9 @@ a {
 .driver-wizard-bar > span {
   color: var(--gold);
   justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 10px;
   font-weight: 900;
 }
@@ -3719,6 +3722,17 @@ a {
   width: 39px;
   height: 39px;
   border-radius: 13px;
+}
+
+.document-list.compact .document-icon.photo {
+  overflow: hidden;
+  background: #e5e8eb;
+}
+
+.document-list.compact .document-icon.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .document-list.compact .document-tile strong {

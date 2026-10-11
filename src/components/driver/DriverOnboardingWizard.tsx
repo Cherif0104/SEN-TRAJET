@@ -79,6 +79,15 @@ type DocumentDefinition = {
   capture: "user" | "environment";
 };
 
+type StoredDraft = {
+  version: 1;
+  step: number;
+  personal: PersonalForm;
+  license: LicenseForm;
+  vehicle: VehicleForm;
+  savedAt: string;
+};
+
 const LICENSE_DOCUMENTS: DocumentDefinition[] = [
   { kind: "driver_license_front", title: "Permis · recto", hint: "Photo, nom et numéro bien visibles", icon: BadgeCheck, capture: "environment" },
   { kind: "driver_license_back", title: "Permis · verso", hint: "Catégories et dates sans reflet", icon: BadgeCheck, capture: "environment" }
@@ -167,6 +176,23 @@ async function validateImageQuality(file: File) {
   if (!valid) throw new Error("image_resolution_too_low");
 }
 
+function readDraft(userId: string): StoredDraft | null {
+  try {
+    const raw = window.localStorage.getItem(`sentrajet:driver-draft:${userId}`);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as StoredDraft;
+    if (
+      value.version !== 1
+      || !Number.isInteger(value.step)
+      || value.step < 0
+      || value.step >= STEP_LABELS.length
+    ) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export function DriverOnboardingWizard() {
   const { user, profile } = useAuth();
   const locationAttempted = useRef(false);
@@ -194,7 +220,9 @@ export function DriverOnboardingWizard() {
     seats: "4"
   });
   const [documents, setDocuments] = useState<DriverDocument[]>([]);
+  const [previews, setPreviews] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [draftReady, setDraftReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const [uploading, setUploading] = useState<DriverDocumentKind | null>(null);
@@ -277,33 +305,56 @@ export function DriverOnboardingWizard() {
           .order("created_at")
       ]);
 
+      const documentRows = (documentData as DriverDocument[] | null) ?? [];
+      const previewEntries = await Promise.all(
+        documentRows
+          .filter((document) => document.mime_type.startsWith("image/"))
+          .map(async (document) => {
+            const { data } = await supabase.storage
+              .from("sentrajet-driver-documents")
+              .createSignedUrl(document.storage_path, 3600);
+            return [document.kind, data?.signedUrl || ""] as const;
+          })
+      );
+
       if (!active) return;
-      setDriver(driverProfile);
-      setPersonal({
+      const storedDraft = readDraft(user!.id);
+      const serverPersonal: PersonalForm = {
         fullName: profile?.full_name ?? "",
         phone: profile?.phone ?? "",
         birthDate: driverProfile.birth_date ?? "",
         region: driverProfile.operating_region ?? "",
         baseLat: driverProfile.base_lat ?? null,
         baseLng: driverProfile.base_lng ?? null
-      });
-      setLicense({
+      };
+      const serverLicense: LicenseForm = {
         number: driverProfile.license_number ?? "",
         issuedAt: driverProfile.license_issued_at ?? "",
         expiresAt: driverProfile.license_expires_at ?? ""
-      });
+      };
+      setDriver(driverProfile);
+      setPersonal(storedDraft?.personal ?? serverPersonal);
+      setLicense(storedDraft?.license ?? serverLicense);
       if (vehicleData) {
         const row = vehicleData as VehicleRow;
-        setVehicle({
+        const serverVehicle: VehicleForm = {
           brand: row.brand,
           model: row.model,
           year: row.vehicle_year ? String(row.vehicle_year) : "",
           plate: row.plate,
           color: row.color ?? "",
           seats: String(row.seats)
-        });
+        };
+        setVehicle(storedDraft?.vehicle ?? serverVehicle);
+      } else if (storedDraft) {
+        setVehicle(storedDraft.vehicle);
       }
-      setDocuments((documentData as DriverDocument[] | null) ?? []);
+      setDocuments(documentRows);
+      setPreviews(Object.fromEntries(previewEntries.filter(([, url]) => Boolean(url))));
+      if (storedDraft && driverProfile.onboarding_status !== "submitted" && driverProfile.onboarding_status !== "approved") {
+        setStep(storedDraft.step);
+      }
+      setDraftReady(true);
       setLoading(false);
     }
 
@@ -318,6 +369,24 @@ export function DriverOnboardingWizard() {
     locationAttempted.current = true;
     void detectRegion(true);
   }, [loading, personal.region]);
+
+  useEffect(() => {
+    if (!user || !draftReady) return;
+    const key = `sentrajet:driver-draft:${user.id}`;
+    if (driver?.onboarding_status === "submitted" || driver?.onboarding_status === "approved") {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    const draft: StoredDraft = {
+      version: 1,
+      step,
+      personal,
+      license,
+      vehicle,
+      savedAt: new Date().toISOString()
+    };
+    window.localStorage.setItem(key, JSON.stringify(draft));
+  }, [draftReady, driver?.onboarding_status, license, personal, step, user, vehicle]);
 
   const completedDocuments = useMemo(
     () => REQUIRED_DOCUMENTS.filter(({ kind }) => documents.some((document) => document.kind === kind)).length,
@@ -414,6 +483,14 @@ export function DriverOnboardingWizard() {
       if (oldDocument) {
         await supabase.storage.from("sentrajet-driver-documents").remove([oldDocument.storage_path]);
       }
+      if (file.type.startsWith("image/")) {
+        const { data: signed } = await supabase.storage
+          .from("sentrajet-driver-documents")
+          .createSignedUrl(path, 3600);
+        if (signed?.signedUrl) {
+          setPreviews((current) => ({ ...current, [kind]: signed.signedUrl }));
+        }
+      }
       setDocuments((current) => [
         ...current.filter((document) => document.kind !== kind),
         data as DriverDocument
@@ -437,6 +514,7 @@ export function DriverOnboardingWizard() {
       await persistDetails();
       const { error: submitError } = await supabase.rpc("submit_driver_onboarding");
       if (submitError) throw submitError;
+      if (user) window.localStorage.removeItem(`sentrajet:driver-draft:${user.id}`);
       setDriver((current) =>
         current ? { ...current, onboarding_status: "submitted", submitted_at: new Date().toISOString() } : current
       );
@@ -454,14 +532,16 @@ export function DriverOnboardingWizard() {
           const document = documents.find((item) => item.kind === kind);
           return (
             <label className={`document-tile ${document ? "complete" : ""}`} key={kind}>
-              <span className="document-icon">{document ? <Check /> : <Icon />}</span>
+              <span className={`document-icon ${previews[kind] ? "photo" : ""}`}>
+                {previews[kind] ? <img src={previews[kind]} alt="" /> : document ? <Check /> : <Icon />}
+              </span>
               <span><strong>{title}</strong><small>{document?.original_name ?? hint}</small></span>
               <span className="document-action">
                 {uploading === kind ? <LoaderCircle className="spin" /> : document ? "Refaire" : <Camera />}
               </span>
               <input
                 type="file"
-                accept={kind === "profile_photo" || kind === "vehicle_photo" ? "image/jpeg,image/png,image/webp" : ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"}
+                accept="image/*"
                 capture={capture}
                 disabled={uploading !== null}
                 onChange={(event) => {
@@ -513,7 +593,7 @@ export function DriverOnboardingWizard() {
       <header className="driver-wizard-bar safe-top">
         <Link href="/driver" aria-label="Retour à l’espace chauffeur"><ArrowLeft size={20} /></Link>
         <BrandLogo compact inverse />
-        <span>{step + 1}/{STEP_LABELS.length}</span>
+        <span title="Brouillon enregistré"><Check size={12} /> {step + 1}/{STEP_LABELS.length}</span>
       </header>
       <div className="wizard-progress-track"><i style={{ width: `${progress}%` }} /></div>
 
