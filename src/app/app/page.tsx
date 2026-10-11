@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarClock, CarFront, LoaderCircle, MapPin, Navigation, Plane, UsersRound } from "lucide-react";
+import { ArrowRight, CalendarClock, CarFront, LoaderCircle, Navigation, Plane, UsersRound } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { ClientRouteMap } from "@/components/ClientRouteMap";
 import { LocationInput } from "@/components/LocationInput";
 import { saveRideDraft } from "@/lib/rideDraft";
 import type { Place, ServiceType } from "@/lib/types";
@@ -149,10 +150,8 @@ export default function ClientHomePage() {
             <span><Navigation size={14} /> Sénégal</span>
           </div>
 
-          <div className="client-map-stage" aria-hidden="true">
-            <span className="map-road road-one" />
-            <span className="map-road road-two" />
-            <span className="map-position"><i /><MapPin size={17} /></span>
+          <div className="client-map-stage">
+            <ClientRouteMap pickup={pickup} destination={destination} geometry={route?.geometry} />
             <small>{pickup ? pickup.label : "Localisation en cours…"}</small>
           </div>
 

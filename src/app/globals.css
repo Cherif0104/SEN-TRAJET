@@ -3316,6 +3316,20 @@ a {
   box-shadow: inset 0 0 0 1px rgba(8, 86, 65, .08);
 }
 
+.client-route-map {
+  position: absolute;
+  inset: 0;
+}
+
+.client-route-map .maplibregl-canvas {
+  outline: none;
+}
+
+.client-route-map .maplibregl-ctrl-bottom-left,
+.client-route-map .maplibregl-ctrl-bottom-right {
+  display: none;
+}
+
 .client-map-stage::before,
 .client-map-stage::after {
   content: "";
