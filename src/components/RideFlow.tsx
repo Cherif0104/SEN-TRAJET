@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import {
 import { LocationInput } from "@/components/LocationInput";
 import { supabase } from "@/lib/supabase";
 import { calculateFare, formatFare, RIDE_CLASSES } from "@/lib/fare";
+import { readRideDraft, saveRideDraft } from "@/lib/rideDraft";
 import type { Place, RideClass, RideRequest, ServiceType } from "@/lib/types";
 
 type Step = "route" | "class" | "review" | "searching" | "confirmed" | "tracking";
@@ -31,6 +32,7 @@ const AIBD: Place = {
 };
 
 export function RideFlow() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rawService = searchParams.get("service");
   const service: ServiceType = rawService === "airport" || rawService === "intercity" || rawService === "carpool" ? rawService : "ride";
@@ -48,6 +50,19 @@ export function RideFlow() {
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number; heading: number | null; updated_at: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const draftRestored = useRef(false);
+
+  useEffect(() => {
+    if (draftRestored.current || searchParams.get("draft") !== "home") return;
+    draftRestored.current = true;
+    const draft = readRideDraft();
+    if (!draft || draft.service !== service) return;
+    setPickup(draft.pickup);
+    setDestination(draft.destination);
+    setRoute(draft.route);
+    setScheduled(service === "intercity" || service === "carpool");
+    setStep("class");
+  }, [searchParams, service]);
 
   const quote = useMemo(
     () =>
@@ -74,7 +89,19 @@ export function RideFlow() {
       });
       const data = (await response.json()) as { distanceKm?: number; durationMinutes?: number; error?: string };
       if (!response.ok || !data.distanceKm || !data.durationMinutes) throw new Error(data.error || "Itinéraire introuvable.");
-      setRoute({ distanceKm: data.distanceKm, durationMinutes: data.durationMinutes });
+      const nextRoute = { distanceKm: data.distanceKm, durationMinutes: data.durationMinutes };
+      if (service === "ride" && nextRoute.distanceKm > 50) {
+        saveRideDraft({
+          pickup,
+          destination,
+          route: nextRoute,
+          service: "intercity",
+          savedAt: new Date().toISOString()
+        });
+        router.replace("/ride?service=intercity&draft=home");
+        return;
+      }
+      setRoute(nextRoute);
       setStep("class");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Impossible de calculer le trajet.");
@@ -117,7 +144,16 @@ export function RideFlow() {
       setRide(created as RideRequest);
       setStep(scheduled ? "confirmed" : "searching");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "La recherche n’a pas pu démarrer.");
+      const raw = reason instanceof Error
+        ? reason.message
+        : reason && typeof reason === "object" && "message" in reason
+          ? String(reason.message)
+          : "";
+      setError(
+        /urban_distance_limit_exceeded/i.test(raw)
+          ? "Cette Course dépasse 50 km. Choisissez le service Interurbain."
+          : raw || "La recherche n’a pas pu démarrer."
+      );
     } finally {
       setSubmitting(false);
     }

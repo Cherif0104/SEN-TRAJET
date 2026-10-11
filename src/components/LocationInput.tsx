@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Crosshair, LoaderCircle, MapPin, X } from "lucide-react";
 import type { Place } from "@/lib/types";
 
@@ -9,19 +9,24 @@ export function LocationInput({
   placeholder,
   value,
   onChange,
-  allowGeolocation
+  allowGeolocation,
+  autoLocate = false,
+  proximity
 }: {
   label: string;
   placeholder: string;
   value: Place | null;
   onChange: (place: Place | null) => void;
   allowGeolocation?: boolean;
+  autoLocate?: boolean;
+  proximity?: { lat: number; lng: number } | null;
 }) {
   const [query, setQuery] = useState(value?.address || "");
   const [suggestions, setSuggestions] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const autoLocateAttempted = useRef(false);
 
   useEffect(() => {
     if (value) setQuery(value.address);
@@ -35,7 +40,12 @@ export function LocationInput({
     let active = true;
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void fetch(`/api/places?q=${encodeURIComponent(query.trim())}`)
+      const parameters = new URLSearchParams({ q: query.trim() });
+      if (proximity) {
+        parameters.set("lat", String(proximity.lat));
+        parameters.set("lng", String(proximity.lng));
+      }
+      void fetch(`/api/places?${parameters.toString()}`)
         .then((response) => response.json())
         .then((data: { suggestions?: Place[] }) => {
           if (active) setSuggestions(data.suggestions || []);
@@ -51,9 +61,9 @@ export function LocationInput({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [query, value]);
+  }, [proximity, query, value]);
 
-  function locate() {
+  const locate = useCallback(() => {
     if (!navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
@@ -67,7 +77,13 @@ export function LocationInput({
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
     );
-  }
+  }, [onChange]);
+
+  useEffect(() => {
+    if (!autoLocate || value || autoLocateAttempted.current) return;
+    autoLocateAttempted.current = true;
+    locate();
+  }, [autoLocate, locate, value]);
 
   return (
     <div className="location-box" ref={box}>
