@@ -141,8 +141,26 @@ function experienceFromIssueDate(issuedAt: string) {
   return Math.max(0, Math.min(years, 60));
 }
 
+function latestAdultBirthDate() {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 18);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function isAdult(birthDate: string) {
+  return Boolean(birthDate) && birthDate <= latestAdultBirthDate();
+}
+
 function friendlyError(reason: unknown) {
-  const raw = reason instanceof Error ? reason.message : "Une erreur est survenue.";
+  const raw = reason instanceof Error
+    ? reason.message
+    : reason && typeof reason === "object" && "message" in reason
+      ? String(reason.message)
+      : "Une erreur est survenue.";
   const errors: Array<[RegExp, string]> = [
     [/invalid_full_name/i, "Renseignez vos nom et prénom tels qu’ils figurent sur vos pièces."],
     [/invalid_phone/i, "Renseignez un numéro de téléphone sénégalais valide."],
@@ -446,7 +464,6 @@ export function DriverOnboardingWizard() {
     }
 
     setUploading(kind);
-    const oldDocument = documents.find((document) => document.kind === kind);
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-100);
     const path = `${user.id}/${kind}/${crypto.randomUUID()}-${safeName}`;
 
@@ -457,11 +474,21 @@ export function DriverOnboardingWizard() {
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
 
-      if (oldDocument) {
+      // Read from the server instead of relying on React state: returning from
+      // the mobile camera can reload the page and leave that state stale.
+      const { data: existingDocument, error: existingDocumentError } = await supabase
+        .from("driver_documents")
+        .select("id, storage_path")
+        .eq("driver_id", driver.id)
+        .eq("kind", kind)
+        .maybeSingle();
+      if (existingDocumentError) throw existingDocumentError;
+
+      if (existingDocument) {
         const { error: deleteRowError } = await supabase
           .from("driver_documents")
           .delete()
-          .eq("id", oldDocument.id);
+          .eq("id", existingDocument.id);
         if (deleteRowError) throw deleteRowError;
       }
 
@@ -480,8 +507,8 @@ export function DriverOnboardingWizard() {
         .single();
       if (insertError) throw insertError;
 
-      if (oldDocument) {
-        await supabase.storage.from("sentrajet-driver-documents").remove([oldDocument.storage_path]);
+      if (existingDocument) {
+        await supabase.storage.from("sentrajet-driver-documents").remove([existingDocument.storage_path]);
       }
       if (file.type.startsWith("image/")) {
         const { data: signed } = await supabase.storage
@@ -587,6 +614,10 @@ export function DriverOnboardingWizard() {
   }
 
   const progress = ((step + 1) / STEP_LABELS.length) * 100;
+  const adultBirthDate = latestAdultBirthDate();
+  const birthDateError = personal.birthDate && !isAdult(personal.birthDate)
+    ? "Vous devez avoir au moins 18 ans pour devenir chauffeur."
+    : null;
 
   return (
     <section className="driver-wizard-v2">
@@ -630,7 +661,18 @@ export function DriverOnboardingWizard() {
               <div className="field"><label>Nom et prénom</label><input value={personal.fullName} onChange={(event) => setPersonal({ ...personal, fullName: event.target.value })} autoComplete="name" /></div>
               <div className="form-grid">
                 <div className="field"><label>Téléphone</label><input value={personal.phone} onChange={(event) => setPersonal({ ...personal, phone: event.target.value })} type="tel" autoComplete="tel" placeholder="+221 77 000 00 00" /></div>
-                <div className="field"><label>Date de naissance</label><input type="date" value={personal.birthDate} onChange={(event) => setPersonal({ ...personal, birthDate: event.target.value })} /></div>
+                <div className="field">
+                  <label>Date de naissance</label>
+                  <input
+                    type="date"
+                    max={adultBirthDate}
+                    value={personal.birthDate}
+                    aria-invalid={Boolean(birthDateError)}
+                    aria-describedby={birthDateError ? "birth-date-error" : undefined}
+                    onChange={(event) => setPersonal({ ...personal, birthDate: event.target.value })}
+                  />
+                  {birthDateError ? <small className="field-error" id="birth-date-error">{birthDateError}</small> : null}
+                </div>
               </div>
               <button type="button" className={`region-card ${personal.region ? "detected" : ""}`} onClick={() => void detectRegion()}>
                 <span>{locating ? <LoaderCircle className="spin" /> : <MapPin />}</span>
@@ -713,7 +755,7 @@ export function DriverOnboardingWizard() {
             type="button"
             disabled={
               busy || uploading !== null
-              || (step === 0 && (!personal.fullName.trim() || !personal.phone.trim() || !personal.birthDate || !personal.region || personal.baseLat === null || personal.baseLng === null))
+              || (step === 0 && (!personal.fullName.trim() || !personal.phone.trim() || !isAdult(personal.birthDate) || !personal.region || personal.baseLat === null || personal.baseLng === null))
               || (step === 1 && (!license.number.trim() || !license.issuedAt || !license.expiresAt))
               || (step === 2 && LICENSE_DOCUMENTS.some(({ kind }) => !documents.some((document) => document.kind === kind)))
               || (step === 3 && (!vehicle.brand || !vehicle.model || !vehicle.year || !vehicle.plate || !vehicle.color))
