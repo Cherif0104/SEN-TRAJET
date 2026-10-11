@@ -160,6 +160,7 @@ function friendlyError(reason: unknown) {
 
 async function validateImageQuality(file: File) {
   if (!file.type.startsWith("image/")) return;
+  if (typeof createImageBitmap !== "function") return;
   const image = await createImageBitmap(file);
   const valid = image.width >= 720 && image.height >= 480;
   image.close();
