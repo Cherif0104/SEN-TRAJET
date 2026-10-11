@@ -68,7 +68,7 @@ export function AdminDriverReview() {
     setError(null);
     const { data: drivers, error: queueError } = await supabase
       .from("driver_profiles")
-      .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, years_experience, submitted_at, rejection_reason")
+      .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, operating_region, base_lat, base_lng, years_experience, submitted_at, rejection_reason, verification_score, verification_method, verification_details, automated_verified_at")
       .eq("onboarding_status", "submitted")
       .order("submitted_at", { ascending: true });
 
@@ -227,7 +227,8 @@ export function AdminDriverReview() {
             <ReviewLine label="Validité du permis" value={`${selected.driver.license_issued_at || "—"} → ${selected.driver.license_expires_at || "—"}`} />
             <ReviewLine label="Naissance" value={selected.driver.birth_date || "Non renseignée"} />
             <ReviewLine label="Expérience" value={`${selected.driver.years_experience ?? 0} an(s)`} />
-            <ReviewLine label="Adresse" value={selected.driver.address || "Non renseignée"} />
+            <ReviewLine label="Région" value={selected.driver.operating_region || "Non renseignée"} />
+            <ReviewLine label="Score interne" value={`${selected.driver.verification_score ?? 0}/100`} />
           </div>
 
           <div className="review-section">

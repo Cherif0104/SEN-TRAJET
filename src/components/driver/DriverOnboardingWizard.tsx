@@ -297,7 +297,7 @@ export function DriverOnboardingWizard() {
       setLoading(true);
       const { data: driverData, error: driverError } = await supabase
         .from("driver_profiles")
-        .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, operating_region, base_lat, base_lng, years_experience, submitted_at, rejection_reason")
+        .select("id, user_id, status, onboarding_status, is_online, accepted_services, license_number, license_issued_at, license_expires_at, birth_date, address, operating_region, base_lat, base_lng, years_experience, submitted_at, rejection_reason, verification_score, verification_method, verification_details, automated_verified_at")
         .eq("user_id", user!.id)
         .maybeSingle();
 
@@ -541,9 +541,15 @@ export function DriverOnboardingWizard() {
       await persistDetails();
       const { error: submitError } = await supabase.rpc("submit_driver_onboarding");
       if (submitError) throw submitError;
+      const { data: verifiedDriver, error: verificationError } = await supabase
+        .from("driver_profiles")
+        .select("status, onboarding_status, submitted_at, verification_score, verification_method, verification_details, automated_verified_at")
+        .eq("id", driver?.id ?? "")
+        .single();
+      if (verificationError) throw verificationError;
       if (user) window.localStorage.removeItem(`sentrajet:driver-draft:${user.id}`);
       setDriver((current) =>
-        current ? { ...current, onboarding_status: "submitted", submitted_at: new Date().toISOString() } : current
+        current ? { ...current, ...verifiedDriver } as DriverProfile : current
       );
     } catch (reason) {
       setError(friendlyError(reason));
@@ -604,8 +610,8 @@ export function DriverOnboardingWizard() {
           <h1>{approved ? "Vous êtes prêt à conduire." : "Votre dossier a bien été transmis."}</h1>
           <p>
             {approved
-              ? "Votre véhicule et vos justificatifs ont été validés."
-              : "Les contrôles automatiques seront lancés dès le raccordement du prestataire KYC. Aucun résultat artificiel n’est affiché."}
+              ? `Le contrôle interne de complétude et de cohérence a réussi${driver.verification_score !== null ? ` avec ${driver.verification_score}/100` : ""}.`
+              : `Votre score interne est de ${driver.verification_score ?? 0}/100. Une vérification complémentaire est nécessaire.`}
           </p>
           <Link className="primary-button gold" href="/driver">Accéder à mon espace <ArrowRight size={18} /></Link>
         </div>
@@ -646,8 +652,8 @@ export function DriverOnboardingWizard() {
                 : step === 2 ? "Deux photos nettes, sans reflet ni partie coupée."
                   : step === 3 ? "La classe de service sera déterminée automatiquement."
                     : step === 4 ? "Les documents doivent correspondre au véhicule déclaré."
-                      : step === 5 ? "Votre visage sera rapproché de vos pièces par un prestataire KYC certifié."
-                        : "Aucune activation n’est automatique sans contrôle réel."}
+                      : step === 5 ? "Les fichiers et les données déclarées sont contrôlés avant l’activation."
+                        : "Un score interne supérieur à 98/100 active le compte ; sinon, le dossier reste à vérifier."}
           </p>
         </div>
 
@@ -727,7 +733,7 @@ export function DriverOnboardingWizard() {
 
           {step === 5 ? (
             <>
-              <div className="kyc-notice"><ScanFace /><div><strong>Contrôle antifraude</strong><small>Qualité des photos contrôlée maintenant. OCR, authenticité et correspondance faciale nécessitent le prestataire KYC sécurisé.</small></div></div>
+              <div className="kyc-notice"><ScanFace /><div><strong>Contrôle automatique interne</strong><small>Nous contrôlons la qualité, la présence et la cohérence technique. L’authenticité documentaire, l’OCR et la preuve de vie nécessiteront toujours un prestataire KYC certifié.</small></div></div>
               {renderDocuments(IDENTITY_DOCUMENTS)}
             </>
           ) : null}

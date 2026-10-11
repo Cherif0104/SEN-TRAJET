@@ -18,6 +18,8 @@ type DashboardDriver = {
   is_online: boolean;
   submitted_at: string | null;
   rejection_reason: string | null;
+  verification_score: number | null;
+  automated_verified_at: string | null;
 };
 
 type Offer = {
@@ -57,7 +59,7 @@ export function DriverDashboard() {
     if (!user) return;
     const { data } = await supabase
       .from("driver_profiles")
-      .select("id, status, onboarding_status, is_online, submitted_at, rejection_reason")
+      .select("id, status, onboarding_status, is_online, submitted_at, rejection_reason, verification_score, automated_verified_at")
       .eq("user_id", user.id)
       .maybeSingle();
     setDriver(data as DashboardDriver | null);
@@ -221,8 +223,8 @@ export function DriverDashboard() {
         : driver?.onboarding_status === "submitted"
           ? {
               eyebrow: "Vérification en cours",
-              title: "Votre dossier est entre de bonnes mains.",
-              text: "Notre équipe vérifie vos justificatifs. Vous serez notifié dès que votre espace sera activé.",
+              title: `Score interne : ${driver.verification_score ?? 0}/100`,
+              text: "Le seuil automatique de 99/100 n’est pas atteint. Le dossier nécessite une vérification complémentaire.",
               action: "Voir mon dossier"
             }
           : {
@@ -247,7 +249,7 @@ export function DriverDashboard() {
         <div className="status-timeline">
           <TimelineItem done title="Compte créé" text="Votre identité de connexion est sécurisée." />
           <TimelineItem done={driver?.onboarding_status !== "incomplete"} active={driver?.onboarding_status === "incomplete" || driver?.onboarding_status === "rejected"} title="Dossier professionnel" text="Identité, véhicule et justificatifs." />
-          <TimelineItem done={driver?.onboarding_status === "approved"} active={driver?.onboarding_status === "submitted"} title="Contrôle SentraJet" text="Revue humaine avant toute mise en ligne." />
+          <TimelineItem done={driver?.onboarding_status === "approved"} active={driver?.onboarding_status === "submitted"} title="Contrôle SentraJet" text={driver?.verification_score !== null && driver?.verification_score !== undefined ? `Score de complétude et cohérence : ${driver.verification_score}/100.` : "Calcul du score interne."} />
           <TimelineItem done={driver?.status === "approved"} title="Activation" text="Accès aux missions et au suivi live." />
         </div>
       </section>
