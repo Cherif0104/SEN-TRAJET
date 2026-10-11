@@ -68,6 +68,10 @@ export type DriverProfile = {
   years_experience: number | null;
   submitted_at: string | null;
   rejection_reason: string | null;
+  verification_score: number | null;
+  verification_method: string | null;
+  verification_details: Record<string, unknown>;
+  automated_verified_at: string | null;
 };
 
 export type DriverDocument = {
