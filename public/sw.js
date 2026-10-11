@@ -1,4 +1,4 @@
-const CACHE = "sentrajet-vtc-v4";
+const CACHE = "sentrajet-vtc-v5";
 const OFFLINE = "/offline";
 const APP_SHELL = [
   "/",
@@ -29,6 +29,13 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Next.js fingerprints its chunks. Never return a cached framework chunk:
+  // an old chunk can reference modules which no longer exist after a release.
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -47,16 +54,14 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
 
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((response) => {
-          if (response.ok) {
-            const cachedResponse = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, cachedResponse));
-          }
-          return response;
-        })
-    )
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const cachedResponse = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, cachedResponse));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });

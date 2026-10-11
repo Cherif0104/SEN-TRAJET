@@ -26,14 +26,18 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const serviceWorkerScript =
+    process.env.NODE_ENV === "production"
+      ? "if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}))}"
+      : "if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister())));if('caches' in window){caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('sentrajet-')).map(k=>caches.delete(k))))}}";
+
   return (
     <html lang="fr">
       <body>
         <AuthProvider>{children}</AuthProvider>
         <script
           dangerouslySetInnerHTML={{
-            __html:
-              "if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}"
+            __html: serviceWorkerScript
           }}
         />
       </body>
